@@ -24,7 +24,7 @@ class Race {
     if (M.rivals) {
       const stock = buildStatsStock();
       RIVALS.forEach((rv, i) => {
-        const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: i % 3 === 1 ? 'buzz' : i % 3 === 2 ? 'long' : 'quiff', hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
+        const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
           mods: { exhaust: ['stock', 'long', 'twin', 'dragon', 'long'][i % 5], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
         const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: stock, look: lk, rival: rv });
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;

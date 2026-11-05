@@ -39,7 +39,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - planar wet-road reflections and glow on lamps and neon (Medium and High quality);
   - the comic-book post effect: ink outlines, halftone and pop-up sound words;
   - time-of-day moods.
-- **Riders.** Skinned riders with IK posing and a verlet-cloth open shirt over a baniyan. Hair moves in the wind.
+- **Riders.** Skinned riders with IK posing and a verlet-cloth open shirt over a baniyan. The default rider has an athletic build, a sculpted brown pompadour, gold aviators, stubble, gold chains and a watch, and a tropical hibiscus shirt. Hair moves in the wind. The home screen uses studio rim lights, and the profile picture is a live portrait of your rider.
 - **Boost.** A "⚡ BOOST!" banner, an electric-blue speedometer with a BOOST bar, blue exhaust jets, neon speed lines and radial blur.
 - **Garage.** Builds, performance upgrades, 18 paints, and visual mods:
   - silencers: lambi pipe, twin upswept, or dragon mouth (fire on boost);

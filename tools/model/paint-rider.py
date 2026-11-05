@@ -66,5 +66,17 @@ m, s = shade(4); out[m] = np.array([0.93, 0.93, 0.91]) * s[m][:, None]
 m, s = shade(5); out[m] = np.array([0.30, 0.30, 0.32]) * s[m][:, None]
 Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8)).save(base_p)
 mask = np.zeros((H, W, 3), np.uint8); mask[..., 0] = (L == 1) * 255; mask[..., 1] = (L == 2) * 255
+# B = stubble: jaw, chin and upper lip (mustache a touch heavier); the game darkens it per rider
+def sst(v, a, b): t = np.clip((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t)
+w = ((L == 0) & HEADISH).astype(np.float32)
+w *= sst(y, 1.588, 1.606) * (1 - sst(y, 1.652, 1.672))          # under the chin → up the jaw to the cheek line
+w *= sst(z, -0.035, 0.0) * (1 - sst(ax_, 0.074, 0.088))           # front half of the head, short of the ears
+w *= 1 - sst(z, 0.06, 0.09) * sst(y, 1.656, 1.664)                 # clean upper cheeks
+w *= 1 - (sst(y, 1.626, 1.631) * (1 - sst(y, 1.643, 1.648)) * (1 - sst(ax_, 0.022, 0.03)) * sst(z, 0.088, 0.095))   # lips
+w *= 1 - sst(y, 1.651, 1.656) * (1 - sst(ax_, 0.018, 0.026)) * sst(z, 0.098, 0.104)   # nose
+must = sst(y, 1.644, 1.648) * (1 - sst(y, 1.656, 1.66)) * (1 - sst(ax_, 0.032, 0.042)) * sst(z, 0.085, 0.095)
+amt = (w * 0.5 + must * 0.35) * (rng.random((H, W)) * 0.5 + 0.5)
+amt = ndimage.gaussian_filter(amt, 1.6)
+mask[..., 2] = np.clip(amt * 255, 0, 255).astype(np.uint8)
 Image.fromarray(mask).save(mask_p)
 print('painted', {k: int((L == i).sum()) for i, k in enumerate(['skin', 'shirt', 'jeans', 'belt', 'shoes', 'sole', 'cuff', 'vest'])})

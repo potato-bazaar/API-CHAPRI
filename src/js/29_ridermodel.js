@@ -10,7 +10,7 @@ async function loadRiderModel() {
   try {
     const gltf = await new ADDONS.GLTFLoader().parseAsync(await decodeEmbedded('riderglb'), '');
     const sc = gltf.scene; const meshes = {}; sc.traverse(o => { if (o.isSkinnedMesh) meshes[o.name] = o; });
-    for (const n of ['body', 'body_lod', 'Eyes', 'Eyebrows', 'hair_quiff', 'hair_long', 'hair_buzz', 'beard', 'shirt', 'shirt_lod']) if (!meshes[n]) throw new Error('missing ' + n);
+    for (const n of ['body', 'body_lod', 'Eyes', 'Eyebrows', 'hair_quiff', 'hair_long', 'hair_buzz', 'hair_pomp', 'beard', 'shirt', 'shirt_lod']) if (!meshes[n]) throw new Error('missing ' + n);
     const bm = meshes.body.material; RIDER_MODEL.base = bm.map; RIDER_MODEL.mask = bm.aoMap; RIDER_MODEL.hairTex = meshes.hair_quiff.material.map;
     RIDER_MODEL.eyesMat = meshes.Eyes.material; RIDER_MODEL.scene = sc; RIDER_MODEL.ready = true;
     return true;
@@ -22,12 +22,13 @@ const RIDER_HOOK = `#include <map_fragment>
   float rG = sampledDiffuseColor.g / 0.2140;
   vec3 rShirt = texture2D(riderShirt, vMapUv * 3.2).rgb;
   diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * rG, rM.r);
-  diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);`;
-function riderBodyMat(shirtTex, jeans, low) {
-  const key = shirtTex.uuid + '|' + jeans + '|' + (low ? 1 : 0); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
-  const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.85, metalness: 0 });
-  const U = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);
+  diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;`;
+function riderBodyMat(shirtTex, jeans, low, stubble) {
+  const key = shirtTex.uuid + '|' + jeans + '|' + (low ? 1 : 0) + (stubble ? 's' : ''); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
+  const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
+  const U = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } };
+  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
   m.customProgramCacheKey = () => low ? 'rider-l' : 'rider-s';
   RIDER_MODEL.mats.set(key, m); return m;
 }
@@ -44,8 +45,8 @@ function flutterMat(base, U, key) { // base: a fresh material; U: this rider's {
 }
 function riderShellMat(shirtTex, jeans, low, U) {
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.8, metalness: 0 });
-  const FU = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, FU); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  const FU = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: 0 } };
+  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, FU); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
   m.side = THREE.DoubleSide;
   return flutterMat(m, U, low ? 'shell-l' : 'shell-s');
 }
@@ -53,6 +54,12 @@ function riderHairFlutterMat(color, low, U) {
   const c = new THREE.Color(color).multiplyScalar(1.6);
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.hairTex, color: c }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.hairTex, color: c, roughness: 0.6 });
   m.side = THREE.DoubleSide; return flutterMat(m, U, low ? 'hair-l' : 'hair-s');
+}
+// the pompadour: sculpted strands in a streak texture, a satin sheen (pomade) and a little lift in the wind
+function riderPompMat(color, low, U) {
+  const c = new THREE.Color(color).multiplyScalar(1.55);
+  const m = low ? new THREE.MeshLambertMaterial({ map: TEX.hairPomp, color: c }) : new THREE.MeshStandardMaterial({ map: TEX.hairPomp, color: c, roughness: 0.38, metalness: 0.08, envMap: BIKE_MODEL.env || null, envMapIntensity: 0.35 });
+  return flutterMat(m, U, low ? 'pomp-l' : 'pomp-s');
 }
 function riderHairMat(color, low) {
   const key = color + (low ? 'l' : 's'); if (RIDER_MODEL.hairMats.has(key)) return RIDER_MODEL.hairMats.get(key);
@@ -94,15 +101,15 @@ class RiderModel {
     const R = RIDER_MODEL, low = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low';
     this.root = ADDONS.SkeletonUtils.clone(R.scene); this.root.scale.setScalar(RIDER_FIT.scale);
     const meshes = {}; this.root.traverse(n => { if (n.isSkinnedMesh) meshes[n.name] = n; });
-    const hair = o.helmet ? (o.hair === 'long' ? 'hair_long' : null) : o.hair === 'buzz' ? 'hair_buzz' : o.hair === 'long' ? 'hair_long' : 'hair_quiff';
+    const hair = o.helmet ? (o.hair === 'long' ? 'hair_long' : null) : o.hair === 'buzz' ? 'hair_buzz' : o.hair === 'long' ? 'hair_long' : o.hair === 'pomp' ? 'hair_pomp' : 'hair_quiff';
     const keep = new Set([o.lod ? 'body_lod' : 'body', o.lod ? 'shirt_lod' : 'shirt', 'Eyes', 'Eyebrows', hair, o.beard ? 'beard' : null]);
     this.U = { uWind: { value: 0 }, uTime: { value: 0 } }; this.ownMats = [];
     for (const [n, m] of Object.entries(meshes)) { if (!keep.has(n)) { m.parent.remove(m); continue; } m.castShadow = cast; m.frustumCulled = false; }
     const shirtKey = o.shirt + (o.flowers ? 'f' : o.check ? 'c' : 'p');
     if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, o.flowers ? 'flowers' : o.check ? 'check' : 'plain');
-    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low);
+    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble);
     { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U); meshes[o.lod ? 'shirt_lod' : 'shirt'].material = sm; this.ownMats.push(sm); }
-    if (hair) { const hm = riderHairFlutterMat(o.hairColor || HAIR_DYES[0], low, this.U); meshes[hair].material = hm; this.ownMats.push(hm); }
+    if (hair) { const hm = hair === 'hair_pomp' ? riderPompMat(o.hairColor || '#5a3320', low, this.U) : riderHairFlutterMat(o.hairColor || HAIR_DYES[0], low, this.U); meshes[hair].material = hm; this.ownMats.push(hm); }
     if (o.beard) meshes.beard.material = riderHairMat('#1a120d', low);
     meshes.Eyebrows.material = riderHairMat('#140d09', low);
     if (low) meshes.Eyes.material = R.eyesLow || (R.eyesLow = new THREE.MeshLambertMaterial({ map: R.eyesMat.map }));
@@ -137,7 +144,8 @@ class RiderModel {
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;
-    if (acc.head) holder('Head').add(acc.head); if (acc.neck) holder('neck_01').add(acc.neck);
+    if (acc.head) holder('Head').add(acc.head); if (acc.neck) holder('neck_01').add(acc.neck); if (acc.chest) holder('spine_03').add(acc.chest); if (acc.wrist) holder('lowerarm_l').add(acc.wrist);
+    for (const k of ['head', 'chest', 'wrist']) if (acc[k]) acc[k].traverse(m => { if (m.isMesh) m.castShadow = cast; });
     this.hands = { l: new THREE.Vector3(), r: new THREE.Vector3() }; this.elbows = { l: new THREE.Vector3(), r: new THREE.Vector3() };
   }
   // pose from the rig's logical state: tuck/roll/twist (torsoG), head (headG), leg kicks, hand targets in bike space
@@ -210,13 +218,57 @@ class RiderModel {
   dispose() { this.cloth.dispose(); this.geoms.forEach(g => g.dispose()); this.ownMats.forEach(m => m.dispose()); this.root.traverse(n => { if (n.isSkinnedMesh && n.skeleton) n.skeleton.dispose(); }); }
 }
 // helmet / shades / gold chain in head- and neck-relative space (+y up, +z forward, metres)
+// shades, gold chains and a watch: built from curves and lathes so they read as jewellery up close
+const ACC = { mats: null };
+function accMats() {
+  if (ACC.mats) return ACC.mats; const env = BIKE_MODEL.env || null;
+  ACC.mats = { gold: new THREE.MeshStandardMaterial({ color: '#e7b53c', metalness: 1, roughness: 0.22, envMap: env, envMapIntensity: 1.6 }),
+    lens: new THREE.MeshStandardMaterial({ color: '#141a24', metalness: 0.9, roughness: 0.04, envMap: env, envMapIntensity: 2.2 }),
+    dial: new THREE.MeshStandardMaterial({ color: '#0e1830', metalness: 0.4, roughness: 0.15, envMap: env }),
+    frames: new Map(), frame(c) { if (!this.frames.has(c)) this.frames.set(c, new THREE.MeshStandardMaterial({ color: c, metalness: 1, roughness: 0.25, envMap: env, envMapIntensity: 1.4, side: THREE.DoubleSide })); return this.frames.get(c); } };
+  ACC.mats.lens.side = THREE.DoubleSide; ACC.mats.gold.side = THREE.DoubleSide;
+  return ACC.mats;
+}
+const ACC_GEO = {};
+function aviatorGeo() {
+  if (ACC_GEO.av) return ACC_GEO.av;
+  // classic teardrop lens (right lens, in the face plane; x outward): flat-ish top, deep drop toward the outer-bottom
+  const pts = []; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; const c = Math.cos(a), s = Math.sin(a);
+    const x = 0.027 * c + 0.004 * (s < 0 ? c * -s : 0), y = (s > 0 ? 0.0165 * Math.pow(s, 0.55) : 0.023 * s * (1 + 0.25 * c)); pts.push(new THREE.Vector2(x, y)); }
+  const shape = new THREE.Shape(pts); const lens = new THREE.ShapeGeometry(shape, 12);
+  const rim = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, p.y, 0.0015)), true), 48, 0.0019, 5, true);
+  ACC_GEO.av = { lens, rim }; return ACC_GEO.av;
+}
 function riderAccessories(o) {
   const out = { geoms: [] }; const M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), S = new THREE.Vector3();
   const hb = new Batch(); let any = false;
   const put = (b, g, x, y, z, c, sx = 1, sy = 1, sz = 1, rx = 0) => { M.compose(P.set(x, y, z), Q.setFromEuler(new THREE.Euler(rx, 0, 0)), S.set(sx, sy, sz)); b.add(g, M, new THREE.Color(c)); };
   if (o.helmet) { any = true; put(hb, new THREE.SphereGeometry(0.135, 16, 10), 0, 0.115, -0.005, o.helmet, 1, 1.02, 1.12); put(hb, new THREE.SphereGeometry(0.125, 12, 6, -1.0, 2.0, 1.15, 0.75), 0, 0.105, 0.03, '#1a2030', 1.06, 1, 1.12); }
-  if (o.shades && !o.helmet) { any = true; put(hb, new THREE.BoxGeometry(0.155, 0.03, 0.012), 0, 0.1, 0.103, o.shades); put(hb, new THREE.BoxGeometry(0.06, 0.034, 0.01), 0.033, 0.098, 0.11, '#0d1116'); put(hb, new THREE.BoxGeometry(0.06, 0.034, 0.01), -0.033, 0.098, 0.11, '#0d1116'); }
+  const aviator = o.shades && !o.helmet && o.shadesStyle === 'aviator';
+  if (o.shades && !o.helmet && !aviator) { any = true; put(hb, new THREE.BoxGeometry(0.155, 0.03, 0.012), 0, 0.1, 0.103, o.shades); put(hb, new THREE.BoxGeometry(0.06, 0.034, 0.01), 0.033, 0.098, 0.11, '#0d1116'); put(hb, new THREE.BoxGeometry(0.06, 0.034, 0.01), -0.033, 0.098, 0.11, '#0d1116'); }
   if (any) { const g = hb.build(); out.geoms.push(g); out.head = new THREE.Mesh(g, BIKE_MAT); }
-  if (o.goldChain) { const nb = new Batch(); const t = new THREE.TorusGeometry(0.07, 0.007, 5, 22); put(nb, t, 0, -0.04, 0.035, '#e0b030', 1, 1, 1.15, Math.PI / 2 - 0.55); const g = nb.build(); out.geoms.push(g); out.neck = new THREE.Mesh(g, BIKE_MAT); }
+  if (aviator) { // two wrapped teardrop lenses in thin metal frames, a double bridge and arms back to the ears
+    const A = accMats(), G = aviatorGeo(), fr = (o.shades || '#d4a62a') === '#d4a62a' ? A.gold : A.frame(o.shades); const g = new THREE.Group(); g.position.set(0, 0.112, 0.118);
+    for (const sx of [-1, 1]) { const side = new THREE.Group(); side.position.set(sx * 0.033, 0, -0.004 * 0); side.rotation.y = sx * 0.2; side.scale.x = sx;
+      const lens = new THREE.Mesh(G.lens, A.lens); lens.position.z = 0.001; side.add(lens, new THREE.Mesh(G.rim, fr)); g.add(side);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.13, 5).rotateX(Math.PI / 2), fr); arm.position.set(sx * 0.071, 0.009, -0.06); arm.rotation.y = -sx * 0.13; g.add(arm); out.geoms.push(arm.geometry); }
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.03, 5).rotateZ(Math.PI / 2), fr); bar.position.set(0, 0.0125, 0.003); g.add(bar);
+    const nose = new THREE.Mesh(new THREE.TorusGeometry(0.008, 0.0016, 4, 10, Math.PI), fr); nose.position.set(0, 0.003, 0.004); g.add(nose); out.geoms.push(bar.geometry, nose.geometry);
+    if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g;
+  }
+  if (o.goldChain) { // a heavy curb chain on the collarbones with a thin one and a pendant below it (chest holder: spine_03 at y 1.311)
+    const A = accMats(), cy = 1.311, cz = 0.007, path = (dy, dz, w) => new THREE.CatmullRomCurve3([[0, 1.535 - dy * 0.3, -0.098], [w * 0.62, 1.525 - dy * 0.4, -0.07], [w, 1.49 - dy * 0.6, 0.01], [w * 0.78, 1.45 - dy, 0.075 + dz], [w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [0, 1.4 - dy * 1.25, 0.117 + dz], [-w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [-w * 0.78, 1.45 - dy, 0.075 + dz], [-w, 1.49 - dy * 0.6, 0.01], [-w * 0.62, 1.525 - dy * 0.4, -0.07]].map(([x, y, z]) => new THREE.Vector3(x, y - cy, z - cz)), true);
+    const g = new THREE.Group();
+    const thick = new THREE.Mesh(new THREE.TubeGeometry(path(0, 0.004, 0.085), 90, 0.0058, 6, true), A.gold);
+    const thin = new THREE.Mesh(new THREE.TubeGeometry(path(0.045, 0.006, 0.092), 90, 0.0027, 5, true), A.gold);
+    const pend = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.004, 18).rotateX(Math.PI / 2), A.gold); pend.position.set(0, 1.335 - cy, 0.125 - cz);
+    g.add(thick, thin, pend); out.geoms.push(thick.geometry, thin.geometry, pend.geometry); out.chest = g;
+  }
+  if (o.watch) { // gold watch on the left wrist (lowerarm_l holder: +x runs down the forearm in the T-pose)
+    const A = accMats(), g = new THREE.Group(); g.position.set(0.225, 0, 0);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.0065, 6, 20).rotateY(Math.PI / 2), A.gold); band.scale.set(1, 0.9, 1);
+    const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 18), A.dial); dial.position.set(0, 0.031, 0); const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0028, 5, 18).rotateX(Math.PI / 2), A.gold); bezel.position.set(0, 0.035, 0);
+    g.add(band, dial, bezel); out.geoms.push(band.geometry, dial.geometry, bezel.geometry); out.wrist = g;
+  }
   return out;
 }

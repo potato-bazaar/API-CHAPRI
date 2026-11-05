@@ -92,6 +92,9 @@ const COSMETICS = {
     { id: 'white', name: 'White helmet + visor', cost: 0, color: '#eeeeee' },
   ],
   hair: [
+    { id: 'pomp-brown', name: 'Pompadour (brown)', cost: 0, style: 'pomp', color: '#7a4628' },
+    { id: 'pomp-black', name: 'Pompadour (black)', cost: 0, style: 'pomp', color: '#1c140f' },
+    { id: 'pomp-copper', name: 'Copper Pompadour', cost: 400, style: 'pomp', color: '#a8521c' },
     { id: 'quiff-copper', name: 'Copper Quiff', cost: 0, style: 'quiff', color: '#c8641e' },
     { id: 'long-black', name: 'Long Hair (black)', cost: 0, style: 'long', color: '#1a120d' },
     { id: 'long-gold', name: 'Long Hair (golden)', cost: 500, style: 'long', color: '#e0b030' },
@@ -100,8 +103,9 @@ const COSMETICS = {
     { id: 'buzz', name: 'Buzz Cut', cost: 0, style: 'buzz', color: '#1a120d' },
   ],
   shades: [
+    { id: 'gold', name: 'Gold aviators', cost: 0, color: '#d4a62a', style: 'aviator' },
+    { id: 'black-av', name: 'Black aviators', cost: 300, color: '#2a2a2e', style: 'aviator' },
     { id: 'white', name: 'White frames', cost: 0, color: '#ffffff' },
-    { id: 'gold', name: 'Gold aviators', cost: 300, color: '#d4a62a' },
     { id: 'none', name: 'No shades', cost: 0 },
   ],
 };
@@ -168,7 +172,7 @@ function defaultSave() {
     name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
-    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'white', hair: 'quiff-copper' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true },
+    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true },
     setup: { mode: 'quick', track: 'mumbai-central', laps: 3, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},
@@ -181,7 +185,7 @@ let SAVE = defaultSave();
 function loadSave() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
+    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
   } catch (e) { /* storage blocked: play with defaults */ }
   if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
 }

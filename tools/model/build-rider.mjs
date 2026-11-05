@@ -26,10 +26,10 @@ for (const { p } of prims) for (const s of p.listSemantics()) if (!['POSITION', 
 // ── 1. slimming ──
 const CHILD = { pelvis: 'spine_01', spine_01: 'spine_02', spine_02: 'spine_03', spine_03: 'neck_01', neck_01: 'Head', clavicle_l: 'upperarm_l', upperarm_l: 'lowerarm_l', lowerarm_l: 'hand_l', hand_l: 'middle_01_l', thigh_l: 'calf_l', calf_l: 'foot_l', foot_l: 'ball_l', ball_l: 'ball_leaf_l' };
 for (const [k, v] of Object.entries(CHILD)) if (k.endsWith('_l')) CHILD[k.replace(/_l$/, '_r')] = v.replace(/_l$/, '_r');
-const K = { // [kx, ky, kz] applied to the offset from the bone line
-  pelvis: [0.86, 1, 0.84], spine_01: [0.8, 1, 0.8], spine_02: [0.76, 1, 0.72], spine_03: [0.78, 1, 0.74], neck_01: [0.8, 1, 0.8],
-  clavicle: [0.8, 0.78, 0.78], upperarm: [0.64, 0.64, 0.64], lowerarm: [0.72, 0.72, 0.72], hand: [0.9, 0.9, 0.9],
-  thigh: [0.68, 0.68, 0.68], calf: [0.72, 0.72, 0.72], foot: [0.94, 0.94, 0.94], ball: [0.96, 0.96, 0.96],
+const K = { // [kx, ky, kz] applied to the offset from the bone line: fit and athletic (broad chest and shoulders, slim waist)
+  pelvis: [0.88, 1, 0.86], spine_01: [0.84, 1, 0.8], spine_02: [0.9, 1, 0.84], spine_03: [0.97, 1, 0.9], neck_01: [0.9, 1, 0.9],
+  clavicle: [0.97, 0.92, 0.92], upperarm: [0.82, 0.82, 0.82], lowerarm: [0.84, 0.84, 0.84], hand: [0.92, 0.92, 0.92],
+  thigh: [0.78, 0.78, 0.78], calf: [0.8, 0.8, 0.8], foot: [0.94, 0.94, 0.94], ball: [0.96, 0.96, 0.96],
 };
 const kOf = (n) => K[n] || K[n.replace(/_[lr]$/, '')] || null;
 const seg = J.map((j, i) => { const c = CHILD[JN[i]]; return c ? [jpos[i], jpos[ji(c)]] : [jpos[i], jpos[i]]; });
@@ -48,9 +48,9 @@ function slim(prim) {
 }
 slim(bodyP);
 if (process.env.MEASURE) { const P = bodyP.getAttribute('POSITION').getArray(); const pts = []; for (let i = 0; i < P.length; i += 3) pts.push([P[i], P[i + 1], P[i + 2]]);
-  for (const y of [1.46, 1.42, 1.38, 1.3, 1.2, 1.1, 1.0, 0.95]) { const sl = pts.filter(p => Math.abs(p[1] - y) < 0.012 && Math.abs(p[0]) < 0.3);
-    const back = Math.min(...sl.filter(p => Math.abs(p[0]) < 0.03).map(p => p[2])), front = Math.max(...sl.filter(p => Math.abs(p[0]) < 0.03).map(p => p[2]));
-    const side = Math.max(...sl.filter(p => Math.abs(p[2]) < 0.05 && Math.abs(p[0]) < 0.25).map(p => Math.abs(p[0])));
+  for (const y of [1.46, 1.42, 1.4, 1.38, 1.34, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 0.95, 0.93]) { const sl = pts.filter(p => Math.abs(p[1] - y) < 0.02 && Math.abs(p[0]) < 0.3);
+    const ctr = sl.filter(p => Math.abs(p[0]) < 0.045); const back = Math.min(...ctr.map(p => p[2])), front = Math.max(...ctr.map(p => p[2]));
+    const mid = (back + front) / 2; const side = Math.max(...sl.filter(p => Math.abs(p[2] - mid) < 0.05 && Math.abs(p[0]) < (y > 1.36 ? 0.2 : 0.24)).map(p => Math.abs(p[0])));
     console.log('y', y, 'back z', back.toFixed(3), 'front z', front.toFixed(3), 'side x', side.toFixed(3)); }
   process.exit(0); }
 
@@ -120,6 +120,38 @@ for (const [file, name, puff] of [['Hair_SimpleParted.glb', 'hair_quiff', 1], ['
   }
   const node = doc.createNode(name).setMesh(doc.createMesh(name).addPrimitive(np)).setSkin(skin); armature.addChild(node);
 }
+// ── 3b. the pompadour: a sculpted shell over the scalp, tall and swept back at the front, faded short on the sides.
+//        Parametric on an ellipsoid fitted to the scalp: theta from the crown down to the hairline, phi around (0 = face).
+{ const C = [0, 1.705, -0.006], RX = 0.082, RY = 0.108, RZ = 0.104, NP = 84, NT = 30, HEAD = ji('Head');
+  const sst = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
+  const hairline = (ph) => { const f = Math.abs(ph) / Math.PI; return f < 0.5 ? 0.98 + (1.62 - 0.98) * sst(f / 0.5) : 1.62 + (2.18 - 1.62) * sst((f - 0.5) / 0.5); };
+  const pos = [], uv = [], fl = [], idx = []; const ring = [];
+  const surf = (ph, t, extra) => { const tm = hairline(ph), u = t * tm; const dx = Math.sin(u) * Math.sin(ph), dy = Math.cos(u), dz = Math.sin(u) * Math.cos(ph);
+    const front = sst((Math.cos(ph) + 0.25) / 1.25), side = Math.abs(Math.sin(ph)) * sst((t - 0.55) / 0.3);
+    const crest = Math.exp(-((t - 0.55) ** 2) / 0.11);                                   // the roll peaks a little behind the hairline
+    let h = 0.007 + 0.046 * front ** 1.4 * crest + 0.018 * (1 - Math.abs(Math.cos(ph)) * 0.5) * sst(1 - t / 0.7) * (1 - front * 0.6) - 0.004 * side;
+    h += (0.0045 * Math.sin(ph * 19 + Math.sin(ph * 5) * 1.8) + 0.002 * Math.sin(ph * 41 + 1.3)) * sst(1 - t) * (0.35 + front);   // sculpted strand clumps running back
+    h += extra;
+    const x = C[0] + (RX + h) * dx, y = C[1] + (RY + h) * dy + 0.016 * front * crest, z = C[2] + (RZ + h) * dz + 0.014 * front ** 2 * crest * (0.6 + 0.4 * t);
+    return [x, y, z, front * crest]; };
+  for (let j = 0; j <= NT; j++) for (let i = 0; i <= NP; i++) { const ph = -Math.PI + 2 * Math.PI * i / NP, t = j / NT; const [x, y, z, fc] = surf(ph, t, 0);
+    pos.push(x, y, z); uv.push(i / NP * 6, t); fl.push(0.35 * fc); }
+  for (let j = 0; j < NT; j++) for (let i = 0; i < NP; i++) { const a = j * (NP + 1) + i, b = a + NP + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  // the hairline edge folds back down onto the scalp (the front of the quiff is this wall)
+  const base = pos.length / 3; for (let i = 0; i <= NP; i++) { const ph = -Math.PI + 2 * Math.PI * i / NP; const tm = hairline(ph), u = tm; const dx = Math.sin(u) * Math.sin(ph), dy = Math.cos(u), dz = Math.sin(u) * Math.cos(ph);
+    pos.push(C[0] + (RX - 0.004) * dx, C[1] + (RY - 0.004) * dy, C[2] + (RZ - 0.004) * dz); uv.push(i / NP * 6, 1.05); fl.push(0); }
+  for (let i = 0; i < NP; i++) { const a = NT * (NP + 1) + i, b = base + i; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  // smooth normals
+  const nor = new Float32Array(pos.length); for (let k = 0; k < idx.length; k += 3) { const [a, b, c] = [idx[k] * 3, idx[k + 1] * 3, idx[k + 2] * 3];
+    const e1 = [pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]], e2 = [pos[c] - pos[a], pos[c + 1] - pos[a + 1], pos[c + 2] - pos[a + 2]];
+    const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]; for (const v of [a, b, c]) { nor[v] += n[0]; nor[v + 1] += n[1]; nor[v + 2] += n[2]; } }
+  for (let v = 0; v < nor.length; v += 3) { const L = Math.hypot(nor[v], nor[v + 1], nor[v + 2]) || 1; nor[v] /= L; nor[v + 1] /= L; nor[v + 2] /= L; }
+  const nv = pos.length / 3, JO = new Uint16Array(nv * 4), WE = new Float32Array(nv * 4); for (let v = 0; v < nv; v++) { JO[v * 4] = HEAD; WE[v * 4] = 1; }
+  const acc = (type, arr) => doc.createAccessor().setType(type).setArray(arr).setBuffer(buffer);
+  const pp = doc.createPrimitive().setMaterial(hairMat).setAttribute('POSITION', acc('VEC3', new Float32Array(pos))).setAttribute('NORMAL', acc('VEC3', nor)).setAttribute('TEXCOORD_0', acc('VEC2', new Float32Array(uv)))
+    .setAttribute('JOINTS_0', acc('VEC4', JO)).setAttribute('WEIGHTS_0', acc('VEC4', WE)).setAttribute('_FLUTTER', acc('SCALAR', new Float32Array(fl))).setIndices(acc('SCALAR', new Uint32Array(idx)));
+  armature.addChild(doc.createNode('hair_pomp').setMesh(doc.createMesh('hair_pomp').addPrimitive(pp)).setSkin(skin));
+  console.log('pompadour', idx.length / 3, 'tris'); }
 armature.addChild(doc.createNode('shirt').setMesh(doc.createMesh('shirt').addPrimitive(shellP)).setSkin(skin));
 const shellLod = shellP.clone(); armature.addChild(doc.createNode('shirt_lod').setMesh(doc.createMesh('shirt_lod').addPrimitive(shellLod)).setSkin(skin));
 { const brows = root.listNodes().find(n => n.getName() === 'Eyebrows'); brows.getMesh().listPrimitives()[0].setMaterial(hairMat.clone().setName('MI_Brows')); }
@@ -142,7 +174,7 @@ await doc.transform(
 // small textures for eyes / brows+hair, lossless mask
 for (const t of root.listTextures()) {
   const nm = t.getName(); let img = sharp(Buffer.from(t.getImage()));
-  if (nm === 'T_Rider_Mask') { t.setImage(await img.resize(512, 512, { kernel: 'nearest' }).webp({ lossless: true }).toBuffer()).setMimeType('image/webp'); }
+  if (nm === 'T_Rider_Mask') { t.setImage(await img.resize(1024, 1024, { kernel: 'nearest' }).webp({ lossless: true }).toBuffer()).setMimeType('image/webp'); }
   else if (/Eye|Hair/.test(nm)) { t.setImage(await img.resize(128, 128).webp({ quality: 85 }).toBuffer()).setMimeType('image/webp'); }
 }
 if (!root.listExtensionsUsed().some(e => e.extensionName === 'EXT_texture_webp')) { const { EXTTextureWebP } = await import('@gltf-transform/extensions'); doc.createExtension(EXTTextureWebP).setRequired(true); }

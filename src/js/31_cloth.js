@@ -4,7 +4,7 @@
 // Simulated in bike-body space (the frame the rider sits in). Under it: a white baniyan painted on the body.
 const SHIRT_DIM = { hi: { back: [8, 8], front: [5, 7] }, lo: { back: [5, 5], front: [3, 5] } };
 // torso cross-section of the slimmed body (bind space): half-width, front z, back z by height
-const TORSO = [[0.93, 0.15, 0.068, -0.1], [1.0, 0.135, 0.072, -0.085], [1.1, 0.12, 0.085, -0.08], [1.2, 0.11, 0.09, -0.085], [1.3, 0.135, 0.094, -0.1], [1.4, 0.165, 0.092, -0.125]];
+const TORSO = [[0.93, 0.16, 0.072, -0.105], [1.0, 0.146, 0.076, -0.1], [1.1, 0.133, 0.089, -0.086], [1.2, 0.124, 0.096, -0.088], [1.3, 0.166, 0.113, -0.118], [1.4, 0.196, 0.11, -0.146]];   // fit build (tools/model/build-rider.mjs MEASURE=1)
 function torsoAt(y) { let i = 0; while (i < TORSO.length - 2 && y > TORSO[i + 1][0]) i++; const a = TORSO[i], b = TORSO[i + 1], t = clamp((y - a[0]) / (b[0] - a[0]), 0, 1);
   return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)]; }
 const CLOTH_BONES = ['pelvis', 'spine_01', 'spine_02', 'spine_03'];
@@ -22,7 +22,7 @@ class ShirtCloth {
     ];
     for (const p of this.panels) { p.mesh.castShadow = cast; p.mesh.frustumCulled = false; rig.body.add(p.mesh); }
     this.D = CLOTH_BONES.map(() => new THREE.Matrix4()); this.sc = 1; this.off = new THREE.Vector3();
-    this.spheres = [[0, 1.0, -0.01, 0.14, 0], [0, 1.12, -0.005, 0.13, 1], [0, 1.24, 0, 0.125, 2], [0, 1.36, -0.015, 0.145, 3]];
+    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136, 2], [0, 1.36, -0.018, 0.168, 3]];
     this.sw = this.spheres.map(() => [new THREE.Vector3(), 0]); this._v = new THREE.Vector3(); this.g = new THREE.Vector3(); this._q = new THREE.Quaternion();
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)

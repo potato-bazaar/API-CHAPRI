@@ -6,6 +6,10 @@ const STAT_ICONS = {
   brake: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke-width="2.4"/><path d="M12 5v7l5 3" fill="none" stroke-width="2.4"/></svg>',
 };
 const coinI = '<i class="ico-coin"></i>';
+const DAILY_ICON = {
+  races: '<svg viewBox="0 0 24 24"><path d="M4 21V3M4 4h13l-2.5 4L17 12H4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 4h3v3H6zM12 4h3v3h-3zM9 7h3v3H9zM6 10h3v2H6zM12 10h3v2h-3z" fill="currentColor"/></svg>',
+  wheelies: '<svg viewBox="0 0 24 24"><circle cx="5" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="11" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 17l5-6h5l3 0M10 11l-1-3h3M13 11l2-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+  knockdowns: '<svg viewBox="0 0 24 24"><path d="M12 2l2 6 6-3-3 6 5 2-6 2 2 6-6-4-6 4 2-6-6-2 5-2-3-6 6 3z" fill="currentColor"/></svg>' };
 
 class UI {
   constructor(game) {
@@ -69,7 +73,7 @@ class UI {
     // daily challenges
     const d = SAVE.daily; let html = ''; let allDone = true;
     for (const c of DAILY) { const p = Math.min(c.goal, d.prog[c.id] || 0); const done = p >= c.goal; if (!d.claimed[c.id]) allDone = false;
-      html += `<li class="${done ? 'done' : ''}"><span class="chk"></span><span>${c.label}</span><span class="prog">${p}/${c.goal}</span>${done && !d.claimed[c.id] ? `<button class="claim" data-claim="${c.id}" type="button">CLAIM ${c.reward}</button>` : `<span class="rw">${d.claimed[c.id] ? '✓' : ''}${coinI}${c.reward}</span>`}</li>`; }
+      html += `<li class="${done ? 'done' : ''}"><span class="chk">${DAILY_ICON[c.id] || ''}</span><span class="lbl">${c.label}<i class="dbar"><b style="width:${(p / c.goal * 100).toFixed(0)}%"></b></i></span><span class="prog">${p} / ${c.goal}</span>${done && !d.claimed[c.id] ? `<button class="claim" data-claim="${c.id}" type="button">CLAIM ${c.reward}</button>` : `<span class="rw">${d.claimed[c.id] ? '✓' : ''}${coinI}${c.reward}</span>`}</li>`; }
     $('#dailyList').innerHTML = html;
     $$('[data-claim]').forEach(btn => btn.addEventListener('click', () => { const c = DAILY.find(x => x.id === btn.dataset.claim); SAVE.daily.claimed[c.id] = true; SAVE.coins += c.reward; persist(); AUDIO.pickup(); this.renderMenu(); }));
     const bonus = $('#dailyBonus');

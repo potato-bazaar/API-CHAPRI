@@ -6,7 +6,7 @@ function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
   const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0]; const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
   const hair = COSMETICS.hair.find(h => h.id === SAVE.cos.hair) || COSMETICS.hair[0];
-  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.base, flowers: shirt.flowers, check: shirt.check, helmet: helm && helm.color, shades: shades && shades.color, hair: hair.style, hairColor: hair.color, goldChain: true, jeans: '#26304f', mods: modsFor(b.id) };
+  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.base, flowers: shirt.flowers, check: shirt.check, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: '#1f2a4a', mods: modsFor(b.id) };
 }
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 
@@ -119,6 +119,19 @@ class Game {
     this.menuRig = new BikeRig(lookFromSave(buildId)); this.menuRig.showWeapon(null);
     const T = this.track; const s = 24, d = T.wAt(s) * 0.12; T.pos(s, d, this.menuRig.root.position); this.menuRig.root.rotation.y = T.yawAt(s) + 0.25; this.menuS = s; this.menuD = d;
     if (this.state !== 'race' && this.state !== 'results' && this.state !== 'paused') this.scene.add(this.menuRig.root);
+    this.avatarDue = 3;   // re-shoot the profile portrait once the new rig has posed
+  }
+  // profile picture: a small tone-mapped render of your rider's face (same trick as the post pass: an XR-flagged sRGB target)
+  shootAvatar() {
+    const rig = this.menuRig; if (!rig || !rig.rm || !this.renderer.capabilities.isWebGL2) return;
+    const N = 160; if (!this._avRT) { this._avRT = new THREE.WebGLRenderTarget(N, N, { samples: 4 }); this._avRT.texture.colorSpace = THREE.SRGBColorSpace; this._avRT.texture.internalFormat = 'RGBA8'; this._avRT.isXRRenderTarget = true; this._avCam = new THREE.PerspectiveCamera(26, 1, 0.05, 200); }
+    const head = rig.rm.b.Head.getWorldPosition(new THREE.Vector3()); head.y += 0.1; const yaw = rig.root.rotation.y, f = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), l = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const cam = this._avCam; cam.position.copy(head).addScaledVector(f, 0.62).addScaledVector(l, -0.22); cam.position.y += 0.02; cam.lookAt(head.x, head.y - 0.03, head.z); cam.updateMatrixWorld();
+    const r = this.renderer, prev = r.getRenderTarget(); REFL.U.uReflOn.value = 0; r.setRenderTarget(this._avRT); r.clear(); r.render(this.scene, cam); r.setRenderTarget(prev);
+    const px = new Uint8Array(N * N * 4); r.readRenderTargetPixels(this._avRT, 0, 0, N, N, px);
+    const c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), img = x.createImageData(N, N);
+    for (let y = 0; y < N; y++) img.data.set(px.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4);
+    x.putImageData(img, 0, 0); const url = c.toDataURL('image/png'); $$('.avatar').forEach(a => { a.innerHTML = `<img src="${url}" alt="">`; });
   }
   showScreen(id) {
     $$('.screen').forEach(s => s.classList.remove('show')); $('#' + id).classList.add('show');
@@ -229,6 +242,7 @@ class Game {
     INPUT.endFrame();
   }
   raceFrame(dt, inp) {
+    if (this._hero && this._hero.g.visible) this._hero.g.visible = false;
     const R = this.race, P = R.player;
     if (inp.pause) { this.pause(); return; }
     { const finalLap = R.laps > 1 && P.lap >= R.laps - 1; const lvl = R.state === 'countdown' ? 0 : (P.boosting || finalLap) ? 2 : 1;
@@ -287,8 +301,19 @@ class Game {
     const yaw = T.yawAt(P.s) + this.orbitA + 2.4; this.camera.position.set(rp.x + Math.sin(yaw) * radius, rp.y + h, rp.z + Math.cos(yaw) * radius); this.camera.lookAt(rp.x, rp.y + 0.9, rp.z);
     this.camera.fov = smooth(this.camera.fov, 55, 3, dt); this.camera.updateProjectionMatrix();
   }
+  // studio lights for the home, garage and store shots: a warm key on the face, pink and cyan rims behind
+  heroLights(on) {
+    if (!this._hero) { const g = new THREE.Group(); const key = new THREE.PointLight(0xffd7a8, 0, 7, 1.6), pink = new THREE.PointLight(0xff3d9a, 0, 6, 1.6), cyan = new THREE.PointLight(0x3fd0ff, 0, 6, 1.6); g.add(key, pink, cyan); this._hero = { g, key, pink, cyan }; this.scene.add(g); }
+    const H = this._hero; H.g.visible = on; if (!on || !this.menuRig) return;
+    const p = this.menuRig.root.position, yaw = this.menuRig.root.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
+    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 1 + night * 0.8 + (this.wet ? 0.4 : 0);
+    H.key.position.set(p.x + fx * 1.8 + lx * 1.2, p.y + 1.9, p.z + fz * 1.8 + lz * 1.2); H.key.intensity = 5 * k;
+    H.pink.position.set(p.x - fx * 1.1 - lx * 1.0, p.y + 1.7, p.z - fz * 1.1 - lz * 1.0); H.pink.intensity = 7 * k;
+    H.cyan.position.set(p.x - fx * 0.9 + lx * 1.3, p.y + 1.5, p.z - fz * 0.9 + lz * 1.3); H.cyan.intensity = 5 * k;
+  }
   menuFrame(dt, inp) {
-    const rig = this.menuRig; if (!rig || !this.track) return;
+    const rig = this.menuRig; if (!rig || !this.track) return; this.heroLights(this.state === 'menu' || this.state === 'garage' || this.state === 'store');
+    if (this.avatarDue > 0 && --this.avatarDue === 0) { try { this.shootAvatar(); } catch (e) { /* keep the drawn avatar */ } }
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
@@ -300,9 +325,10 @@ class Game {
       const a = yaw + 0.9 + Math.sin(this.t * 0.3) * 0.15; target = new THREE.Vector3(p.x + Math.sin(a) * 2.1, p.y + 1.55, p.z + Math.cos(a) * 2.1); look = new THREE.Vector3(p.x, p.y + 1.3, p.z);
     } else {
       // hero shot from the front-left, bike framed in the right half of the screen
-      const sway = Math.sin(this.t * 0.25) * 0.25;
-      target = new THREE.Vector3(p.x + fx * 3.0 + lx * (1.7 + sway), p.y + 0.8, p.z + fz * 3.0 + lz * (1.7 + sway));
-      look = new THREE.Vector3(p.x - lx * 0.55 + fx * 0.3, p.y + 1.15, p.z - lz * 0.55 + fz * 0.3);
+      // low and close like a poster: the bike big in the middle, the rider's face in the light
+      const sway = Math.sin(this.t * 0.25) * 0.2;
+      target = new THREE.Vector3(p.x + fx * 2.35 + lx * (1.3 + sway), p.y + 0.92, p.z + fz * 2.35 + lz * (1.3 + sway));
+      look = new THREE.Vector3(p.x - lx * 0.34 + fx * 0.15, p.y + 1.04, p.z - lz * 0.34 + fz * 0.15);
     }
     if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-4 * dt));
     this.camera.lookAt(look); this.camera.fov = smooth(this.camera.fov, this.state === 'menu' ? 50 : 46, 4, dt); this.camera.updateProjectionMatrix();

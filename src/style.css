@@ -397,3 +397,26 @@ kbd { font-family: var(--f-num); }
 @media (prefers-reduced-motion: reduce) { .siren i, .heat.hot, .boost-banner.go { animation: none; } }
 
 .tcard:disabled { opacity: .32; cursor: not-allowed; }
+
+/* ── home screen polish (reference look): neon-edged glass panels with a checkered corner, richer daily list ── */
+.menu-body .build-card, .menu-body .daily { background: linear-gradient(160deg, rgba(40, 14, 44, .9), rgba(16, 8, 24, .88)); box-shadow: inset 0 0 0 2px rgba(255, 46, 136, .85), 0 0 18px rgba(255, 46, 136, .45), 0 10px 26px rgba(0, 0, 0, .45); }
+.menu-body .build-card::after, .menu-body .daily::after { content: ""; position: absolute; top: .55rem; right: .7rem; width: 4.6rem; height: 1.25rem; transform: skewX(-24deg);
+  background: repeating-conic-gradient(#ff2e88 0 25%, rgba(255, 46, 136, .18) 0 50%) 0 0 / .62rem .62rem; -webkit-mask: linear-gradient(90deg, transparent, #000 45%); mask: linear-gradient(90deg, transparent, #000 45%); pointer-events: none; }
+.daily { position: relative; }
+.menu-body .build-card .arrow-btn { z-index: 1; }
+.daily li { grid-template-columns: 2rem 1fr auto auto; }
+.daily .chk { width: 1.9rem; height: 1.9rem; border-radius: 8px; box-shadow: none; color: #fff; }
+.daily .chk svg { width: 1.45rem; height: 1.45rem; }
+.daily li.done .chk { background: #28c76f; border-radius: 50%; } .daily li.done .chk svg { display: none; }
+.daily .lbl { display: grid; gap: .3rem; }
+.daily .dbar { display: block; height: .38rem; border-radius: 99px; background: rgba(255, 255, 255, .14); overflow: hidden; }
+.daily .dbar b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ff2e88, #ff6aa8); box-shadow: 0 0 6px rgba(255, 46, 136, .8); }
+.daily li.done .dbar b { background: linear-gradient(90deg, #28c76f, #7cf0a8); }
+#dailyBonus { position: relative; } #dailyBonus::before, #dailyBonus::after { content: "❦"; color: #d4a62a; margin: 0 .4em; font-style: normal; display: inline-block; }
+#dailyBonus::after { transform: scaleX(-1); }
+/* rain toggle as a blue pill with a chevron */
+.city.rain-tog { position: relative; flex: 1.35; white-space: nowrap; font-size: 1.05rem; border-radius: 99px; background: linear-gradient(180deg, #1d3f8f, #142a66); color: #e8f0ff; box-shadow: inset 0 0 0 2px #5f8cff, 0 0 10px rgba(63, 120, 255, .45); }
+.city.rain-tog::after { content: "⌄"; margin-left: .15em; font-size: 1.1em; line-height: .6; }
+.city.rain-tog.on { background: linear-gradient(180deg, #3f6fd8, #2a4fb0); box-shadow: inset 0 0 0 2px #9cc2ff, 0 0 16px rgba(63, 140, 255, .8); }
+/* profile avatar: a live portrait of your rider */
+.avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }

@@ -125,7 +125,7 @@ function buildTextures() {
     x.fillStyle = '#5e5248'; x.fillRect(0, 0, 256, 256); noise(x, 256, 256, 6000, 0.35, ['#4a4038', '#6e6256', '#544a40', '#7a6a58']);
     TEX.ground = toTex(c, { repeat: true });
   }
-  TEX.haz = hazardAtlas(); TEX.dirt = dirtTexture(); TEX.shortcut = shortcutSign(); TEX.naka = nakaSign(); TEX.nakaAhead = nakaAheadSign();
+  TEX.haz = hazardAtlas(); TEX.dirt = dirtTexture(); TEX.shortcut = shortcutSign(); TEX.naka = nakaSign(); TEX.nakaAhead = nakaAheadSign(); TEX.hairPomp = hairStrands();
 }
 // Road hazards atlas, 2×2 cells: pothole dry | pothole wet (water) / kichad dry | kichad wet
 function hazardAtlas() {
@@ -170,6 +170,14 @@ function shortcutSign() {
   return toTex(c);
 }
 
+// sculpted hair strands: streaks running along v (crown → hairline), a sheen band where the roll catches light
+function hairStrands() {
+  const [c, x] = mkCanvas(256, 256); const g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#7a7a7a'); g.addColorStop(0.3, '#a8a8a8'); g.addColorStop(0.5, '#e2e2e2'); g.addColorStop(0.68, '#9a9a9a'); g.addColorStop(1, '#505050');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 260; i++) { const u = Math.random() * 256, w = 0.6 + Math.random() * 2.2, l = Math.random(); x.strokeStyle = l < 0.5 ? `rgba(20,14,10,${0.25 + Math.random() * 0.35})` : `rgba(255,248,235,${0.12 + Math.random() * 0.3})`; x.lineWidth = w;
+    x.beginPath(); x.moveTo(u, -4); x.bezierCurveTo(u + (Math.random() - 0.5) * 18, 80, u + (Math.random() - 0.5) * 24, 170, u + (Math.random() - 0.5) * 30, 260); x.stroke(); }
+  return toTex(c, { repeat: true });
+}
 // barricade board, like the real ones: blue band "STOP FOR POLICE CHECKING" over a white panel
 function nakaSign() {
   const [c, x] = mkCanvas(512, 256);
@@ -192,13 +200,23 @@ function shirtTexture(base, kind) {
   const [c, x] = mkCanvas(256, 256);
   x.fillStyle = base; x.fillRect(0, 0, 256, 256);
   if (kind === 'flowers') {
-    const petals = ['#ffd23f', '#ffffff', '#3fd0c9', '#ff7a2f', '#7b2cbf', '#ff2e88', '#9be15d'];
-    for (let i = 0; i < 70; i++) {
-      const cx = Math.random() * 256, cy = Math.random() * 256, r = 6 + Math.random() * 10, pc = petals[Math.floor(Math.random() * petals.length)];
-      x.fillStyle = pc; for (let p = 0; p < 5; p++) { const a = p / 5 * Math.PI * 2; x.beginPath(); x.ellipse(cx + Math.cos(a) * r * 0.7, cy + Math.sin(a) * r * 0.7, r * 0.55, r * 0.35, a, 0, 7); x.fill(); }
-      x.fillStyle = '#2a1a10'; x.beginPath(); x.arc(cx, cy, r * 0.25, 0, 7); x.fill();
-      if (Math.random() < 0.5) { x.fillStyle = '#2f8a3e'; x.beginPath(); x.ellipse(cx + r, cy + r * 0.6, r * 0.6, r * 0.25, 0.6, 0, 7); x.fill(); }
-    }
+    // tropical print: big hibiscus with veined petals and a stamen, monstera-ish leaves, small blossoms; tiles seamlessly
+    const R = mulberry32(base.length * 977 + base.charCodeAt(1)); const rnd = () => R();
+    const wrap = (fn) => { for (const dx of [-256, 0, 256]) for (const dy of [-256, 0, 256]) { x.save(); x.translate(dx, dy); fn(); x.restore(); } };
+    const flowerCols = base.toLowerCase() === '#2c6fd6' ? ['#ffd23f', '#ff7a2f', '#f5f5f5', '#ff5aa8'] : ['#ffd23f', '#7b2cbf', '#ff8a1f', '#3fd0c9', '#ffffff', '#b03aff'];
+    const leaf = (cx, cy, r, a) => { x.save(); x.translate(cx, cy); x.rotate(a); const g = x.createLinearGradient(-r, 0, r, 0); g.addColorStop(0, '#1f6b3a'); g.addColorStop(1, '#3fae5a');
+      x.fillStyle = g; x.beginPath(); x.moveTo(-r, 0); x.quadraticCurveTo(0, -r * 0.55, r, 0); x.quadraticCurveTo(0, r * 0.55, -r, 0); x.fill();
+      x.strokeStyle = 'rgba(0,40,10,0.55)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(-r * 0.9, 0); x.lineTo(r * 0.9, 0); for (let k = -3; k <= 3; k++) { x.moveTo(k * r * 0.22, 0); x.lineTo(k * r * 0.22 + r * 0.18, -r * 0.3); x.moveTo(k * r * 0.22, 0); x.lineTo(k * r * 0.22 + r * 0.18, r * 0.3); } x.stroke(); x.restore(); };
+    const hibiscus = (cx, cy, r, col, a0) => { x.save(); x.translate(cx, cy); x.rotate(a0);
+      for (let p = 0; p < 5; p++) { x.save(); x.rotate(p / 5 * Math.PI * 2); const g = x.createRadialGradient(0, 0, r * 0.1, 0, -r * 0.5, r * 0.75); g.addColorStop(0, '#5a0f2a'); g.addColorStop(0.35, col); g.addColorStop(1, col);
+        x.fillStyle = g; x.beginPath(); x.moveTo(0, 0); x.bezierCurveTo(-r * 0.55, -r * 0.25, -r * 0.5, -r * 0.95, 0, -r); x.bezierCurveTo(r * 0.5, -r * 0.95, r * 0.55, -r * 0.25, 0, 0); x.fill();
+        x.strokeStyle = 'rgba(80,10,30,0.35)'; x.lineWidth = 0.8; for (const k of [-0.18, 0, 0.18]) { x.beginPath(); x.moveTo(0, -r * 0.15); x.lineTo(k * r, -r * 0.85); x.stroke(); } x.restore(); }
+      x.strokeStyle = '#ffe680'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(r * 0.45, -r * 0.35); x.stroke(); x.fillStyle = '#fff2a0'; x.beginPath(); x.arc(r * 0.47, -r * 0.37, r * 0.08, 0, 7); x.fill(); x.restore(); };
+    const blossom = (cx, cy, r, col) => { x.fillStyle = col; for (let p = 0; p < 5; p++) { const a = p / 5 * Math.PI * 2; x.beginPath(); x.ellipse(cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.6, r * 0.5, r * 0.32, a, 0, 7); x.fill(); } x.fillStyle = '#fff3a0'; x.beginPath(); x.arc(cx, cy, r * 0.22, 0, 7); x.fill(); };
+    const items = []; for (let i = 0; i < 9; i++) items.push(['leaf', rnd() * 256, rnd() * 256, 18 + rnd() * 14, rnd() * 6.28]);
+    for (let i = 0; i < 7; i++) items.push(['hib', rnd() * 256, rnd() * 256, 17 + rnd() * 9, flowerCols[i % flowerCols.length], rnd() * 6.28]);
+    for (let i = 0; i < 16; i++) items.push(['bl', rnd() * 256, rnd() * 256, 4 + rnd() * 4, flowerCols[(i + 2) % flowerCols.length]]);
+    wrap(() => { for (const it of items) { if (it[0] === 'leaf') leaf(it[1], it[2], it[3], it[4]); else if (it[0] === 'hib') hibiscus(it[1], it[2], it[3], it[4], it[5]); else blossom(it[1], it[2], it[3], it[4]); } });
   } else if (kind === 'check') {
     x.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 256; i += 32) { x.fillRect(i, 0, 14, 256); x.fillRect(0, i, 256, 14); }
     x.fillStyle = 'rgba(255,255,255,0.25)'; for (let i = 16; i < 256; i += 32) { x.fillRect(i, 0, 3, 256); x.fillRect(0, i, 256, 3); }
