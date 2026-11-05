@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+*.pyc
+# test screenshots and throwaway build outputs
+tools/**/*.png
+dist/test.html
+dist/game.mjs
+.DS_Store

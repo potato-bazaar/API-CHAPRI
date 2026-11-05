@@ -1,0 +1,27 @@
+{
+  "name": "chapri-racer",
+  "version": "0.6.0",
+  "description": "Chapri Racer: a Three.js bike racing game on CR100 (RX-style) bikes through Mumbai lanes",
+  "main": "dist/chapri-racer.html",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "build:bike": "node tools/model/build-model.mjs",
+    "build:rider": "node tools/model/build-rider.mjs",
+    "test:race": "node tools/t17.mjs mumbai-central 1"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource/baloo-2": "^5.0.20",
+    "@fontsource/teko": "^5.0.20",
+    "@gltf-transform/cli": "^4.1.1",
+    "@gltf-transform/core": "^4.1.1",
+    "@gltf-transform/extensions": "^4.1.1",
+    "@gltf-transform/functions": "^4.1.1",
+    "meshoptimizer": "^0.22.0",
+    "three": "^0.160.0"
+  },
+  "private": true,
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

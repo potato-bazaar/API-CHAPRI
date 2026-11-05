@@ -1,0 +1,100 @@
+// ───────────────────────── RACE HUD ─────────────────────────
+class HUD {
+  constructor(game) {
+    this.game = game; this.root = $('#hud');
+    this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]') };
+    this.iconURL = {}; for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil']) this.iconURL[k] = TEX['icon_' + k].image.toDataURL();
+    this.el.throwIco.style.backgroundImage = `url(${this.iconURL.bottle})`;
+    // powerband arc on the dial (5,500–7,500 rpm of 10,500)
+    const arcPt = (f, r) => { const a = Math.PI * (1 - f); return [150 + r * Math.cos(a), 150 - r * Math.sin(a)]; };
+    const [x1, y1] = arcPt(5500 / 10500, 134), [x2, y2] = arcPt(7500 / 10500, 134);
+    this.el.arcBand.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)} A134 134 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+    this.pops = []; this.lastStand = 0; this.warnT = { left: 0, right: 0 };
+  }
+  setupRace(race) {
+    this.race = race; const T = race.track;
+    this.root.classList.toggle('no-combat', !race.combatOn);
+    this.root.classList.toggle('touch', IS_TOUCH);
+    this.el.stand.innerHTML = ''; this.rows = [];
+    const n = race.riders.length; this.el.stand.hidden = n < 2;
+    for (let i = 0; i < n; i++) { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}</span><em></em>`; this.el.stand.appendChild(li); this.rows.push(li); }
+    this.el.of.textContent = n > 1 ? `/${n}` : '';
+    // minimap
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; for (let i = 0; i < T.N; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
+    const sc = 84 / Math.max(maxX - minX, maxZ - minZ); const ox = 50 - (minX + maxX) / 2 * sc, oz = 50 - (minZ + maxZ) / 2 * sc;
+    this.mmMap = (x, z) => [(x * sc + ox), (z * sc + oz)];
+    let d = ''; for (let i = 0; i <= T.N; i += 8) { const j = i % T.N; const [x, y] = this.mmMap(T.px[j], T.pz[j]); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
+    let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
+    let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
+    const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
+    let dots = ''; for (let i = n - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
+    this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
+    this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
+    this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
+    this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
+    const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
+  }
+  update(dt, camera) {
+    const R = this.race; if (!R) return; const P = R.player;
+    const rank = R.ranking(); const pos = rank.indexOf(P) + 1;
+    this.el.pos.textContent = R.riders.length > 1 ? (R.playerPos || pos) : (R.mode === 'stunt' ? '★' : '⏱');
+    this.el.suf.textContent = R.riders.length > 1 ? ordinal(R.playerPos || pos) : '';
+    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); this.el.lap.textContent = `${lapShown}/${R.laps}`;
+    const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
+    this.el.time.textContent = fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt));
+    if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; this.el.best.textContent = fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9)); }
+    if (R.mode === 'stunt') this.el.best.textContent = fmtNum(R.score.stunts || 0) + ' pts';
+    // speedo
+    const kmh = Math.round(P.v * 3.6); this.el.speed.textContent = kmh; this.el.gear.textContent = P.gear;
+    const f = clamp(P.rpm / 10500, 0, 1); this.el.arcFill.setAttribute('stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
+    this.el.needle.setAttribute('transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
+    const inBand = P.rpm >= 5500 && P.rpm <= 7500; this.el.arcBand.setAttribute('stroke-width', inBand ? 8 : 4); this.el.arcBand.setAttribute('opacity', inBand ? 1 : 0.55);
+    this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30);
+    this.el.wob.className = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : '');
+    this.el.wrong.hidden = !(P.wrongT > 1);
+    // standings (5 Hz)
+    this.lastStand -= dt;
+    if (this.lastStand <= 0 && this.rows.length) { this.lastStand = 0.2;
+      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; li.className = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : ''); li.lastChild.textContent = r.isPlayer ? 'You' : r.short; }); }
+    // minimap dots
+    R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); dot.setAttribute('cx', mx.toFixed(1)); dot.setAttribute('cy', my.toFixed(1)); dot.style.display = r.eliminated ? 'none' : ''; });
+    // weapons
+    const w = P.weapons; const key = (w.melee ? w.melee.kind + w.melee.uses : '-') + (w.throw ? w.throw.kind + w.throw.uses : '-');
+    if (key !== this.wKey) { this.wKey = key; let h = '';
+      if (w.melee) h += `<span class="wslot"><img src="${this.iconURL[w.melee.kind]}" alt="">${w.melee.kind.toUpperCase()} ×${w.melee.uses}</span>`;
+      if (w.throw) h += `<span class="wslot"><img src="${this.iconURL[w.throw.kind]}" alt="">${w.throw.kind === 'gutka' ? 'GUTKA' : 'BOTTLE'} ×${w.throw.uses}</span>`;
+      this.el.slots.innerHTML = h; const tb = this.el.throwIco.parentElement; tb.classList.toggle('armed', !!w.throw); this.el.throwIco.style.backgroundImage = `url(${this.iconURL[w.throw ? w.throw.kind : 'bottle']})`; this.el.throwUses.textContent = w.throw ? w.throw.uses : ''; this.el.maarUses.textContent = w.melee ? w.melee.uses : '';
+    }
+    // world-anchored pops
+    const W = this.game.vw, H = this.game.vh; const v = new THREE.Vector3();
+    for (let i = this.pops.length - 1; i >= 0; i--) { const p = this.pops[i]; p.t += dt; if (p.t > p.life) { p.el.remove(); this.pops.splice(i, 1); continue; }
+      R.track.pos(p.r.s, p.r.d, v, p.r.y - R.track.yAt(p.r.s) + 2.3); v.project(camera); if (v.z > 1) { p.el.style.display = 'none'; continue; } p.el.style.display = ''; p.el.style.left = ((v.x + 1) / 2 * W).toFixed(0) + 'px'; p.el.style.top = ((1 - v.y) / 2 * H).toFixed(0) + 'px'; }
+    // attacker wind-up markers over rivals targeting the player
+    for (const r of R.riders) { if (r.isPlayer || !r.attack || r.attack.target !== P || r.attack.hit) continue; if (!r._bang) { const el = document.createElement('div'); el.className = 'bang'; el.textContent = '!'; this.el.pops.appendChild(el); r._bang = { el, r, t: 0, life: r.attack.W.strike + 0.15 }; this.pops.push(r._bang); } }
+    for (const r of R.riders) if (r._bang && r._bang.t > r._bang.life - 0.01) r._bang = null;
+    for (const side of ['left', 'right']) { if (this.warnT[side] > 0) { this.warnT[side] -= dt; if (this.warnT[side] <= 0) this.el[side === 'left' ? 'warnL' : 'warnR'].hidden = true; } }
+  }
+  coinTick(n) { $$('.coinsMirror').forEach(e => { e.textContent = fmtNum(SAVE.coins); const p = e.closest('.pill'); if (p) { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); } }); }
+  callout(text, pts, cls = 'good') {
+    const el = document.createElement('div'); el.className = 'callout ' + cls; el.innerHTML = `${text}${pts ? `<em>${pts}</em>` : ''}`;
+    this.el.callouts.prepend(el); while (this.el.callouts.children.length > 3) this.el.callouts.lastChild.remove();
+    setTimeout(() => el.remove(), 1650);
+  }
+  toast(text) {
+    const m = text.match(/^(.*?)(\+\d[\d,]* pts)?$/); this.el.toastTxt.textContent = m ? m[1].trim() : text; this.el.toastPts.textContent = m && m[2] ? m[2] : '';
+    this.el.toast.hidden = false; this.el.toast.style.animation = 'none'; void this.el.toast.offsetWidth; this.el.toast.style.animation = '';
+    clearTimeout(this._toastT); this._toastT = setTimeout(() => { this.el.toast.hidden = true; }, 2200);
+  }
+  popAt(r, text, pts) { const el = document.createElement('div'); el.className = 'pop3d'; el.innerHTML = `${text}<small>${pts || ''}</small>`; this.el.pops.appendChild(el); this.pops.push({ el, r, t: 0, life: 1.2 }); }
+  countdown(k) { this.big(k ? String(k) : 'CHALO!', null, k ? 0.9 : 1.1); }
+  big(text, sub, dur = 1.5) { const b = this.el.big; b.innerHTML = text + (sub ? `<small>${sub}</small>` : ''); b.hidden = false; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; clearTimeout(this._bigT); this._bigT = setTimeout(() => (b.hidden = true), dur * 1000); }
+  lapFlash(text, t) { this.big(text, `Lap ${fmtTime(t)}`, 1.6); }
+  finish(pos, n, mode) {
+    if (mode === 'stunt') this.big('STUNT RUN', `${fmtNum(this.race.score.stunts || 0)} pts`, 3.4);
+    else if (n) this.big(pos === 1 ? 'JEET GAYA!' : `${pos}${ordinal(pos)}`, pos === 1 ? 'Mumbai ka asli Chapri Raja' : 'FINISHED', 3.4);
+    else this.big('FINISHED', fmtTime(this.race.player.bestLap), 3.4);
+  }
+  warn(side) { const el = side === 'left' ? this.el.warnL : this.el.warnR; el.hidden = false; this.warnT[side] = 0.5; }
+  splat(dur) { const s = this.el.splat; s.hidden = false; s.classList.remove('go'); void s.offsetWidth; s.style.setProperty('--dur', dur + 's'); s.classList.add('go'); clearTimeout(this._spT); this._spT = setTimeout(() => (s.hidden = true), dur * 1000); }
+  flashHit(side) { const f = $('#flash'); f.hidden = false; f.className = 'flash ' + (side > 0 ? 'l' : 'r'); clearTimeout(this._flT); this._flT = setTimeout(() => (f.hidden = true), 360); }
+}

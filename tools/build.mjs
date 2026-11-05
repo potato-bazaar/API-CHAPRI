@@ -1,0 +1,15 @@
+import fs from 'fs';
+import zlib from 'zlib';
+const root = new URL('../', import.meta.url).pathname;
+const order = ['00_core', '05_textures', '10_tracks', '15_track', '18_batch', '20_world', '28_bikemodel', '29_ridermodel', '30_bike', '31_cloth', '32_bikemods', '40_rider', '45_race', '50_combat', '55_speedfx', '56_reflect', '57_comic', '60_audio', '62_music', '70_hud', '80_ui', '85_input', '90_main'];
+const js = order.map(f => `// ===== ${f}.js =====\n` + fs.readFileSync(root + 'src/js/' + f + '.js', 'utf8')).join('\n');
+const css = fs.readFileSync(root + 'src/style.css', 'utf8');
+const tpl = fs.readFileSync(root + 'src/template.html', 'utf8');
+const glb = fs.existsSync(root + 'assets/rx100.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/rx100.glb'), { level: 9 }).toString('base64') : '';
+const rider = fs.existsSync(root + 'assets/rider.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/rider.glb'), { level: 9 }).toString('base64') : '';
+const page = tpl.replace('{{CSS}}', () => css).replace('{{BIKEGLB}}', () => glb).replace('{{RIDERGLB}}', () => rider).replace('{{JS}}', () => js);
+fs.mkdirSync(root + 'dist', { recursive: true });
+fs.writeFileSync(root + 'dist/chapri-racer.html', page);
+fs.writeFileSync(root + 'dist/test.html', `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>${page}</body></html>`);
+fs.writeFileSync(root + 'dist/game.mjs', js.replace("import * as THREE from 'three';", "import * as THREE from '../node_modules/three/build/three.module.js';"));
+console.log('built', (page.length / 1024).toFixed(1) + ' KB');

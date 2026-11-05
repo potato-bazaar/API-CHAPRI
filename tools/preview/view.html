@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#888}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"http://chapri.test/three/build/three.module.js","three/addons/":"http://chapri.test/three/examples/jsm/"}}</script></head><body>
+<script type="module">
+import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const P = new URLSearchParams(location.search); const W = 1200, H = 800;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); document.body.appendChild(r.domElement); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#9aa'); scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2)); const d = new THREE.DirectionalLight(0xffffff, 2.5); d.position.set(3, 5, 4); scene.add(d);
+const cam = new THREE.PerspectiveCamera(35, W / H, 0.01, 100);
+new GLTFLoader().load(P.get('f') || 'http://chapri.test/model.glb', (g) => {
+  const root = g.scene; scene.add(root); if (P.get('hide')) for (const n of P.get('hide').split(',')) { const o = root.getObjectByName(n); if (o) o.visible = false; } root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root); const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const info = { min: box.min.toArray().map(v => +v.toFixed(3)), max: box.max.toArray().map(v => +v.toFixed(3)), size: s.toArray().map(v => +v.toFixed(3)), meshes: [] };
+  root.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); info.meshes.push({ name: o.name, mat: o.material.name, min: b.min.toArray().map(v => +v.toFixed(3)), max: b.max.toArray().map(v => +v.toFixed(3)) }); } });
+  window.__info = info; const R = Math.max(s.x, s.y, s.z) * 1.6;
+  window.shot = (az, el) => { cam.position.set(c.x + Math.sin(az) * Math.cos(el) * R, c.y + Math.sin(el) * R, c.z + Math.cos(az) * Math.cos(el) * R); cam.lookAt(c); r.render(scene, cam); return r.domElement.toDataURL('image/png'); };
+  const rc = new THREE.Raycaster();
+  window.pick = (az, el, px, py) => { window.shot(az, el); rc.setFromCamera(new THREE.Vector2(px / W * 2 - 1, -(py / H * 2 - 1)), cam); const h = rc.intersectObject(root, true)[0]; return h ? { obj: h.object.name, uv: h.uv && [+(h.uv.x * 1024).toFixed(1), +(h.uv.y * 1024).toFixed(1)], p: h.point.toArray().map(v => +v.toFixed(3)) } : null; };
+  window.__ready = true;
+});
+</script></body></html>
