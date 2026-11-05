@@ -22,6 +22,7 @@ class ComicFX {
           vec2 px = uPx / res; vec2 c = vUv - 0.5; float e2 = dot(c, c);
           vec2 off = c * (0.0025 * uComic + uSpeed * 0.008 + uBoost * 0.012) * (0.35 + e2 * 3.0);
           vec3 col = vec3(texture2D(tColor, vUv + off).r, texture2D(tColor, vUv).g, texture2D(tColor, vUv - off).b);
+          if (uBoost > 0.02) { float rb = uBoost * smoothstep(0.015, 0.2, e2) * 0.016; vec3 acc = col; for (int i = 1; i <= 6; i++) acc += texture2D(tColor, vUv - c * rb * float(i)).rgb; col = acc / 7.0; }   // boost: radial blur toward the edges
           vec3 o = col;
           if (uComic > 0.5) {
             float d0 = lin(texture2D(tDepth, vUv).x);

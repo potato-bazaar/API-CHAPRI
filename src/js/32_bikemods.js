@@ -58,6 +58,15 @@ function addBikeMods(rig, o, low, cast) {
     const rim = mesh(modGeo('cowlrim', () => new THREE.TorusGeometry(0.117, 0.009, 6, 26, Math.PI * 2 - 1.4).rotateZ(-Math.PI / 2 + 0.7)), M.black); rim.position.set(H[0], H[1] + 0.005, H[2] + 0.08);
     const v = mesh(modGeo('visor', () => new THREE.CylinderGeometry(0.12, 0.12, 0.13, 14, 1, true, -0.7, 1.4).translate(0, 0.065, 0)), M.smoke); v.position.set(H[0], H[1] + 0.09, H[2] - 0.045); v.rotation.x = -0.55;
   }
+  // police bike: a rear rack with a red-blue light bar that flashes, and a white crash guard
+  if (md.kit === 'police') {
+    mesh(modGeo('prack', () => new THREE.BoxGeometry(0.34, 0.03, 0.3)), M.black).position.set(0, 0.95, -0.82);
+    const pole = mesh(modGeo('ppole', () => new THREE.CylinderGeometry(0.012, 0.012, 0.42, 6)), M.chrome); pole.position.set(0, 1.16, -0.86);
+    mesh(modGeo('pbar', () => new THREE.BoxGeometry(0.36, 0.06, 0.1)), M.black).position.set(0, 1.39, -0.86);
+    out.siren = [['#ff1e2e', -0.1], ['#2a58ff', 0.1]].map(([col, x]) => { const m = new THREE.Mesh(modGeo('plamp', () => new THREE.BoxGeometry(0.15, 0.09, 0.11)), new THREE.MeshBasicMaterial({ color: col })); m.position.set(x, 1.45, -0.86); g.add(m); (out.ownMats = out.ownMats || []).push(m.material); return m; });
+    out.sirenPh = Math.random();
+    for (const sx of [1, -1]) mesh(modGeo('pguard' + sx, () => new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0.12, 0.3, 0.26], [0.28, 0.34, 0.33], [0.3, 0.5, 0.36], [0.14, 0.64, 0.38]].map(([x, y, z]) => new THREE.Vector3(x * sx, y, z))), 20, 0.018, 8, false)), M.chrome);
+  }
   if (md.kit === 'full') for (const sx of [1, -1]) { const pad = mesh(modGeo('pad', () => new THREE.CapsuleGeometry(0.035, 0.12, 4, 10).rotateX(Math.PI / 2)), M.rubber); pad.position.set(0.15 * sx, 0.78, 0.07); pad.rotation.y = 0.12 * sx; pad.scale.set(0.55, 1.2, 1); }
   return out;
 }

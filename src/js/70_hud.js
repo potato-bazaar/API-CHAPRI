@@ -1,4 +1,5 @@
 // ───────────────────────── RACE HUD ─────────────────────────
+const CROWN_SVG = '<svg class="crown-i" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg>';
 class HUD {
   constructor(game) {
     this.game = game; this.root = $('#hud');
@@ -13,11 +14,11 @@ class HUD {
   }
   setupRace(race) {
     this.race = race; const T = race.track;
-    this.root.classList.toggle('no-combat', !race.combatOn);
+    this.root.classList.toggle('no-combat', !race.combatOn); this.root.classList.toggle('police', !!race.police); this.heatEl = $('#heat'); this.heatEl.hidden = !race.police; this.boostEl = $('#boostBanner'); this.boostEl.hidden = true; this.boostOn = false;
     this.root.classList.toggle('touch', IS_TOUCH);
     this.el.stand.innerHTML = ''; this.rows = [];
-    const n = race.riders.length; this.el.stand.hidden = n < 2;
-    for (let i = 0; i < n; i++) { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}</span><em></em>`; this.el.stand.appendChild(li); this.rows.push(li); }
+    const n = race.police ? 1 : race.riders.length; this.el.stand.hidden = n < 2;
+    for (let i = 0; i < n && n > 1; i++) { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}</span><em></em><i class="gap"></i>`; this.el.stand.appendChild(li); this.rows.push(li); }
     this.el.of.textContent = n > 1 ? `/${n}` : '';
     // minimap
     let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; for (let i = 0; i < T.N; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
@@ -27,7 +28,7 @@ class HUD {
     let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
     let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
     const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
-    let dots = ''; for (let i = n - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
+    let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
     this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
     this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
     this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
@@ -37,8 +38,14 @@ class HUD {
   update(dt, camera) {
     const R = this.race; if (!R) return; const P = R.player;
     const rank = R.ranking(); const pos = rank.indexOf(P) + 1;
-    this.el.pos.textContent = R.riders.length > 1 ? (R.playerPos || pos) : (R.mode === 'stunt' ? '★' : '⏱');
-    this.el.suf.textContent = R.riders.length > 1 ? ordinal(R.playerPos || pos) : '';
+    const multi = R.riders.length > 1 && !R.police;
+    this.el.pos.textContent = multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱');
+    this.el.suf.textContent = multi ? ordinal(R.playerPos || pos) : '';
+    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); $('#heatFill').style.width = h.toFixed(1) + '%'; this.heatEl.classList.toggle('hot', h > 65);
+      $('#copGap').textContent = PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`; $('#heatLbl').textContent = PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'; }
+    // boost: banner on top + the dial turns electric
+    if (P.boosting !== this.boostOn) { this.boostOn = P.boosting; const sp = this.el.speed.closest('.speedo'); sp.classList.toggle('boosting', P.boosting);
+      if (P.boosting && !REDUCED_MOTION) { this.boostEl.hidden = false; this.boostEl.classList.remove('go'); void this.boostEl.offsetWidth; this.boostEl.classList.add('go'); } else if (!P.boosting) { clearTimeout(this._bbT); this._bbT = setTimeout(() => { if (!this.boostOn) this.boostEl.hidden = true; }, 250); } }
     const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); this.el.lap.textContent = `${lapShown}/${R.laps}`;
     const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
     this.el.time.textContent = fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt));
@@ -55,7 +62,10 @@ class HUD {
     // standings (5 Hz)
     this.lastStand -= dt;
     if (this.lastStand <= 0 && this.rows.length) { this.lastStand = 0.2;
-      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; li.className = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : ''); li.lastChild.textContent = r.isPlayer ? 'You' : r.short; }); }
+      const lead = rank[0];
+      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; li.className = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : '') + (i === 0 ? ' lead' : ''); li.children[1].textContent = r.isPlayer ? 'You' : r.short;
+        const gap = i === 0 ? '' : r.finished && lead.finished ? '+' + (r.finishT - lead.finishT).toFixed(2) + 's' : r.eliminated ? 'OUT' : '+' + Math.min(99.99, (lead.dist - r.dist) / Math.max(6, (lead.v + r.v) / 2)).toFixed(2) + 's';
+        li.children[2].innerHTML = i === 0 ? CROWN_SVG : gap; }); }
     // minimap dots
     R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); dot.setAttribute('cx', mx.toFixed(1)); dot.setAttribute('cy', my.toFixed(1)); dot.style.display = r.eliminated ? 'none' : ''; });
     // weapons
@@ -90,6 +100,7 @@ class HUD {
   big(text, sub, dur = 1.5) { const b = this.el.big; b.innerHTML = text + (sub ? `<small>${sub}</small>` : ''); b.hidden = false; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; clearTimeout(this._bigT); this._bigT = setTimeout(() => (b.hidden = true), dur * 1000); }
   lapFlash(text, t) { this.big(text, `Lap ${fmtTime(t)}`, 1.6); }
   finish(pos, n, mode) {
+    if (this.race.police) { if (!this.race.police.busted) this.big('BACH GAYA!', 'Nakabandi se nikal gaya', 3.4); return; }
     if (mode === 'stunt') this.big('STUNT RUN', `${fmtNum(this.race.score.stunts || 0)} pts`, 3.4);
     else if (n) this.big(pos === 1 ? 'JEET GAYA!' : `${pos}${ordinal(pos)}`, pos === 1 ? 'Mumbai ka asli Chapri Raja' : 'FINISHED', 3.4);
     else this.big('FINISHED', fmtTime(this.race.player.bestLap), 3.4);

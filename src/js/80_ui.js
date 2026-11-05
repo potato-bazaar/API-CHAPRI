@@ -21,6 +21,7 @@ class UI {
     $('#startBtn').addEventListener('click', () => { AUDIO.click(); this.game.startFromSetup(); });
     $('#rainTog').addEventListener('click', () => { AUDIO.click(); SAVE.setup.weather = SAVE.setup.weather === 'monsoon' ? 'clear' : 'monsoon'; persist(); this.renderMenu(); this.game.previewTrack(SAVE.setup.track); });
     $('#sStart').addEventListener('click', () => { this.closeModal(); this.game.startFromSetup(); });
+    $('#policeBtn').addEventListener('click', () => { AUDIO.click(); SAVE.setup.mode = 'police'; persist(); this.renderMenu(); this.game.startFromSetup(); });
     $('#buildPrev').addEventListener('click', () => this.cycleBuild(-1)); $('#buildNext').addEventListener('click', () => this.cycleBuild(1));
     $('#upgradeBtn').addEventListener('click', () => this.open('garage'));
     $('#soundPill').addEventListener('click', () => { AUDIO.init(); this.game.onFirstInteract(); });
@@ -62,7 +63,7 @@ class UI {
     const L = levelFromXp(SAVE.xp); $('#lvNum').textContent = L.lvl; $('#xpTxt').textContent = `${fmtNum(L.into)} / ${fmtNum(L.need)}`; $('#xpBar').style.width = (L.into / L.need * 100).toFixed(1) + '%';
     $('#pName').textContent = SAVE.name; $('#pLv').textContent = L.lvl; $('#pXp').style.width = (L.into / L.need * 100).toFixed(1) + '%';
     $('#upDot').hidden = !this.canUpgradeSomething();
-    const s = SAVE.setup; const t = TRACKS.find(x => x.id === s.track) || TRACKS[0]; const M = MODES[s.mode];
+    const s = SAVE.setup; const M = MODES[s.mode]; const t = TRACKS.find(x => x.id === (M.track || s.track)) || TRACKS[0];
     { const wet = SAVE.setup.weather === 'monsoon'; const rt = $('#rainTog'); rt.classList.toggle('on', wet); rt.setAttribute('aria-pressed', wet); rt.querySelector('span').textContent = wet ? 'Rain on' : 'Rain off'; }
     $('#setupLine').textContent = `${M.label} · ${t.short} · ${M.fixedLaps || s.laps} lap${(M.fixedLaps || s.laps) > 1 ? 's' : ''} · ${DIFFICULTY[s.diff].label}${s.weather === 'monsoon' ? ' · Rain' : ''}`;
     // daily challenges
@@ -133,12 +134,14 @@ class UI {
   renderSetup() {
     const s = SAVE.setup; const M = MODES[s.mode];
     const seg = (el, opts, cur, cb, disabled = () => false) => { $(el).innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${disabled(v) ? 'disabled' : ''}>${l}</button>`).join(''); $$(el + ' button').forEach(b => b.addEventListener('click', () => { cb(b.dataset.v); persist(); AUDIO.click(); this.renderSetup(); })); };
-    seg('#sMode', Object.entries(MODES).filter(([k]) => k !== 'cup').map(([k, m]) => [k, m.label]), s.mode, v => (s.mode = v));
+    seg('#sMode', Object.entries(MODES).filter(([k]) => k !== 'cup').map(([k, m]) => [k, m.label]), s.mode, v => { s.mode = v; if (MODES[v].track) this.game.previewTrack(MODES[v].track); });
     $('#sModeDesc').textContent = M.desc;
-    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === s.track ? 'on' : ''}" data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small></button>`).join('');
+    const tSel = M.track || s.track;
+    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small></button>`).join('');
     $$('[data-track]').forEach(b => b.addEventListener('click', () => { s.track = b.dataset.track; persist(); AUDIO.click(); this.renderSetup(); this.game.previewTrack(s.track); }));
-    seg('#sLaps', [[1, '1'], [3, '3'], [5, '5']], M.fixedLaps || s.laps, v => (s.laps = +v), () => !!M.fixedLaps);
-    seg('#sDiff', [['easy', 'Easy 0.8×'], ['normal', 'Normal 1×'], ['hard', 'Hard 1.5×']], s.diff, v => (s.diff = v), () => !M.rivals);
+    const lapOpts = [[1, '1'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
+    seg('#sLaps', lapOpts, M.fixedLaps || s.laps, v => (s.laps = +v), () => !!M.fixedLaps);
+    seg('#sDiff', [['easy', 'Easy 0.8×'], ['normal', 'Normal 1×'], ['hard', 'Hard 1.5×']], s.diff, v => (s.diff = v), () => !M.rivals && !M.police);
     seg('#sTime', [['auto', 'Track default'], ['morning', 'Morning'], ['golden', 'Golden hour'], ['night', 'Night']], s.time, v => { s.time = v; this.game.previewTrack(s.track); });
     seg('#sWeather', [['clear', 'No rain'], ['monsoon', 'Rain']], s.weather, v => { s.weather = v; this.game.previewTrack(s.track); });
     seg('#sCombat', [['true', 'On'], ['false', 'Off']], M.combat === 'force' ? true : M.combat ? s.combat : false, v => (s.combat = v === 'true'), () => M.combat === 'force' || !M.combat);
@@ -147,7 +150,7 @@ class UI {
   openCup() {
     const s = SAVE.setup; const best = SAVE.records.cupBest;
     $('#cupBody').innerHTML = `<p>Race all five Mumbai circuits back to back against the same seven rivals. Points carry over: ${CUP_POINTS.join(' · ')} for 1st to 8th. Coins are paid after every round, plus a cup bonus at the end.</p>
-      <table class="cup-table"><tr><th>#</th><th>Track</th><th>Length</th></tr>${TRACKS.map((t, i) => `<tr><td>${i + 1}</td><td>${t.short}</td><td class="n">${(t.target / 1000).toFixed(1)} km</td></tr>`).join('')}</table>
+      <table class="cup-table"><tr><th>#</th><th>Track</th><th>Length</th></tr>${CUP_TRACKS.map((t, i) => `<tr><td>${i + 1}</td><td>${t.short}</td><td class="n">${(t.target / 1000).toFixed(1)} km</td></tr>`).join('')}</table>
       <h4>Settings</h4><p class="muted small">${s.laps} laps per round · ${DIFFICULTY[s.diff].label} rivals · combat ${s.combat ? 'on' : 'off'} (change these in Race Setup)${best ? ` · Your best cup finish: ${best}${ordinal(best).toLowerCase()}` : ''}</p>`;
     this.open('cupModal');
   }
@@ -191,6 +194,7 @@ class UI {
         <p class="muted small">No fighting in the first 10 seconds. Pick up weapons by riding through them. Lean away or brake to dodge; a red ! marks a rival winding up.</p></div>
       <div><h4>Points (× difficulty)</h4><table>${row('Finish 1st → 8th', '500 … 20')}${row('Overtake (+25 chained)', '50')}${row('Squeeze pass in a narrow lane', '+30')}${row('Knockdown (Gali Rumble: 400)', '150')}${row('Hit landed / dodge', '20 / 25')}${row('Wheelie (1 per metre)', '≤ 150')}${row('Power-slide (½ per metre)', '≤ 150')}${row('Air time / stoppie', '30–50 / 20–80')}${row('Clean race / lap record', '150 / 100')}</table></div>
       <div><h4>The road</h4><table>${row('Gaddha (pothole): drops you in, costs speed. Big ones throw you up', '⚠')}${row('Speed breakers, single or teen-in-a-row: slow down or fly', '50 km/h')}${row('Kichad (mud): slippery, slows you, rear steps out. Worse in rain', '⚠')}${row('Shortcut: a kachha lane past the stalls on some corners. Shorter, but rough', '⇢')}${row('Plank ramps: hit them straight and fly over the autos and carts. Grab the coins in the air', '↗')}${row('Rooftops (Dharavi), halls and the railway under Sion flyover: keep your speed up to clear the gaps', '!')}${row('Rain (button on the home screen): the road turns to a mirror and grip drops. Brake early, lean less', '☔')}</table></div>
+      <div><h4>Police Express+</h4><table>${row('Solo escape on Bhaag Chapri Bhaag. Finish 2 laps before the BUSTED meter fills', '🚨')}${row('Cops close to you fill the meter; crashing near them fills it fast. Get 12 m clear and it drains', '12 m')}${row('Nakabandi: hit the yellow ramps and fly over the barricades. Smashing through costs speed and heat', '↗')}${row('A red laser means a rifle is locked on you. Swerve before the shot', '⦿')}${row('Kick or hit the cops off their bikes. Watch for stray dogs, the steps and the flooded nala', '🐕')}</table></div>
       <div><h4>Garage mods</h4><table>${row('Silencers: lambi pipe, twin upswept, dragon mouth (fire on boost)', '🔥')}${row('Mota or racing tyres, crash guard with fog lamps, café cowl', '⚙')}${row('Paint and finish: gloss, matte, metal flake, chrome. Bought once, fits every bike', '🎨')}</table></div>
       <div><h4>Tips</h4><table>${row('Brake upright, then lean. Braking and leaning share one grip budget.', '')}${row('Keep the needle in the yellow powerband out of corners.', '')}${row('Slide 90° gali corners instead of braking to a crawl.', '')}${row('Sit in a rival\'s slipstream to fill the kick meter.', '')}${row('A full wobble meter throws you off. Straighten up to recover.', '')}</table></div></div>
       <p class="muted small credits">3D bike: <a href="https://sketchfab.com/3d-models/rx100-bike-06a03105792a418bba751e67506d4e86" target="_blank" rel="noopener">“RX100 BIKE”</a> by <a href="https://sketchfab.com/patilaryush" target="_blank" rel="noopener">patilaryush</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Modified for this game: rebadged CR100, repaintable tank, centre stand removed, resized and simplified.${BIKE_MODEL.ready ? '' : ' (Not loaded on this device; the built-in bike is shown.)'}<br>Riders: base body and hair from <a href="https://quaternius.com/packs/universalbasecharacters.html" target="_blank" rel="noopener">Universal Base Characters</a> by Quaternius (CC0), slimmed down and dressed for Chapri Racer.<br>Music: original chapri DJ beats, made for this game.</p>`;
@@ -208,7 +212,7 @@ class UI {
     $('#rTotal').textContent = '+' + fmtNum(res.total); $('#rMult').textContent = res.multText;
     $('#rOrder').innerHTML = res.order.map((r, i) => `<li class="${r.isPlayer ? 'me' : ''}"><span>${i + 1}</span><b>${r.isPlayer ? SAVE.name + ' (You)' : r.name}</b><small>${r.eliminated ? 'OUT' : r.finished ? fmtTime(r.laps.reduce((a, b) => a + b, 0)) : 'racing'}</small></li>`).join('');
     const d = SAVE.daily; $('#rDaily').innerHTML = '<h3>DAILY CHALLENGES</h3>' + DAILY.map(c => `<div>${(d.prog[c.id] || 0) >= c.goal ? '✅' : '⬜'} ${c.label} <span class="muted">${Math.min(c.goal, d.prog[c.id] || 0)}/${c.goal}</span></div>`).join('') + (res.cupTable || '');
-    $('#rNext').textContent = this.game.cup ? (this.game.cup.idx < TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
+    $('#rNext').textContent = this.game.cup ? (this.game.cup.idx < CUP_TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
   }
 }
 function trackThumb(t) {

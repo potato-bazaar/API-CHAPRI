@@ -38,7 +38,7 @@ class Track {
     this.planSetPieces(def);
     for (let i = 0; i < N; i++) {
       const s = i * STEP; let y = def.elev ? cyclicKey(def.elev, i / N, false) : 0;
-      y += this.roofRaw(s);
+      y += this.roofRaw(s) + this.stairsRaw(s);
       for (const b of this.bumps) {
         let x = s - (b.s - b.len / 2); if (x < -this.L / 2) x += this.L; if (x > this.L / 2) x -= this.L;
         if (x >= 0 && x <= b.len) {
@@ -80,7 +80,7 @@ class Track {
   // ── set pieces: rooftop run with gaps, ride-through halls, kicker ramps (with things to jump over), coins, rail crossing ──
   wrapD(x) { if (x > this.L / 2) x -= this.L; if (x < -this.L / 2) x += this.L; return x; }
   planSetPieces(def) {
-    const N = this.N, L = this.L; this.roof = null; this.halls = []; this.kickers = []; this.coins = []; this.rail = null;
+    const N = this.N, L = this.L; this.roof = null; this.halls = []; this.kickers = []; this.coins = []; this.rail = null; this.stairs = null; this.nala = null; this.nakas = []; this.dogSpots = []; this.pieceZones = [];
     const busy = [[0, 90], [L - 45, L]]; for (const b of this.bumps) busy.push([b.s - b.len - 14, b.s + b.len + 14]); for (const sc of this.shortcuts) busy.push([sc.s - sc.half - 6, sc.s + sc.half + 6]);
     if (def.elev) for (let i = 0; i < N; i += 4) if (cyclicKey(def.elev, i / N, false) > 0.3) busy.push([i * STEP - 25, i * STEP + 25]);
     const free = (a, b) => !busy.some(([x, y]) => a < y && b > x);
@@ -96,6 +96,16 @@ class Track {
       if (s0 !== null) { const up = 18, h = 5.2, gaps = []; const plateau = len - 2 * up; const n = plateau > 55 ? 2 : 1;
         for (let k = 0; k < n; k++) gaps.push({ x0: up + plateau * (k + 1) / (n + 1) - 2.5, len: 5 });
         this.roof = { s0, len, up, h, gaps }; } }
+    // seedhi: a long staircase up to a terrace and back down (physics rides the smooth slope; the steps are visual + suspension kicks)
+    if (def.stairs) { const rr = mkRuns(1 / 60); let len = 112, s0 = null; while (s0 === null && len >= 80) { s0 = take(len, 4, rr); if (s0 === null) len -= 8; }
+      if (s0 !== null) { const up = Math.round(len * 0.36), tread = 0.6, n = Math.round(up / tread), h = n * 0.125; this.stairs = { s0, len, up: n * tread, h, tread, n }; this.pieceZones.push([s0 - 8, s0 + len + 8]);
+        for (let i = 0; i < 7; i++) { const x = this.stairs.up + (len - 2 * this.stairs.up) * (i + 0.5) / 7; this.coins.push({ s: s0 + x, d: Math.sin(i * 1.3) * 2.2, h: 0.95 }); } } }
+    // nala: a leaking drain floods the road; ~0.25 m of water over the tarmac
+    if (def.nala) { const s0 = take(56, 6); if (s0 !== null) { this.nala = { s0: s0 + 4, len: 46, depth: 0.25 }; this.pieceZones.push([s0, s0 + 56]); } }
+    // nakabandi: a full-width barricade line with two big jump ramps in front of it
+    for (let k = 0; k < (def.nakas || 0); k++) { const s0 = take(64, 4); if (s0 === null) break; const S = s0 + 34, w = this.get(this.w0, S) / 2; const nk = { s: S, idx: k, w }; this.nakas.push(nk); this.pieceZones.push([s0, s0 + 64]);
+      for (const sd of [-1, 1]) { const kk = { s: S - 15, len: 9, h: 1.45, d: sd * w * 0.5, hw: 1.9, side: sd, over: 'naka', naka: nk }; this.kickers.push(kk);
+        for (let i = 1; i <= 5; i++) { const x = i * 2.8, t = x / 20; this.coins.push({ s: kk.s + kk.len + x, d: kk.d, h: kk.h + 4.2 * t - 4.9 * t * t + 0.9 }); } } }
     if (def.hall) { const s0 = take(64, 6); if (s0 !== null) this.halls.push({ s0, s1: s0 + 64, kind: def.hall }); }
     for (let k = 0; k < (def.kickers || 0); k++) { const s0 = take(48, 4); if (s0 === null) break; const side = k % 2 ? -1 : 1, hw = 1.4, w = this.get(this.w0, s0) / 2;
       const kk = { s: s0 + 6, len: 7, h: 1.15, d: side * Math.max(0, w - hw - 0.6), hw, side, over: def.kickOver || 'autos' }; this.kickers.push(kk);
@@ -103,6 +113,8 @@ class Track {
       for (let i = 1; i <= 6; i++) { const x = i * 2.6, t = x / 20; this.coins.push({ s: kk.s + kk.len + x, d: kk.d, h: kk.h + 3.9 * t - 4.9 * t * t + 0.9 }); } }
     if (this.roof) { const R = this.roof; for (const g of R.gaps) for (let i = -1; i <= 1; i++) this.coins.push({ s: R.s0 + g.x0 + g.len / 2 + i * 2.2, d: 0, h: R.h + 1.3 - Math.abs(i) * 0.25, abs: true }); }
     for (const sc of this.shortcuts) for (let i = -1; i <= 1; i++) { const ss = sc.s + i * 6; this.coins.push({ s: ss, d: sc.side * ((this.get(this.w0, ss) / 2 + 2.6 + this.get(this.w, ss) / 2) / 2), h: 0.95 }); }
+    for (let k = 0, tries = 0; k < (def.dogs || 0) && tries < 400; tries++) { const sd = 90 + this.rng() * (L - 140); if (!free(sd - 12, sd + 12) || this.dogSpots.some(q => Math.abs(this.wrapD(q.s - sd)) < 100)) continue;
+      this.dogSpots.push({ s: sd, side: this.rng() < 0.5 ? -1 : 1, col: ['#d8b98a', '#f2ede2', '#8a5a32', '#2a2420', '#c9a46a'][k % 5] }); k++; }
     if (def.rail && def.elev) { let bh = 0; for (let i = 0; i < N; i++) bh = Math.max(bh, cyclicKey(def.elev, i / N, false));
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
@@ -110,6 +122,13 @@ class Track {
   roofRaw(s) { const R = this.roof; if (!R) return 0; const x = this.wrapD(s - R.s0); if (x < 0 || x > R.len) return 0;
     for (const g of R.gaps) if (x >= g.x0 && x <= g.x0 + g.len) return 0;
     return R.h * (x < R.up ? x / R.up : x > R.len - R.up ? (R.len - x) / R.up : 1); }
+  stairsRaw(s) { const S = this.stairs; if (!S) return 0; const x = this.wrapD(s - S.s0); if (x < 0 || x > S.len) return 0;
+    return S.h * (x < S.up ? x / S.up : x > S.len - S.up ? (S.len - x) / S.up : 1); }
+  // on a flight of steps? +1 climbing, -1 descending, 0 not
+  stairDir(s) { const S = this.stairs; if (!S) return 0; const x = this.wrapD(s - S.s0); return x >= 0 && x < S.up ? 1 : x > S.len - S.up && x <= S.len ? -1 : 0; }
+  stairsZone(s) { const S = this.stairs; if (!S) return false; const x = this.wrapD(s - S.s0); return x >= 0 && x <= S.len; }
+  inWater(s, d) { const W = this.nala; if (!W) return false; const x = this.wrapD(s - W.s0); return x >= 0 && x <= W.len && Math.abs(d) < this.wAt(s) / 2 + 1.0; }
+  nakaNear(s, ahead = 80) { for (const n of this.nakas) { const x = this.wrapD(n.s - s); if (x > -6 && x < ahead) return n; } return null; }
   gapAt(s) { const R = this.roof; if (!R) return null; const x = this.wrapD(s - R.s0); for (const g of R.gaps) if (x >= g.x0 - 0.2 && x <= g.x0 + g.len + 0.2) return g; return null; }
   onRoofTop(s) { const R = this.roof; if (!R) return false; const x = this.wrapD(s - R.s0); return x >= R.up && x <= R.len - R.up; }
   hallAt(s) { for (const h of this.halls) { const x = this.wrapD(s - h.s0); if (x >= -2 && x <= h.s1 - h.s0 + 2) return h; } return null; }
@@ -126,7 +145,7 @@ class Track {
   // Potholes (small / big) and kichad (mud) patches, seeded per track so every race sees the same road
   placeHazards(def) {
     const R = this.rng, L = this.L; this.hazards = [];
-    const ok = (s, pad) => s > 70 && s < L - 35 && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4);
+    const ok = (s, pad) => s > 70 && s < L - 35 && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4) && !this.pieceZones.some(([a, b]) => s > a - pad && s < b + pad);
     const spot = (pad) => { for (let t = 0; t < 40; t++) { const s = 70 + R() * (L - 105); if (ok(s, pad) && !this.hazards.some(h => Math.abs(h.s - s) < 14)) return s; } return null; };
     const add = (type, n, fn) => { for (let k = 0; k < n; k++) { const s = spot(8); if (s === null) continue; this.hazards.push(fn(s)); } };
     add('pothole', def.potholes || 0, (s) => { const w = this.get(this.w0, s) / 2 - 1; return { type: 'pothole', s, d: (R() * 2 - 1) * w, r: 0.42 + R() * 0.25, big: false }; });
@@ -172,6 +191,11 @@ class Track {
     const b = 7.5;
     for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) { const j = (i + 1) % N; this.vmax[i] = Math.min(this.vmax[i], Math.sqrt(this.vmax[j] ** 2 + 2 * b * STEP)); }
     if (this.roof) for (let i = 0; i < N; i++) { const x = this.wrapD(i * STEP - this.roof.s0); if (x > -30 && x < this.roof.len) this.vmax[i] = Math.max(this.vmax[i], 19); }
+    const cap = (a, b, v) => { for (let i = Math.floor(a / STEP); i <= Math.ceil(b / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.min(this.vmax[j], v); } };
+    if (this.stairs) cap(this.stairs.s0 - 2, this.stairs.s0 + this.stairs.len + 2, 17);
+    if (this.nala) cap(this.nala.s0, this.nala.s0 + this.nala.len, 15);
+    for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) { const j = (i + 1) % N; this.vmax[i] = Math.min(this.vmax[i], Math.sqrt(this.vmax[j] ** 2 + 2 * b * STEP)); }
+    for (const nk of this.nakas) for (let i = Math.floor((nk.s - 40) / STEP); i <= Math.ceil(nk.s / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.max(this.vmax[j], 18); }
   }
   // nearest track s for a world point (coarse search); used by scenery placement
   buildGrid() {

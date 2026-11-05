@@ -31,16 +31,20 @@ class Race {
         this.riders.push(r);
       });
     }
+    if (M.police) PoliceOps.addCops(this);
     // grid: player starts at the back, like the mockup (8th/8)
     const T = this.track; const order = this.riders.slice(1).concat([this.player]);
     order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
     if (!M.rivals) this.player.place(-4, 0);
+    if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
     this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
     this.combat = new Combat(this); this.group.add(this.combat.group);
     // time trial ghost
     this.ghostRec = []; this.ghostRecLap = []; this.ghost = null;
     if (this.mode === 'timetrial' && SAVE.ghosts[this.def.id]) { this.ghost = { data: SAVE.ghosts[this.def.id], rig: new BikeRig({ ...look, ghost: true, lod: true }) }; makeGhost(this.ghost.rig); this.group.add(this.ghost.rig.root); }
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
+    const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
+    if (M.police) this.police = new PoliceOps(this);
     this.prevSliding = false; this.splatShown = 0; this.contactT = new Map(); this.coinState = new Uint8Array(this.track.coins.length); this.coinsGot = 0; this.world.resetCoins && this.world.resetCoins();
   }
   distToPlayer(r) { if (!r) return 0.3; const dd = Math.abs((r.dist ?? 0) - this.player.dist) + Math.abs((r.d ?? 0) - this.player.d); return clamp(1 - dd / 40, 0, 1) * 0.8; }
@@ -71,6 +75,8 @@ class Race {
     }
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
     this.combat.update(dt, this.raceT);
+    if (this.stage) this.stage.update(dt);
+    if (this.police) this.police.update(dt);
     this.collectCoins();
     this.scoring(dt);
     if (this.ghost) this.updateGhost();

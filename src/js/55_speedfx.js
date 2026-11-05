@@ -1,6 +1,6 @@
 // ───────────────────────── SPEED FEEL: speed lines, wind streaks, rain, boost kick, whoosh-by ─────────────────────────
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const C_LINE = ['#ffffff', '#ffffff', '#ffffff', '#ffe9c4'], C_LINE_BOOST = ['#ffffff', '#ff8cc0', '#ffd86a', '#ffffff'];
+const C_LINE = ['#ffffff', '#ffffff', '#ffffff', '#ffe9c4'], C_LINE_BOOST = ['#ff2e88', '#3fe8ff', '#ff5ab4', '#8af4ff', '#ffffff', '#ff2e88'];
 
 class SpeedFX {
   constructor(game) {
@@ -24,7 +24,7 @@ class SpeedFX {
   kick() {
     this.fovPunch = 13; this.dip = 0.24; this.game.shake(0.28);
     const f = this.flashEl; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-    AUDIO.boostKick(); MUSIC.hornStab(); this.race.rumble(0.6, 0.25); this.game.comicPop('VROOOM!', this.race.player, 1.1, '#ffd23f');
+    AUDIO.boostKick(); MUSIC.hornStab(); this.race.rumble(0.6, 0.25);
     for (let i = 0; i < 40; i++) this.lines.push(this.newLine(true));
   }
   newLine(boost) {
@@ -69,17 +69,18 @@ class SpeedFX {
     if (this.intensity < 0.02) { this.lines.length = 0; return; }
     // vanishing point = where the camera is looking
     this.vp.copy(this.game.camLook).project(camera); const cx = (this.vp.x + 1) / 2 * W, cy = (1 - this.vp.y) / 2 * H;
-    const Rr = Math.hypot(W, H) * 0.55; const want = Math.floor(this.intensity * 110);
+    const Rr = Math.hypot(W, H) * 0.55; const want = Math.floor(this.intensity * 110 + this.boostAmt * 70);
+    if (this.boostAmt > 0.3) ctx.globalCompositeOperation = 'lighter';   // boost: neon pink / cyan streaks that glow where they cross
     while (this.lines.length < want) this.lines.push(this.newLine(this.boostAmt > 0.5));
     for (let i = this.lines.length - 1; i >= 0; i--) {
       const l = this.lines[i]; l.t += dt; l.r += l.v * dt;
       if (l.t > l.life || l.r > 1.2) { if (this.lines.length > want) { this.lines.splice(i, 1); continue; } Object.assign(l, this.newLine(this.boostAmt > 0.5)); }
-      const ca = Math.cos(l.a), sa = Math.sin(l.a); const r0 = l.r * Rr, r1 = (l.r + l.len) * Rr; const w = l.w * this.res * (1 + this.boostAmt);
+      const ca = Math.cos(l.a), sa = Math.sin(l.a); const r0 = l.r * Rr, r1 = (l.r + l.len * (1 + this.boostAmt * 0.9)) * Rr; const w = l.w * this.res * (1 + this.boostAmt * 1.3);
       const fade = Math.sin(Math.PI * clamp(l.t / l.life, 0, 1));
       ctx.globalAlpha = clamp(l.al * this.intensity * fade, 0, 1); ctx.fillStyle = l.c;
       ctx.beginPath(); ctx.moveTo(cx + ca * r0, cy + sa * r0); ctx.lineTo(cx + ca * r1 - sa * w, cy + sa * r1 + ca * w); ctx.lineTo(cx + ca * r1 + sa * w, cy + sa * r1 - ca * w); ctx.closePath(); ctx.fill();
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   }
   updateStreaks(dt, P, T) {
     const op = clamp((P.v - 9) / 18, 0, 1) * 0.55 + this.boostAmt * 0.35;

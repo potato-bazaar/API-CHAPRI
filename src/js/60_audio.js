@@ -42,7 +42,7 @@ const AUDIO = {
   },
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
-    if (!race) { this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); return; }
+    if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); return; }
     const P = race.player; const vol = P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
     // dragon / lambi pipe: backfire pops when you snap off the throttle at high revs
@@ -50,11 +50,22 @@ const AUDIO = {
     this._thr = thr;
     let near = null, nd = 1e9; for (const r of race.riders) { if (r === P || r.eliminated) continue; const d = Math.abs(r.dist - P.dist) + Math.abs(r.d - P.d) * 2; if (d < nd) { nd = d; near = r; } }
     if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97 * doppler, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.75, near.boosting); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
+    this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? 0.11 : 0, t, 0.5);
   },
   tone(type, f0, f1, dur, vol, delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g); g.connect(this.sfxG); o.start(t); o.stop(t + dur + 0.02); },
   noise(dur, f, q, vol, type = 'bandpass', delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(fl); fl.connect(g); g.connect(this.sfxG); s.start(t, Math.random()); s.stop(t + dur + 0.02); },
+  gunshot(v = 1) { if (v < 0.05) return; this.noise(0.09, 3200, 0.6, 0.9 * v, 'bandpass'); this.noise(0.25, 700, 0.8, 0.5 * v, 'lowpass', 0.01); this.tone('sine', 160, 45, 0.16, 0.55 * v); },
+  bark(v = 1) { if (v < 0.05) return; for (const d of [0, 0.16]) { this.tone('square', 540, 360, 0.07, 0.16 * v, d); this.noise(0.06, 900, 2, 0.18 * v, 'bandpass', d); } },
+  yelp(v = 1) { if (v < 0.05) return; this.tone('triangle', 1300, 700, 0.2, 0.22 * v); this.tone('triangle', 1100, 600, 0.16, 0.15 * v, 0.2); },
+  // police siren: a two-tone wail, louder as the nearest cop closes in
+  siren(level) {
+    if (!this.on) return; const c = this.ctx, t = c.currentTime;
+    if (!this._sir) { const o = c.createOscillator(); o.type = 'sawtooth'; const lfo = c.createOscillator(); lfo.type = 'triangle'; lfo.frequency.value = 0.55; const lg = c.createGain(); lg.gain.value = 320; lfo.connect(lg); lg.connect(o.frequency); o.frequency.value = 950;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 0.9; const g = c.createGain(); g.gain.value = 0; o.connect(bp); bp.connect(g); g.connect(this.sfxG); o.start(); lfo.start(); this._sir = { o, lfo, g }; }
+    this._sir.g.gain.setTargetAtTime(level * 0.09, t, 0.25);
+  },
   beep(go) { this.tone('square', go ? 880 : 520, go ? 880 : 520, go ? 0.5 : 0.22, 0.18); },
   dhishoom(v = 1) { if (v < 0.05) return; this.tone('sine', 140, 38, 0.32, 0.9 * v); this.noise(0.18, 900, 1.2, 0.6 * v); this.tone('square', 620, 160, 0.16, 0.12 * v, 0.02); },
   whoosh(v = 1) { this.noise(0.25, 1400, 0.7, 0.35 * v, 'bandpass'); },

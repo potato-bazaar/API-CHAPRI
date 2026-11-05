@@ -95,6 +95,7 @@ class World {
       const s0 = rows[r], s1 = rows[r + 1];
       const w0 = T.wAt(s0) / 2, w1 = T.wAt(s1) / 2, y0 = T.yAt(s0), y1 = T.yAt(s1);
       if (Math.abs(y1 - y0) > 1.2) continue;   // rooftop gap edge
+      if (T.stairsZone(s0) && T.stairsZone(s1)) continue;   // the seedhi builds its own steps
       // road surface (u: 0 right edge → 1 left edge; v: 12 m per tile)
       T.pos(s0, -w0, pA, 0.0); T.pos(s1, -w1, pB, 0.0); T.pos(s1, w1, pC, 0.0); T.pos(s0, w0, pD, 0.0);
       B.road.quad(pA, pB, pC, pD, white, [[0, s0 / 12], [0, s1 / 12], [1, s1 / 12], [1, s0 / 12]], UP);
@@ -130,7 +131,7 @@ class World {
     }
     // pillars under elevated sections
     for (let s = 0; s < T.L; s += 22) {
-      const y = T.yAt(s); if (y < 2.2 || (T.roof && T.roofRaw(s) > 0) || (T.rail && Math.abs(T.wrapD(s - T.rail.s)) < 8)) continue;
+      const y = T.yAt(s); if (y < 2.2 || (T.roof && T.roofRaw(s) > 0) || T.stairsZone(s) || (T.rail && Math.abs(T.wrapD(s - T.rail.s)) < 8)) continue;
       const p = T.pos(s, 0, new THREE.Vector3()); const yaw = T.yawAt(s);
       B.props.box(p.x, -0.05, p.z, 2.2, y - 0.85, 1.6, yaw, '#9a8f86');
       B.props.box(p.x, y - 1.6, p.z, T.wAt(s) + 1.2, 0.75, 1.9, yaw, '#8a8079');
@@ -675,12 +676,13 @@ class World {
       const n = 10;
       for (let i = 0; i < n; i++) { const x0 = i / n * k.len, x1 = (i + 1) / n * k.len, y0 = k.h * Math.pow(x0 / k.len, 1.25), y1 = k.h * Math.pow(x1 / k.len, 1.25);
         T.pos(k.s + x0, k.d - k.hw, pA, y0 + 0.02); T.pos(k.s + x1, k.d - k.hw, pB, y1 + 0.02); T.pos(k.s + x1, k.d + k.hw, pC, y1 + 0.02); T.pos(k.s + x0, k.d + k.hw, pD, y0 + 0.02);
-        B.props.quad(pA, pB, pC, pD, i % 2 ? '#a8743a' : '#93602c', undefined, UP);
+        if (k.naka) B.glow.quad(pA, pB, pC, pD, new THREE.Color(i % 2 ? '#ffc21a' : '#1a1a1a'), undefined, UP); else B.props.quad(pA, pB, pC, pD, i % 2 ? '#a8743a' : '#93602c', undefined, UP);
         for (const sg of [-1, 1]) { T.pos(k.s + x0, k.d + sg * k.hw, pA, 0); T.pos(k.s + x1, k.d + sg * k.hw, pB, 0); T.pos(k.s + x1, k.d + sg * k.hw, pC, y1); T.pos(k.s + x0, k.d + sg * k.hw, pD, y0); B.props.quad(pA, pB, pC, pD, '#6e4a24'); } }
       T.pos(k.s + k.len, k.d - k.hw, pA, 0); T.pos(k.s + k.len, k.d + k.hw, pB, 0); T.pos(k.s + k.len, k.d + k.hw, pC, k.h); T.pos(k.s + k.len, k.d - k.hw, pD, k.h); B.props.quad(pA, pB, pC, pD, '#5a3c1c');
       for (const x of [k.len * 0.55, k.len * 0.85]) { T.pos(k.s + x, k.d, p, 0); const yaw = T.yawAt(k.s + x); for (let j = 0; j < 3; j++) B.props.box(p.x, p.y + j * 0.32, p.z, k.hw * 1.6, 0.3, 0.55, yaw + (RNG() - 0.5) * 0.1, pick(['#b07a3a', '#c88a4a', '#2f8a3e', '#c8321e'])); }
       T.pos(k.s - 8, k.d, p, 0); this.signBoard(B, 'arrow', p.x, p.y + 1.6, p.z, T.yawAt(k.s) + Math.PI, 1.6, p.y);
       const dims = k.over === 'autos' ? [0.7, 1.35] : k.over === 'carts' ? [0.6, 1.1] : [0.45, 1.1];
+      if (k.naka) { T.pos(k.s + k.len, k.d - k.hw, pA, k.h + 0.03); T.pos(k.s + k.len, k.d + k.hw, pB, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d + k.hw, pC, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d - k.hw, pD, k.h + 0.03); B.glow.quad(pA, pB, pC, pD, new THREE.Color('#39ff6a'), undefined, UP); continue; }
       for (const off of [5.5, 10.5, 15.5]) { if (k.over !== 'autos' && off > 14) continue; const s = k.s + k.len + off; T.pos(s, k.d, p); const yaw = T.yawAt(s);
         this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : 'drums', kicker: k });
         if (k.over === 'autos') this.auto(B, p.x, p.y, p.z, yaw + (RNG() - 0.5) * 0.15, RNG() < 0.5 ? 'kaali' : 'cng');
@@ -708,6 +710,7 @@ class World {
     }
     // halls: the road runs through a building
     for (const h of T.halls) this.buildHall(B, h);
+    this.buildStagePieces(B);
     // railway under the flyover, with a Mumbai local that runs through
     if (T.rail) this.buildRail(B);
     // coins
@@ -715,7 +718,7 @@ class World {
       const im = new THREE.InstancedMesh(g, m, T.coins.length); this.coinPos = T.coins.map(c => T.pos(c.s, c.d, new THREE.Vector3(), c.abs ? c.h - T.yAt(c.s) : c.h)); this.coinMesh = im; this.coinHidden = new Uint8Array(T.coins.length);
       this.group.add(im); this.disposables.push(g, m); this.updateCoins(0); }
   }
-  reflHide() { return [this.roadMesh, this.marksMesh, this.hazDry, this.hazWet, this.poolMesh]; }
+  reflHide() { return [this.roadMesh, this.marksMesh, this.hazDry, this.hazWet, this.poolMesh, this.waterMesh]; }
   updateCoins(t) { if (!this.coinMesh) return; const M = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
     for (let i = 0; i < this.coinPos.length; i++) { q.setFromAxisAngle(UP, t * 3 + i * 0.4); sc.setScalar(this.coinHidden[i] ? 0 : 1); M.compose(this.coinPos[i], q, sc); this.coinMesh.setMatrixAt(i, M); } this.coinMesh.instanceMatrix.needsUpdate = true; }
   hideCoin(i) { if (this.coinHidden) this.coinHidden[i] = 1; }
@@ -808,6 +811,9 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     const pos = new Float32Array(n * 3); this.lampHeads.forEach((p, i) => pos.set([p.x, p.y, p.z], i * 3));
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.glowMat = new THREE.PointsMaterial({ map: TEX.glow, size: 9, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffc070, opacity: 0.0 });
+    // fade the halos out near the lens: up close a 9 m sprite is a flat disc filling the screen
+    this.glowMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vNearFade;').replace('#include <project_vertex>', '#include <project_vertex>\nvNearFade = smoothstep(7.0, 22.0, -mvPosition.z);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vNearFade;').replace('#include <premultiplied_alpha_fragment>', 'gl_FragColor.a *= vNearFade;\n#include <premultiplied_alpha_fragment>'); };
     this.glows = new THREE.Points(g, this.glowMat); this.group.add(this.glows); this.disposables.push(g, this.glowMat);
   }
   buildLights() {
@@ -849,6 +855,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
   update(dt, t, camera, focus) {
     this.sky.position.copy(camera.position);
     if (this.coinMesh) this.updateCoins(t);
+    if (this.updateStage) this.updateStage(dt, t, focus);
     if (this.train) { this.trainT += dt; const x = -360 + this.trainT * 30; if (x > 360) { this.trainT = -8 - Math.random() * 10; this.trainDir = -this.trainDir; this.trainHorned = false; }
       this.placeTrain(this.trainDir * Math.max(-400, x)); this.train.visible = this.trainT > 0;
       if (focus && this.trainT > 0 && !this.trainHorned) { const d = this.train.position.distanceTo(focus); if (d < 170) { this.trainHorned = true; AUDIO.trainHorn(clamp(1 - d / 220, 0.2, 1)); } } }

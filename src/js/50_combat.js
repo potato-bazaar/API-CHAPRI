@@ -44,6 +44,7 @@ class Particles {
 const WEAPONS = {
   kick: { dur: 0.36, strike: 0.17, reach: 1.0, wob: 24, anim: 'kick' },
   belt: { dur: 0.36, strike: 0.19, reach: 1.5, wob: 18, anim: 'swing', uses: 8 },
+  lathi: { dur: 0.42, strike: 0.22, reach: 1.6, wob: 22, anim: 'swing', uses: 999 },
   chain: { dur: 0.62, strike: 0.42, reach: 2.0, wob: 58, anim: 'swing', uses: 6 },
   bottle: { uses: 1, slot: 'throw' },
   gutka: { uses: 3, slot: 'throw' },
@@ -68,7 +69,7 @@ class Combat {
     this.glassMat = new THREE.MeshBasicMaterial({ map: TEX.glass, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 });
     this._v = new THREE.Vector3(); this._w = new THREE.Vector3();
   }
-  get allowed() { const R = this.race; return R.combatOn && R.raceT > 10; }
+  get allowed() { const R = this.race; return R.combatOn && R.raceT > (R.police ? 3 : 10); }
   // ── attacks ──
   melee(r, side) {
     if (!this.allowed || r.crashed || r.attack || r.finished) return false;
@@ -86,7 +87,7 @@ class Combat {
   }
   nearestSide(r, side, reach) {
     let best = null, bd = 1e9;
-    for (const o of this.race.riders) { if (o === r || o.eliminated || o.crashed) continue; const dd = o.dist - r.dist, lat = side * (o.d - r.d);
+    for (const o of this.race.riders) { if (o === r || o.eliminated || o.crashed || (r.cfg.cop && !o.isPlayer)) continue; const dd = o.dist - r.dist, lat = side * (o.d - r.d);
       if (Math.abs(dd) < 1.5 && lat > 0.25 && lat < reach + 0.55 && Math.abs(dd) + lat < bd) { bd = Math.abs(dd) + lat; best = o; } }
     return best;
   }
@@ -112,6 +113,7 @@ class Combat {
     if (kind === 'kick') { const toWall = Math.sign(t.d - a.d) * t.d; if (toWall > t.halfW - 1.2) wob *= 1.8; }
     if (kind === 'belt') { t.beltHits = (R.raceT - (t.beltT || -9) < 2.5) ? (t.beltHits || 0) + 1 : 1; t.beltT = R.raceT; if (t.beltHits >= 3) { wob += 30; t.beltHits = 0; } if (t.input.back) wob *= 0.3; }
     t.addWobble(wob / t.st.wobbleRes); t.shoveV += side * (kind === 'chain' ? 3.5 : 2.6); t.v *= 0.97;
+    if (a.cfg.cop && t.isPlayer && R.police) { R.police.addHeat(6); a.v *= 0.86; }
     t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
     const p = this.riderPos(t, 1.2); for (let i = 0; i < 10; i++) this.stars.emit(p.x, p.y, p.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0.45, 0.6, 1.4, C_STAR, 1, 3, 2);
     AUDIO.dhishoom(a.isPlayer || t.isPlayer ? 1 : this.race.distToPlayer(t));

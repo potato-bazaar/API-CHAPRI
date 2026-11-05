@@ -126,9 +126,10 @@ class Game {
   }
   // ── race lifecycle ──
   startFromSetup() { if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; this.startRace(Object.assign({}, SAVE.setup)); }
-  startCup() { const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; this.startRace(Object.assign({}, this.cup.setup, { track: TRACKS[0].id }), this.cup); }
+  startCup() { const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[0].id }), this.cup); }
   startRace(setup, cup = this.cup) {
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
+    const MM = MODES[setup.mode]; if (MM && MM.track) setup = Object.assign({}, setup, { track: MM.track, time: setup.time === 'auto' ? MM.time : setup.time });   // Police Express+ always runs its own stage
     const def = TRACKS.find(t => t.id === setup.track) || TRACKS[0];
     const tk = setup.time === 'auto' ? def.time : setup.time;
     this.loadTrack(def.id, tk, setup.weather);
@@ -158,8 +159,8 @@ class Game {
     this.showScreen('menu');
   }
   nextTrack() {
-    if (this.cup) { if (this.cup.done) { this.cup = null; return this.toMenu(); } this.cup.idx++; if (this.cup.idx >= TRACKS.length) { this.cup.done = true; return this.toMenu(); } return this.startRace(Object.assign({}, this.cup.setup, { track: TRACKS[this.cup.idx].id }), this.cup); }
-    const i = TRACKS.findIndex(t => t.id === this.lastSetup.track); const nx = TRACKS[(i + 1) % TRACKS.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
+    if (this.cup) { if (this.cup.done) { this.cup = null; return this.toMenu(); } this.cup.idx++; if (this.cup.idx >= CUP_TRACKS.length) { this.cup.done = true; return this.toMenu(); } return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[this.cup.idx].id }), this.cup); }
+    const pool = this.lastSetup.mode === 'police' ? TRACKS.filter(t => t.police) : CUP_TRACKS; const i = pool.findIndex(t => t.id === this.lastSetup.track); const nx = pool[(i + 1) % pool.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
@@ -172,10 +173,12 @@ class Game {
     const rank = R.ranking(); const pos = R.playerPos || rank.indexOf(P) + 1; const n = R.riders.length;
     if (M.rivals) items.push(['Position points', PTS.finish[pos - 1] || 0]);
     if (R.mode === 'timetrial') items.push([`Laps completed (${P.laps.length})`, P.laps.length * 50]);
+    const PO = R.police; if (PO) { if (!PO.busted) items.push(['Escaped the nakabandi', 800]); else items.push([`Laps before the arrest (${P.laps.length})`, P.laps.length * 120]); }
     const add = (k, label) => { if (S[k]) items.push([label, S[k]]); };
     add('overtakes', `Overtakes (${S.overtakeCount || 0})`); add('squeeze', 'Squeeze passes'); add('knockdowns', `Knockdowns (${S.knockCount || 0})`); add('revenge', 'Revenge knockdown');
     add('hits', `Hits landed (${S.hitCount || 0})`); add('dodges', 'Dodges'); add('weaponSnatch', 'Weapons snatched');
     add('stunts', `Stunts (${[S.wheelies && S.wheelies + ' wheelie', S.slides && S.slides + ' slide', S.airs && S.airs + ' air', S.stoppies && S.stoppies + ' stoppie'].filter(Boolean).join(', ') || 'tricks'})`);
+    add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
@@ -187,14 +190,16 @@ class Game {
     if (this.cup && M.rivals) {
       rank.forEach((r, i) => { const k = r.isPlayer ? '__you' : r.name; this.cup.points[k] = (this.cup.points[k] || 0) + (CUP_POINTS[i] || 0); });
       const table = Object.entries(this.cup.points).sort((a, b) => b[1] - a[1]);
-      const last = this.cup.idx >= TRACKS.length - 1;
+      const last = this.cup.idx >= CUP_TRACKS.length - 1;
       if (last) { this.cup.done = true; const cpos = table.findIndex(([k]) => k === '__you') + 1; const bonus = [2000, 1000, 500][cpos - 1] || 0; if (bonus) { SAVE.coins += bonus; items.push([`Cup bonus (${cpos}${ordinal(cpos).toLowerCase()} overall)`, bonus]); } if (!SAVE.records.cupBest || cpos < SAVE.records.cupBest) SAVE.records.cupBest = cpos; }
-      cupTable = `<h3 style="margin-top:.8rem">CHAMPIONSHIP · ROUND ${this.cup.idx + 1}/${TRACKS.length}</h3><table class="cup-table">${table.map(([k, v], i) => `<tr class="${k === '__you' ? 'me' : ''}"><td>${i + 1}</td><td>${k === '__you' ? SAVE.name + ' (You)' : k}</td><td class="n">${v}</td></tr>`).join('')}</table>`;
+      cupTable = `<h3 style="margin-top:.8rem">CHAMPIONSHIP · ROUND ${this.cup.idx + 1}/${CUP_TRACKS.length}</h3><table class="cup-table">${table.map(([k, v], i) => `<tr class="${k === '__you' ? 'me' : ''}"><td>${i + 1}</td><td>${k === '__you' ? SAVE.name + ' (You)' : k}</td><td class="n">${v}</td></tr>`).join('')}</table>`;
     }
     persist();
-    const title = R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
+    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
     const sub2 = `${R.def.short} · ${R.laps} lap${R.laps > 1 ? 's' : ''} · ${MODES[R.mode].label}${M.rivals ? ' · ' + R.diff.label : ''} · Best lap ${fmtTime(P.bestLap)}`;
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
+    if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
+    if (PO) return { posText: PO.busted ? '🚨' : fmtTime(P.finishT || R.raceT), posSuf: PO.busted ? 'BUSTED' : 'ESCAPED', title, sub: sub2, items, total, multText: 'Coins and XP added.', order: [P], cupTable };
     return { posText: M.rivals ? String(pos) : R.mode === 'stunt' ? fmtNum(S.stunts || 0) : fmtTime(P.bestLap), posSuf: M.rivals ? ordinal(pos) : R.mode === 'stunt' ? 'PTS' : '', title, sub: sub2, items, total: totalShown, multText: mult !== 1 ? `Includes the ${R.diff.label} rivals multiplier (×${mult}). Coins and XP added.` : 'Coins and XP added.', order: M.rivals ? rank : [P], cupTable };
   }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }

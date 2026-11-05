@@ -52,9 +52,10 @@
         </div>
         <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
         <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
-        <div class="two-btns">
+        <div class="two-btns three">
           <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
           <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
+          <button id="policeBtn" class="police-btn" type="button"><span class="siren"><i></i><i></i></span><b>POLICE EXPRESS+</b><small>Bhaag Chapri Bhaag</small></button>
         </div>
       </div>
       <aside class="panel daily">
@@ -105,6 +106,8 @@
       <div class="poslap"><div class="pos"><b id="hPos">8</b><sup id="hPosSuf">TH</sup><span id="hPosOf">/8</span></div><div class="lapbox"><span>LAP</span><b id="hLap">1/3</b></div><div class="time"><b id="hTime">00:00.00</b></div><div class="best"><span>BEST</span><b id="hBest">--:--</b></div></div>
     </div>
     <ol class="standings" id="standings"></ol>
+    <div class="heat" id="heat" hidden><div class="heat-top"><span class="siren"><i></i><i></i></span><b>POLICE</b><em id="copGap">— m</em></div><div class="heat-bar"><i id="heatFill"></i></div><small id="heatLbl">BUSTED METER</small></div>
+    <div class="boost-banner" id="boostBanner" hidden><span>⚡</span><b>BOOST!</b></div>
     <div class="hud-top"><div id="toast" class="toast" hidden><span class="tico"><svg viewBox="0 0 24 24"><path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V10V5.5a1.5 1.5 0 0 1 3 0V10V6.5a1.5 1.5 0 0 1 3 0V11V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5.6-3.8L4.5 13a1.6 1.6 0 0 1 2.5-2z"/></svg></span><b id="toastTxt">Rival Hit!</b><em id="toastPts"></em></div><div id="callouts"></div></div>
     <div class="hud-tr"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b><span class="plus">+</span></span><span class="pill parts"><i class="ico-wrench"></i><b class="partsMirror">0</b><span class="plus">+</span></span><button id="pauseBtn" class="pause-btn" type="button" aria-label="Pause"><i></i><i></i></button></div>
     <div class="minimap"><svg id="mmSvg" viewBox="0 0 100 100" aria-hidden="true"></svg><p id="mmName">Mumbai Central<br><small>1.8 km</small></p></div>
@@ -119,7 +122,7 @@
       <div class="dash">
         <button class="tbtn side-btn" data-t="boost" type="button" aria-label="Two-stroke kick boost"><svg viewBox="0 0 24 24"><path d="M9 2h6v3h-1v2.2c2 .8 3 2.5 3 4.8v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8c0-2.3 1-4 3-4.8V5H9z" fill="#ffc21a"/><path d="M13 10.5 10 15h2.2l-1 4 3.6-5.2h-2.3z" fill="#1b0d22"/></svg><kbd>Shift</kbd></button>
         <div class="speedo">
-          <svg viewBox="0 0 300 160" aria-hidden="true"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".6" stop-color="#ff7a2f"/><stop offset="1" stop-color="#ffc21a"/></linearGradient></defs>
+          <svg viewBox="0 0 300 160" aria-hidden="true"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".6" stop-color="#ff7a2f"/><stop offset="1" stop-color="#ffc21a"/></linearGradient><linearGradient id="rgB" x1="0" x2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".35" stop-color="#3f8cff"/><stop offset="1" stop-color="#5ff2ff"/></linearGradient></defs>
             <path id="arcBg" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="16" stroke-linecap="round"/>
             <path id="arcBand" d="" fill="none" stroke="#ffc21a" stroke-width="5" opacity=".9"/>
             <path id="arcFill" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke="url(#rg)" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
@@ -127,7 +130,8 @@
           </svg>
           <div class="spd"><b id="hSpeed">0</b><span>km/h</span></div>
           <div class="gear"><b id="hGear">1</b><span>GEAR</span></div>
-          <div class="kick"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-2 8 9-12h-7z"/></svg><div class="kickbar"><i id="hKick"></i></div></div>
+          <div class="kick"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-2 8 9-12h-7z"/></svg><div class="kickbar"><i id="hKick"></i><span class="kb-lbl">BOOST</span></div></div>
+          <div class="boost-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-2 8 9-12h-7z"/></svg></div>
           <div id="wobIco" class="wob"><svg viewBox="0 0 32 20"><path d="M2 6h8l3 4h6l3-4h8" fill="none" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="12" r="3"/></svg></div>
         </div>
         <button class="tbtn side-btn" data-t="back" type="button" aria-label="Wheelie (weight back)"><svg viewBox="0 0 32 24"><circle cx="7" cy="17" r="5" fill="none" stroke-width="2.4"/><circle cx="24" cy="10" r="5" fill="none" stroke-width="2.4"/><path d="M7 17l6-9h6l5 2M13 8l-1-3" fill="none" stroke-width="2.4"/></svg><kbd>Q</kbd></button>

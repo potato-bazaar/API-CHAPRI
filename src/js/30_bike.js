@@ -126,8 +126,13 @@ function legGeom(jeans) { // hip origin; thigh forward-down to knee, shin down t
 function chainGeom() { const b = new Batch(); const M = new THREE.Matrix4(); const Q = new THREE.Quaternion(); for (let i = 0; i < 9; i++) { const t = new THREE.TorusGeometry(0.03, 0.009, 4, 8); M.compose(new THREE.Vector3(0, 0, 0.04 + i * 0.05), Q.setFromEuler(new THREE.Euler(0, i % 2 ? Math.PI / 2 : 0, 0)), new THREE.Vector3(1, 1, 1.4)); b.add(t, M, new THREE.Color('#c9ced4')); } return b.build(); }
 function beltGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.add(new THREE.BoxGeometry(0.035, 0.008, 0.5).translate(0, 0, 0.26), M, new THREE.Color('#6b3a1a')); b.add(new THREE.BoxGeometry(0.06, 0.012, 0.06).translate(0, 0, 0.52), M, new THREE.Color('#d4a62a')); return b.build(); }
 function bottleGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.add(new THREE.CylinderGeometry(0.035, 0.035, 0.14, 8).translate(0, 0, 0), M, new THREE.Color('#5a3a0e')); b.add(new THREE.CylinderGeometry(0.014, 0.03, 0.08, 8).translate(0, 0.11, 0), M, new THREE.Color('#5a3a0e')); b.add(new THREE.CylinderGeometry(0.036, 0.036, 0.05, 8), M, new THREE.Color('#ffd23f')); return b.build(); }
-const CHAIN_G = chainGeom(), BELT_G = beltGeom(), BOTTLE_G = bottleGeom();
+function lathiGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.add(new THREE.CylinderGeometry(0.016, 0.02, 1.0, 8).rotateX(Math.PI / 2).translate(0, 0, 0.46), M, new THREE.Color('#8a5426')); b.add(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 8).rotateX(Math.PI / 2).translate(0, 0, 0.94), M, new THREE.Color('#d9c48a')); return b.build(); }
+const CHAIN_G = chainGeom(), BELT_G = beltGeom(), BOTTLE_G = bottleGeom(), LATHI_G = lathiGeom();
 const SHIRT_TEX_CACHE = {};
+// boost exhaust jets: an additive cyan cone with a white-hot core (they bloom in the post pass)
+const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.375, 0).rotateX(-Math.PI / 2);
+const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+  new THREE.MeshBasicMaterial({ color: '#e8fbff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })];
 
 class BikeRig {
   constructor(o) {
@@ -151,6 +156,8 @@ class BikeRig {
       this.body.add(this.wheelR, this.wheelF);
       const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights);
       if (o.mods && !o.ghost) this.mods = addBikeMods(this, o, low, cast);
+      if (!o.ghost) { this.jets = []; for (const sx of [-1, 1]) { const j = new THREE.Group(); j.position.set(sx * 0.13, 0.33, -0.95); j.rotation.x = -0.12;
+        const outer = new THREE.Mesh(JET_G, JET_MAT[0]), core = new THREE.Mesh(JET_G, JET_MAT[1]); core.scale.set(0.45, 0.55, 0.45); j.add(outer, core); j.visible = false; this.body.add(j); this.jets.push(j); } }
     } else {
       const bg = bikeBodyGeom(o); this.geoms.push(bg);
       const bm = new THREE.Mesh(bg, BIKE_MAT); bm.castShadow = true; this.body.add(bm);
@@ -184,8 +191,8 @@ class BikeRig {
     // weapons in hand (right hand by default)
     this.weapon = new THREE.Group(); this.wPitch = 0;
     if (this.rm) this.body.add(this.weapon); else { this.weapon.position.set(0, 0, 0.58); this.armR.add(this.weapon); }
-    this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT);
-    this.weapon.add(this.wChain, this.wBelt, this.wBottle); this.showWeapon(null);
+    this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT); this.wLathi = new THREE.Mesh(LATHI_G, BIKE_MAT);
+    this.weapon.add(this.wChain, this.wBelt, this.wBottle, this.wLathi); this.showWeapon(null);
     // blob shadow
     this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.blob, transparent: true, depthWrite: false, opacity: 0.8 }));
     this.blob.position.y = 0.03; this.blob.renderOrder = 1; this.root.add(this.blob);
@@ -193,7 +200,7 @@ class BikeRig {
     this.t = 0; this.tuck = 0.4; this.anim = null; this.wheelSpin = 0; this.head = { yaw: 0, pitch: 0 };
     this._shL = new THREE.Vector3(); this._shR = new THREE.Vector3(); this._dir = new THREE.Vector3(); this._gL = new THREE.Vector3(); this._gR = new THREE.Vector3();
   }
-  showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.heldKind = kind; }
+  showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.wLathi.visible = kind === 'lathi'; this.heldKind = kind; }
   play(name, side = 1, dur = 0.4) { this.anim = { name, side, t: 0, dur }; }
   setPitch(p) { // p>0 wheelie (pivot rear contact), p<0 stoppie (pivot front contact)
     const pivotZ = p >= 0 ? REAR_Z : FRONT_Z; const a = -p;
@@ -204,6 +211,8 @@ class BikeRig {
   // st: { lean, pitch, speed, tuck(0..1), weightBack, steer, crashed, crashT, slide, celebrate, idle }
   update(dt, st) {
     this.t += dt;
+    if (this.jets) { const on = !!st.boost && !st.crashed; for (const j of this.jets) { j.visible = on; if (on) { const k = 0.8 + Math.random() * 0.45; j.scale.set(k, k, 0.75 + Math.random() * 0.7); } } }
+    if (this.mods && this.mods.siren) { const ph = Math.floor((this.t + this.mods.sirenPh) * 7) % 4; this.mods.siren[0].visible = ph < 2 && ph !== 1 || ph === 1; this.mods.siren[1].visible = ph >= 2; }
     if (this.mods && this.mods.flames.length) { const on = !!st.boost && !st.crashed; for (const f of this.mods.flames) { f.visible = on; if (on) { const k = 0.75 + Math.random() * 0.5; f.scale.set(k, k, 0.6 + Math.random() * 0.9); } } }
     this.lean.rotation.z = -st.lean * 1.12; this.lean.rotation.y = st.slide || 0; this.leanNow = st.lean || 0;
     this.setPitch(st.pitch || 0);

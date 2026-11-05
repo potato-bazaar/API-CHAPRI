@@ -23,6 +23,11 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 
 ## What's in it
 
+- **Police Express+.** A solo escape mode on its own night stage, **Bhaag Chapri Bhaag**.
+  - Finish 2 laps before the BUSTED meter fills. Police bikes with sirens and lathis chase you.
+  - Nakabandi checkpoints have full-width barricades. You can jump the big yellow ramps or smash through.
+  - Riflemen telegraph each shot with a red laser, so you can swerve to dodge.
+  - The stage also has a long staircase to ride up and down, a flooded nala, and stray dogs that dash across.
 - **Five tracks.** Mumbai Central, Crawford Market, Dharavi Lanes, Bandstand Rush and Sion Flyover. Hazards include potholes, kichad (mud), triple speed-breakers and kachha shortcut lanes.
 - **Set pieces:**
   - plank ramps over autos and carts, with coin arcs;
@@ -35,6 +40,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - the comic-book post effect: ink outlines, halftone and pop-up sound words;
   - time-of-day moods.
 - **Riders.** Skinned riders with IK posing and a verlet-cloth open shirt over a baniyan. Hair moves in the wind.
+- **Boost.** A "⚡ BOOST!" banner, an electric-blue speedometer with a BOOST bar, blue exhaust jets, neon speed lines and radial blur.
 - **Garage.** Builds, performance upgrades, 18 paints, and visual mods:
   - silencers: lambi pipe, twin upswept, or dragon mouth (fire on boost);
   - Mota or racing tyres;
@@ -55,6 +61,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | `?bike=basic` | Built-in primitive bike instead of the GLB |
 | `?rider=basic` | Built-in primitive rider instead of the GLB |
 | `?autopilot&track=dharavi-lanes&weather=monsoon&time=night&laps=1` | Watch an AI-driven race |
+| `?autopilot&mode=police&nobust` | Watch a Police Express+ run that can't end in an arrest |
 
 ## Build
 
@@ -72,10 +79,10 @@ npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
 | `00_core` | Config, builds, upgrades, mods, save data, stats |
 | `05_textures` | Procedural canvas textures |
 | `10_tracks`, `15_track` | Track definitions; centreline, widths, elevation, hazards, shortcuts, set pieces, racing line |
-| `18_batch`, `20_world` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods |
+| `18_batch`, `20_world`, `21_stage` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights) |
 | `28_bikemodel`, `30_bike`, `32_bikemods` | Bike GLB loading, paint and finishes, rig, visual mods |
 | `29_ridermodel`, `31_cloth`, `40_rider` | Skinned rider and IK, shirt cloth, rider physics and AI |
-| `45_race`, `50_combat` | Race flow, scoring, coins, weapons, particles |
+| `45_race`, `46_police`, `50_combat` | Race flow, scoring, coins; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); weapons, particles |
 | `55_speedfx`, `56_reflect`, `57_comic` | Speed lines and lens rain; wet-road mirror; glow and comic post pass |
 | `60_audio`, `62_music` | Engine and SFX synthesis; procedural music |
 | `70_hud`, `80_ui`, `85_input`, `90_main` | HUD, menus, garage, input, game loop and camera |
@@ -94,6 +101,8 @@ node tools/t17.mjs mumbai-central 1                          # fast-forward a fu
 node tools/t31.mjs dharavi-lanes 2                           # jumps, rooftop falls, coins and crash spots
 node tools/t32.mjs look sion-flyover golden monsoon 10       # in-race screenshot
 node tools/t33.mjs                                           # garage close-ups of mod combinations
+node tools/t36.mjs                                           # fast-forward a Police Express+ run: escaped or busted
+node tools/t37.mjs                                           # Police Express+ screenshots: checkpoint, stairs, water, boost
 ```
 
 ## Credits and licences

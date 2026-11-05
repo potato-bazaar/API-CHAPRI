@@ -38,7 +38,7 @@ class Rider {
     const vTopEff = this.vTop * (this.boosting ? 1.17 : 1) * (this.drafting ? 1.06 : 1) * (this.tuck > 0.6 ? 1.02 : 1) * (this.race.wet ? 0.97 : 1);
     // road surface under the wheels: 0 tarmac, 1 kichad (mud), 2 kachha lane
     this.surf = this.air ? 0 : this.surfaceHere(T);
-    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : 1);
+    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : 1);
     // gears + rpm
     const gt = GEAR_SPLIT.map(f => f * vTopEff * 1.06);
     if (!(this.isPlayer && SAVE.settings.manualGears)) {
@@ -61,7 +61,11 @@ class Rider {
     if (this.boosting) a += 3.3;
     if (this.wheelie) a += 0.3;
     if (this.gripT > 0) a -= 0.8;
-    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4; }
+    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4;
+      else if (this.surf === 4) a -= 1.2 + this.v * 0.11;      // water drag: wheels a quarter under
+      else if (this.surf === 3) a -= 0.9 + this.v * 0.05; }    // steps
+    // stairs: every step edge kicks the suspension
+    if (this.surf === 3 && !this.air) { const S = T.stairs, si = Math.floor(T.wrapD(this.s - S.s0) / S.tread); if (si !== this.lastStep) { this.lastStep = si; this.suspV -= (T.stairDir(this.s) > 0 ? 1.5 : 1.0) * Math.min(1.2, this.v / 9); this.stepHit = (this.stepHit || 0) + 1; } } else this.lastStep = -1;
     this.v = Math.max(0, this.v + a * dt);
     // boost meter
     const fill = this.st.boostFill;
@@ -159,6 +163,8 @@ class Rider {
     if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
   }
   surfaceHere(T) {
+    if (T.inWater(this.s, this.d)) return 4;
+    if (T.stairDir(this.s)) return 3;
     let surf = T.laneAt(this.s, this.d) ? 2 : 0;
     for (const h of T.hazards) { if (h.type !== 'mud') continue; let ds = this.s - h.s; if (ds > T.L / 2) ds -= T.L; if (ds < -T.L / 2) ds += T.L;
       if (Math.abs(ds) < h.len / 2 && Math.abs(this.d - h.d) < h.hw * (1 - 0.35 * Math.abs(ds) / (h.len / 2))) return 1; }
@@ -213,9 +219,14 @@ class Rider {
     let target = T.rlAt(sAhead) + this.ai.laneBias * Math.max(0, wAh) * 0.45;
     if (P && P.style === 'blocker' && this.race.player && this.race.player.dist < this.dist && this.race.player.dist > this.dist - 12) target = lerp(target, this.race.player.d, 0.6);
     // kicker ramps: jumpers line up on them, everyone else keeps to the other side
-    let goKick = null;
+    let goKick = null, nakaPick = null;
     for (const k of T.kickers) { const ds = T.wrapD(k.s - this.s); if (ds < -k.len - 20 || ds > 45 + this.v) continue;
+      if (k.naka) { if (!nakaPick || Math.abs(k.d - this.d) < Math.abs(nakaPick.d - this.d)) nakaPick = k; continue; }   // nakabandi: everybody jumps
       if (this.ai.jumper && this.v > 13) { target = k.d; goKick = k; } else if (Math.abs(target - k.d) < k.hw + 1.2) target = k.d - k.side * (k.hw + 1.6); }
+    if (nakaPick) { target = nakaPick.d; goKick = nakaPick; }
+    // police: close in on the player and ride alongside him
+    const PL = this.race.player;
+    if (P && P.style === 'cop' && PL && !PL.crashed && !nakaPick) { const gap = PL.dist - this.dist; if (gap > -60 && gap < 30) target = PL.d + (gap < 3 && gap > -3 ? (this.d > PL.d ? 0.95 : -0.95) : 0); }
     // avoid obstacles ahead
     for (const o of this.race.world.obstacles) {
       if (goKick && o.kicker === goKick) continue;
@@ -234,7 +245,7 @@ class Rider {
     // pass slower riders ahead
     let blocked = null, bd = 1e9;
     for (const r of riders) { if (r === this || r.eliminated) continue; const dd = r.dist - this.dist; if (dd > 0 && dd < 9 + this.v * 0.3 && Math.abs(r.d - target) < 1.15 && dd < bd) { blocked = r; bd = dd; } }
-    if (blocked && blocked.v < this.v + 1) { const roomL = wAh - blocked.d, roomR = blocked.d + wAh; target = roomL > roomR ? blocked.d + 1.4 : blocked.d - 1.4; }
+    if (blocked && blocked.v < this.v + 1 && !(P && P.style === 'cop' && blocked.isPlayer)) { const roomL = wAh - blocked.d, roomR = blocked.d + wAh; target = roomL > roomR ? blocked.d + 1.4 : blocked.d - 1.4; }
     target = clamp(target, -wAh, wAh); this.ai.target = target;
     const psiDes = Math.atan2(target - this.d, look);
     const k = T.kAt(this.s); const ff = k * this.v * Math.cos(this.psi) / Math.max(0.3, 1 - k * this.d);
@@ -246,6 +257,8 @@ class Rider {
     const pace = D.pace * (P ? P.skill : 1), corner = D.corner * (P ? P.corner : 1) * (this.race.wet ? 0.9 : 1);
     vT = Math.min(vT * Math.sqrt(corner), this.vTop * pace * (this.drafting ? 1.06 : 1));
     if (P && P.style === 'latebrake') vT *= 1.03;
+    if (P && P.style === 'cop' && PL) { const gap = PL.dist - this.dist;   // pressure without being unbeatable: fast when far behind, match pace when alongside
+      if (gap > 90) vT = Math.min(vT * 1.12, T.vmaxAt(this.s) * 1.08); else if (gap <= 1.5 && gap > -8) vT = Math.min(vT, PL.v + (gap > 0 ? 0.6 : -1.5)); else if (gap <= -8 && gap > -60) vT = Math.min(vT, PL.v * 0.92); }   // a cop who got ahead slows to block
     if (this.surf === 2 || T.laneAt(this.s + this.v * 0.8, this.d)) vT = Math.min(vT, 12.5);   // kachha shortcut: ride it, don't fly it (big potholes launch above 13 m/s)
     // easy riders make mistakes; tiny rubber-band only on Easy
     if (this.race.diffKey === 'easy' && this.race.player) { const gap = this.dist - this.race.player.dist; if (gap > 40) vT *= 0.93; }
@@ -259,5 +272,6 @@ class Rider {
     if (P && P.style === 'wheelie' && Math.abs(k) < 1 / 200 && this.gear <= 2) { this.ai.wheelieT = 2.5; }
     if (this.ai.wheelieT > 0) { this.ai.wheelieT -= dt; inp.back = Math.abs(k) < 1 / 120; }
     inp.boost = this.boost > 40 && Math.abs(k) < 1 / 150 && this.v > this.vTop * 0.7 && RNG() < 0.02 ? true : (this.boosting && this.boost > 5 && Math.abs(k) < 1 / 120);
+    if (P && P.style === 'cop' && PL && PL.dist - this.dist > 90 && this.boost > 10) inp.boost = true;
   }
 }

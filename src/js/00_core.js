@@ -129,6 +129,7 @@ const MODES = {
   timetrial: { label: 'Time Trial', desc: 'Solo laps against your ghost', rivals: false, combat: false, laps: true },
   stunt: { label: 'Stunt Run', desc: 'One lap · stunts score only', rivals: false, combat: false, fixedLaps: 1 },
   cup: { label: 'Championship', desc: 'All 5 tracks · points carry over', rivals: true, combat: true, laps: true },
+  police: { label: 'Police Express+', desc: 'Solo escape across the night nakabandi · jump the barricades, dodge the bullets, don\'t get caught', rivals: false, combat: 'force', fixedLaps: 2, police: true, track: 'bhaag-chapri', time: 'night' },
 };
 const TIMES = { morning: 'Morning chai', golden: 'Golden hour', night: 'Sodium night' };
 

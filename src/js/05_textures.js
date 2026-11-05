@@ -125,7 +125,7 @@ function buildTextures() {
     x.fillStyle = '#5e5248'; x.fillRect(0, 0, 256, 256); noise(x, 256, 256, 6000, 0.35, ['#4a4038', '#6e6256', '#544a40', '#7a6a58']);
     TEX.ground = toTex(c, { repeat: true });
   }
-  TEX.haz = hazardAtlas(); TEX.dirt = dirtTexture(); TEX.shortcut = shortcutSign();
+  TEX.haz = hazardAtlas(); TEX.dirt = dirtTexture(); TEX.shortcut = shortcutSign(); TEX.naka = nakaSign(); TEX.nakaAhead = nakaAheadSign();
 }
 // Road hazards atlas, 2×2 cells: pothole dry | pothole wet (water) / kichad dry | kichad wet
 function hazardAtlas() {
@@ -167,6 +167,24 @@ function shortcutSign() {
   x.fillStyle = '#141414'; x.font = '800 92px "Baloo 2", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('SHORTCUT', 230, 92);
   x.font = '800 60px "Baloo 2", sans-serif'; x.fillText('शॉर्टकट', 230, 182);
   x.beginPath(); x.moveTo(420, 70); x.lineTo(490, 128); x.lineTo(420, 186); x.lineTo(420, 150); x.lineTo(380, 150); x.lineTo(380, 106); x.lineTo(420, 106); x.closePath(); x.fill();
+  return toTex(c);
+}
+
+// barricade board, like the real ones: blue band "STOP FOR POLICE CHECKING" over a white panel
+function nakaSign() {
+  const [c, x] = mkCanvas(512, 256);
+  x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, 512, 256); x.fillStyle = '#1d3f8f'; x.fillRect(0, 0, 512, 96);
+  x.fillStyle = '#ffffff'; x.font = '800 44px "Baloo 2", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('STOP FOR POLICE CHECKING', 256, 52);
+  x.fillStyle = '#c8202a'; x.font = '800 74px "Baloo 2", sans-serif'; x.fillText('नाकाबंदी', 256, 150);
+  x.fillStyle = '#1d3f8f'; x.font = '700 32px "Baloo 2", sans-serif'; x.fillText('MUMBAI POLICE', 256, 218);
+  for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? '#c8202a' : '#ffffff'; x.fillRect(i * 32, 244, 32, 12); }
+  return toTex(c);
+}
+function nakaAheadSign() {
+  const [c, x] = mkCanvas(512, 256);
+  x.fillStyle = '#c8202a'; x.fillRect(0, 0, 512, 256); x.strokeStyle = '#ffffff'; x.lineWidth = 12; x.strokeRect(12, 12, 488, 232);
+  x.fillStyle = '#ffffff'; x.font = '800 60px "Baloo 2", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('POLICE CHECKING', 256, 86);
+  x.font = '800 54px "Baloo 2", sans-serif'; x.fillText('AHEAD · आगे नाका', 256, 170);
   return toTex(c);
 }
 

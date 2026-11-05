@@ -56,4 +56,16 @@ const TRACKS = [
     bumps: [{ f: 0.6, h: 1.0, len: 8, type: 'ramp' }, { f: 0.85, h: 0.22, len: 3, type: 'breaker' }],
     landmark: { f: 0.65, side: 1, dist: 300, kind: 'towers' },
   },
+  {
+    // the Police Express+ stage: night nakabandi across the old city. special = not part of the Championship
+    id: 'bhaag-chapri', name: 'Bhaag Chapri Bhaag', short: 'Bhaag Chapri Bhaag', special: true, police: true,
+    theme: 'city', target: 2400, lapTarget: '100–120 s', time: 'night', festive: true,
+    blurb: 'Night nakabandi across the old city: police checkpoints, a long seedhi ride, a flooded nala and stray dogs.',
+    pts: [[0,0],[200,0],[280,30],[300,110],[290,230],[240,280],[150,290],[80,330],[60,420],[-20,450],[-120,430],[-170,360],[-160,260],[-200,190],[-190,90],[-120,20]],
+    widths: [[0,12],[0.3,12],[0.36,11],[0.6,11],[0.66,12]],
+    triples: [], shortcuts: 1, stairs: true, nala: true, nakas: 4, dogs: 7, potholes: 6, bigPotholes: 1, mud: 0,
+    landmark: { f: 0.4, side: -1, dist: 260, kind: 'towers' },
+  },
 ];
+// the Championship runs the five circuits only
+const CUP_TRACKS = TRACKS.filter(t => !t.special);
