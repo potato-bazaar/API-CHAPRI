@@ -48,6 +48,8 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - gloss, matte, metal-flake or chrome finish.
 - **Music.** Original procedural chapri music (Web Audio), with the beat level following the race.
 
+![Police Express+](docs/police-express.jpg)
+
 ![Bike mods](docs/bike-mods.jpg)
 
 ### URL options
