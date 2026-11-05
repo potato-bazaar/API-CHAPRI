@@ -1408,7 +1408,7 @@ class World {
   constructor(track, opts) {
     this.track = track; this.def = track.def; this.theme = track.def.theme; this.opts = opts;
     this.group = new THREE.Group(); this.disposables = [];
-    this.obstacles = []; this.pickupSpots = []; this.lampHeads = []; this.crowd = []; this.whoosh = [];
+    this.obstacles = []; this.pickupSpots = []; this.lampHeads = []; this.whoosh = [];
     RNG = mulberry32(track.def.id.length * 7919 + 13);
     this.mats = this.makeMaterials();
     this.build();
@@ -1475,7 +1475,6 @@ class World {
     if (sea) this.buildSea(sea);
     this.buildSky();
     this.buildLampGlows();
-    this.buildCrowd();
     this.buildLights();
   }
   // ── road, kerbs, sidewalks / parapets ──
@@ -2165,7 +2164,7 @@ class World {
       if (type === 'oil' && w > 3.5) this.pickupSpots.push({ s: s + 4, d: d + (d > 0 ? -1.6 : 1.6), type: 'oil' });
     }
   }
-  // ── sky dome, sea, lights, crowd ──
+  // ── sky dome, sea, lights ──
   buildSky() {
     const g = new THREE.SphereGeometry(1400, 32, 16);
     this.skyMat = new THREE.ShaderMaterial({
@@ -2208,25 +2207,6 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     this.glowMat = new THREE.PointsMaterial({ map: TEX.glow, size: 9, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffc070, opacity: 0.0 });
     this.glows = new THREE.Points(g, this.glowMat); this.group.add(this.glows); this.disposables.push(g, this.glowMat);
   }
-  buildCrowd() {
-    const T = this.track, sw = SIDEWALK[this.theme]; if (sw < 1.5) return this.buildBastiCrowd();
-    const count = { low: 90, medium: 200, high: 320 }[this.opts.quality] || 200;
-    const bodies = new THREE.InstancedMesh(PERSON_BODY, new THREE.MeshLambertMaterial({ vertexColors: true }), count);
-    const heads = new THREE.InstancedMesh(PERSON_HEAD, new THREE.MeshLambertMaterial({ vertexColors: true }), count);
-    const shirts = ['#ff2e88', '#ffd23f', '#3fd0c9', '#ffffff', '#e84a5f', '#1d6fb8', '#ff7a2f', '#2f8a3e', '#7b2cbf', '#c8321e', '#f5e6cc'];
-    const m = new THREE.Matrix4(), p = new THREE.Vector3(), c = new THREE.Color(); let k = 0;
-    for (let i = 0; i < count; i++) {
-      let s; const r = RNG();
-      if (r < 0.35) s = (RNG() * 120 - 50 + T.L) % T.L; else if (r < 0.5 && this.stallSpot) s = 22 + RNG() * 26; else s = RNG() * T.L;
-      if (T.yAt(s) > 1) continue; const sd = RNG() < 0.5 ? -1 : 1; const w = T.wAt(s) / 2;
-      T.pos(s, sd * (w + 0.9 + RNG() * (sw - 1.2)), p); if (this.isSea(p.x)) continue;
-      const yaw = T.yawAt(s) + (sd > 0 ? -Math.PI / 2 : Math.PI / 2) + (RNG() - 0.5) * 0.8; const sc = 0.92 + RNG() * 0.16;
-      m.compose(p.setY(p.y + 0.18), _q.setFromAxisAngle(UP, yaw), _v.set(sc, sc, sc)); bodies.setMatrixAt(k, m); heads.setMatrixAt(k, m);
-      bodies.setColorAt(k, c.set(pick(shirts))); heads.setColorAt(k, c.set('#ffffff')); this.crowd.push({ s, base: p.y, i: k, yaw, sc, x: p.x, z: p.z, ph: RNG() * 6 }); k++;
-    }
-    bodies.count = heads.count = k; bodies.castShadow = true; this.group.add(bodies, heads); this.crowdMeshes = [bodies, heads]; this.disposables.push(bodies.material, heads.material);
-  }
-  buildBastiCrowd() { this.crowdMeshes = []; }
   buildLights() {
     this.hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1); this.group.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffffff, 2); this.sun.castShadow = this.opts.quality !== 'low';
@@ -2274,14 +2254,8 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     if (focus) { // keep the shadow camera on the player
       this.sun.position.copy(focus).addScaledVector(this.sunDir, 120); this.sun.target.position.copy(focus); this.sun.target.updateMatrixWorld();
     }
-    if (this.crowdMeshes && this.crowdMeshes.length && camera) { // light bobbing for nearby spectators
-      const [bodies, heads] = this.crowdMeshes; const m = new THREE.Matrix4(), p = new THREE.Vector3(); let changed = false;
-      for (const c of this.crowd) { const dx = c.x - camera.position.x, dz = c.z - camera.position.z; if (dx * dx + dz * dz > 1600) continue;
-        const bob = Math.max(0, Math.sin(t * 6 + c.ph)) * 0.12; m.compose(p.set(c.x, c.base + bob, c.z), _q.setFromAxisAngle(UP, c.yaw), _v.set(c.sc, c.sc, c.sc)); bodies.setMatrixAt(c.i, m); heads.setMatrixAt(c.i, m); changed = true; }
-      if (changed) { bodies.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; }
-    }
   }
-  dispose() { this.disposables.forEach(d => d.dispose && d.dispose()); if (this.crowdMeshes) this.crowdMeshes.forEach(m => m.dispose && m.dispose()); }
+  dispose() { this.disposables.forEach(d => d.dispose && d.dispose()); }
 }
 
 // shared prop geometries
@@ -2299,17 +2273,6 @@ const BOLLARD_G = new THREE.CylinderGeometry(0.09, 0.11, 0.85, 7).translate(0, 0
 const BAND_G = new THREE.CylinderGeometry(0.097, 0.1, 0.13, 7);
 const CYCLE_WHEEL = new THREE.TorusGeometry(0.31, 0.025, 4, 14).rotateY(Math.PI / 2);
 const MANHOLE_G = new THREE.CircleGeometry(0.38, 12).rotateX(-Math.PI / 2);
-const PERSON_BODY = (() => {
-  const b = new Batch();
-  const legs = new THREE.CylinderGeometry(0.11, 0.09, 0.85, 6).translate(0, 0.42, 0); const legsM = new THREE.Matrix4();
-  legsM.makeTranslation(-0.1, 0, 0); b.add(legs, legsM, new THREE.Color('#2b2f45')); legsM.makeTranslation(0.1, 0, 0); b.add(legs, legsM, new THREE.Color('#2b2f45'));
-  const torso = new THREE.CylinderGeometry(0.21, 0.17, 0.62, 7).translate(0, 1.16, 0); b.add(torso, new THREE.Matrix4(), new THREE.Color('#ffffff'));
-  const arm = new THREE.CylinderGeometry(0.06, 0.05, 0.58, 5).translate(0, -0.29, 0); const am = new THREE.Matrix4();
-  am.compose(new THREE.Vector3(-0.27, 1.42, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.12)), new THREE.Vector3(1, 1, 1)); b.add(arm, am, new THREE.Color('#ffffff'));
-  am.compose(new THREE.Vector3(0.27, 1.42, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.12)), new THREE.Vector3(1, 1, 1)); b.add(arm, am, new THREE.Color('#ffffff'));
-  return b.build();
-})();
-const PERSON_HEAD = (() => { const b = new Batch(); b.add(new THREE.SphereGeometry(0.13, 8, 6).translate(0, 1.62, 0), new THREE.Matrix4(), new THREE.Color('#9a6a4a')); b.add(new THREE.SphereGeometry(0.135, 8, 4, 0, Math.PI * 2, 0, 1.4).translate(0, 1.65, -0.01), new THREE.Matrix4(), new THREE.Color('#1a1210')); return b.build(); })();
 
 // ===== 28_bikemodel.js =====
 // ───────────────────────── REAL BIKE MODEL ─────────────────────────
