@@ -134,7 +134,7 @@ class HeroEntry {
     else if (t < this.walk0) { const k = _ss(3.35, 5.0, t); pos.copy(riderW).addScaledVector(F, lerp(1.5, 1.3, k)).addScaledVector(Pv, lerp(0.95, 0.8, k)); pos.y += 1.32; look.copy(riderW); look.y += 1.6; fov = lerp(36, 32, k); third(0.3 * _ss(4.3, 4.7, t)); }
     else { const k = _ss(this.walk0, ENTRY_END, t); pos.copy(riderW).addScaledVector(F, lerp(3.6, 2.6, k)).addScaledVector(Pv, 0.3); pos.y += lerp(0.9, 1.05, k); look.copy(riderW); look.y += lerp(1.2, 1.4, k); fov = lerp(42, 36, k); third(lerp(0.7, 0.5, k)); }
     const sh = this.t < 1.9 ? Math.max(0, 1 - t / 1.9) * 0.02 : 0; pos.x += Math.sin(this.g.t * 37) * sh; pos.y += Math.sin(this.g.t * 53) * sh;
-    cam.position.copy(pos); cam.lookAt(look); cam.fov = fov; cam.updateProjectionMatrix(); this.g.camLook.copy(look);
+    cam.position.copy(pos); cam.lookAt(look); this.g.viewShift(0); cam.fov = fov + this.g.portraitK() * 22; cam.updateProjectionMatrix(); this.g.camLook.copy(look);
     // at night the bike's headlight becomes the film key light: up and to one side of the lens, on the hero (no new light, no recompiles)
     const hl = this.g.world && this.g.world.headlight; if (hl && hl.intensity > 0) { const rt = _ev[6].subVectors(look, pos).normalize().cross(_ev[7].set(0, 1, 0)).normalize();
       hl.position.copy(pos).addScaledVector(rt, 1.2); hl.position.y += 1.4; if (t < 1.95) hl.position.copy(rp).addScaledVector(F, 6).add(_ev[7].set(0, 2.2, 0));

@@ -13,15 +13,21 @@ class ComicFX {
     this.rt = new THREE.WebGLRenderTarget(sz.x, sz.y, { samples: 4 }); this.rt.texture.colorSpace = THREE.SRGBColorSpace; this.rt.texture.internalFormat = 'RGBA8'; this.rt.isXRRenderTarget = true;
     this.rt.depthTexture = new THREE.DepthTexture(sz.x, sz.y); this.rt.depthTexture.type = THREE.UnsignedIntType;
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 }, uLift: { value: 0.03 }, uGamma: { value: 0.95 }, uSat: { value: 1.12 }, uNeon: { value: 0 } },
+      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 }, uLift: { value: 0.03 }, uGamma: { value: 0.95 }, uSat: { value: 1.12 }, uNeon: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uLiftC: { value: new THREE.Vector3(0.62, 0.66, 1.0) }, uWarm: { value: 0 }, uContrast: { value: 1 }, uVig: { value: 0.18 }, uDof: { value: 0.6 }, uFocus: { value: 55 }, uFocusR: { value: 240 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uBloom, uComic, uLift, uGamma, uSat, uNeon; varying vec2 vUv;
+        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uBloom, uComic, uLift, uGamma, uSat, uNeon; uniform vec3 uTint, uLiftC; uniform float uWarm, uContrast, uVig, uDof, uFocus, uFocusR; varying vec2 vUv;
         float lin(float d){ float z = d * 2.0 - 1.0; return (2.0 * cNear * cFar) / (cFar + cNear - z * (cFar - cNear)); }
         void main(){
           vec2 px = uPx / res; vec2 c = vUv - 0.5; float e2 = dot(c, c);
           vec2 off = c * (0.0025 * uComic + uSpeed * 0.008 + uBoost * 0.012) * (0.35 + e2 * 3.0);
           vec3 col = vec3(texture2D(tColor, vUv + off).r, texture2D(tColor, vUv).g, texture2D(tColor, vUv - off).b);
+          // far focus: scenery beyond the race melts into a soft blur, so the eye stays on the road and never studies the props
+          float dz = lin(texture2D(tDepth, vUv).x), coc = uDof * smoothstep(uFocus, uFocus + uFocusR, dz);
+          if (coc > 0.02) { vec2 rr = px * coc * 3.2; vec3 acc = col;
+            acc += texture2D(tColor, vUv + rr * vec2(1.0, 0.0)).rgb + texture2D(tColor, vUv + rr * vec2(-1.0, 0.0)).rgb + texture2D(tColor, vUv + rr * vec2(0.0, 1.0)).rgb + texture2D(tColor, vUv + rr * vec2(0.0, -1.0)).rgb;
+            acc += texture2D(tColor, vUv + rr * vec2(0.7, 0.7)).rgb + texture2D(tColor, vUv + rr * vec2(-0.7, 0.7)).rgb + texture2D(tColor, vUv + rr * vec2(0.7, -0.7)).rgb + texture2D(tColor, vUv + rr * vec2(-0.7, -0.7)).rgb;
+            col = acc / 9.0; }
           if (uBoost > 0.02) { float rb = uBoost * smoothstep(0.015, 0.2, e2) * 0.016; vec3 acc = col; for (int i = 1; i <= 6; i++) acc += texture2D(tColor, vUv - c * rb * float(i)).rgb; col = acc / 7.0; }   // boost: radial blur toward the edges
           vec3 o = col;
           if (uComic > 0.5) {
@@ -44,9 +50,12 @@ class ComicFX {
           }
           // grade: lift the shadows into a cool violet so night detail survives, open up the mids, push the colour
           float lg = dot(o, vec3(0.299, 0.587, 0.114));
-          o += uLift * vec3(0.62, 0.66, 1.0) * (1.0 - smoothstep(0.0, 0.55, lg));
+          o += uLift * uLiftC * (1.0 - smoothstep(0.0, 0.55, lg)); o *= uTint;
           o = pow(max(o, vec3(0.0)), vec3(uGamma));
           float lg2 = dot(o, vec3(0.299, 0.587, 0.114)); o = mix(vec3(lg2), o, uSat);
+          // finish: contrast, split toning (warm light / cool shade), vignette
+          o = (o - 0.5) * uContrast + 0.5; o += vec3(uWarm, uWarm * 0.35, -uWarm) * smoothstep(0.35, 1.0, lg2) + vec3(-uWarm * 0.4, 0.0, uWarm * 0.7) * (1.0 - smoothstep(0.0, 0.45, lg2));
+          o *= mix(1.0, smoothstep(1.2, 0.3, sqrt(e2) * 1.6), uVig);
           // boost: the whole frame floods neon, cyan on the left, pink on the right, glowing at the edges
           if (uNeon > 0.01) { vec3 neon = mix(vec3(0.2, 0.85, 1.3), vec3(1.3, 0.25, 0.9), smoothstep(-0.35, 0.35, c.x + c.y * 0.4));
             o = mix(o, o * (0.7 + 0.5 * neon) + neon * 0.05 * (1.0 - lg2), uNeon * 0.42); o += neon * smoothstep(0.08, 0.32, e2) * uNeon * 0.22; }
@@ -84,7 +93,8 @@ class ComicFX {
     this.r.setRenderTarget(null); this.r.render(this.qScene, this.qCam);
   }
   // glow amount + threshold (display-referred brightness), comic print look on/off
-  setGrade(lift, gamma, sat, neon) { if (!this.ok) return; const U = this.mat.uniforms; U.uLift.value = lift; U.uGamma.value = gamma; U.uSat.value = sat; U.uNeon.value = neon; }
+  setGrade(lift, gamma, sat, neon, tint, liftC) { if (!this.ok) return; const U = this.mat.uniforms; U.uLift.value = lift; U.uGamma.value = gamma; U.uSat.value = sat; U.uNeon.value = neon; if (tint) U.uTint.value.set(tint[0], tint[1], tint[2]); if (liftC) U.uLiftC.value.set(liftC[0], liftC[1], liftC[2]); }
+  setFinish(warm, contrast, vig, dof) { if (!this.ok) return; const U = this.mat.uniforms; U.uWarm.value = warm; U.uContrast.value = contrast; U.uVig.value = vig; U.uDof.value = dof; }
   setLook(bloom, thr, comic) { if (!this.ok) return; this.mat.uniforms.uBloom.value = bloom; this.thr = thr; this.mat.uniforms.uComic.value = comic ? 1 : 0; }
   dispose() { if (!this.ok) return; this.rt.dispose(); this.bA.dispose(); this.bB.dispose(); this.mat.dispose(); this.brightMat.dispose(); this.blurMat.dispose(); this.quad.geometry.dispose(); }
 }

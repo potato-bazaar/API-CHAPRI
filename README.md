@@ -6,7 +6,7 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ## Play
 
-Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self-contained file, but it needs an internet connection for the three.js CDN and the Google Fonts. Touch controls appear on phones. On a keyboard:
+Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self-contained file, but it needs an internet connection for the three.js CDN and the Google Fonts. Touch controls appear on phones, and the game plays upright (9:16) as well as sideways: in portrait the HUD restacks, the controls sit in the thumb zone and the camera rides higher and further back. A loading screen with a progress bar and tips shows while the game boots and again while each race builds. On a keyboard:
 
 | Key | Action |
 | --- | --- |
@@ -44,6 +44,10 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 - **Direction guide.** A chevron ribbon on the road follows the racing line: green to go, amber to lift, red to brake. A card at the top shows the next sharp corner or hairpin and the distance and side of the next nitro. It can be turned off in Settings.
 - **Traffic.** Autos, kaali-peeli taxis, BEST buses and tempos on every track except Dharavi's lanes. Set Off, Light or Jam in Settings.
 - **Street life.** Pani puri and bhel carts, vada pav and chai tapris, ganne-ka-ras crushers, roadside shrines, BEST bus stops, plants and white-and-red painted tree trunks, each stall lit by its own bulb. There are no people.
+- **Roads (learned from Auto Rush).** Roads are about 30% wider than their key widths (Dharavi's gali stays tighter), with a lane line on every lane, darker fine-grain asphalt with wheel paths, oil drips and patch repairs, and puddles. Monsoon roads are soaked and rippled; night roads are damp, so the puddles pick up the neon; day roads are dry. A grass verge with trees and bushes (a paved forecourt at the market) keeps the buildings back from the road.
+- **Boost ring and speed tag.** A segmented ring on the road around your bike is your boost meter: it fills from the back on both sides, pulses when full and flares while you burn it. Your position and speed float next to your rider.
+- **Rain.** Denser, longer streaks, splash crowns landing on the road around you, and a lavender-grey overcast sky.
+- **Times of day.** Morning has a hard white sun, a blue sky, crisp shadows and street lamps off; golden hour has a low orange sun and a warm grade; night has the violet neon grade. The Underground keeps its storm sky and lightning for night and monsoon only.
 - **Look.** A colour grade that lifts night shadows into violet and pushes saturation, brighter night lighting and more street lamps, neon rim lights and an underglow on your bike, and thick two-stroke smoke with backfire flames.
 - **Police Express+.** A solo escape mode on its own night stage, **Bhaag Chapri Bhaag**.
   - Finish 2 laps before the BUSTED meter fills. Police bikes with sirens and lathis chase you.

@@ -3,6 +3,7 @@
 // s = distance along the lap, d = lateral offset (positive = left of travel).
 const STEP = 0.5;
 
+const ROAD_SCALE = { city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
 class Track {
   constructor(def) {
     this.def = def;
@@ -28,8 +29,9 @@ class Track {
     const win = 8;
     for (let i = 0; i < N; i++) { let s = 0; for (let j = -win; j <= win; j++) s += kr[(i + j + N) % N]; this.k[i] = s / (2 * win + 1); }
     // width profile (cyclic, smoothstep between keys); w0 = the plain road, w = with shortcut aprons
-    const wk = def.widths; this.w0 = A(N);
-    for (let i = 0; i < N; i++) this.w0[i] = this.w[i] = cyclicKey(wk, i / N, true);
+    // every road is drawn a size up from its key widths (Auto Rush-style room to weave); the gali stays tighter
+    const wk = def.widths, wsc = def.wScale || ROAD_SCALE[def.theme] || 1.25; this.w0 = A(N); this.wScale = wsc;
+    for (let i = 0; i < N; i++) this.w0[i] = this.w[i] = cyclicKey(wk, i / N, true) * wsc;
     // elevation: linear keys (kinks make crest jumps) + bumps; triple speed breakers = three sharp humps in a row
     this.bumps = (def.bumps || []).map(b => ({ ...b, s: b.f * this.L }));
     for (const f of def.triples || []) for (let k = -1; k <= 1; k++) this.bumps.push({ s: f * this.L + k * 3.4, h: 0.13, len: 1.5, type: 'breaker', triple: true });

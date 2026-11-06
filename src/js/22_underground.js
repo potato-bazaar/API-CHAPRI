@@ -434,10 +434,12 @@ Object.assign(World.prototype, {
   },
   ugMood(nt, wet) {
     if (!this.ugRT) return;
-    const U = this.skyMat.uniforms; U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
+    // the storm sky is the night (or monsoon) look only: a morning on the Underground is a real sunny morning
+    const U = this.skyMat.uniforms;
+    if (nt || wet) { U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
+      this.fog.color.set(wet ? '#2a2a38' : '#352a40'); this.fog.near = wet ? 26 : 34; this.fog.far = wet ? 280 : 360; }
     this.ugSky = { top: U.top.value.clone(), mid: U.mid.value.clone(), hor: U.hor.value.clone() };
-    this.fog.color.set(wet ? '#2a2a38' : '#352a40'); this.fog.near = wet ? 26 : 34; this.fog.far = wet ? 280 : 360;
-    this.ugM.sign.emissive.set('#ffffff').multiplyScalar(nt ? 0.8 : 0.3); this.ugM.sea.color.set(wet ? '#0a121c' : '#0b1724');
+    this.ugM.sign.emissive.set('#ffffff').multiplyScalar(nt ? 0.8 : 0.3); this.ugM.sea.color.set(wet ? '#0a121c' : nt ? '#0b1724' : '#2c5a78');
     this.ugM.cone.opacity = nt ? 0.55 : 0.18; this.ugM.cpool.opacity = nt ? 0.6 : 0.25; this.hemiBaseUG = this.hemiBase;
   },
   updateUnderground(dt, t, camera, focus) {
@@ -456,7 +458,7 @@ Object.assign(World.prototype, {
     this.hemiMul = smooth(this.hemiMul, inT ? 0.32 : 1, 3, dt);
     const L = this.ugLamp, TU = this.ugTunnel; if (L && TU) { if (inT && this.ugS != null) { const i = Math.round((T.wrapD(this.ugS - TU.fix[0]) + 2.2) / 4.5); const sf = TU.fix[clamp(i, 0, TU.fix.length - 1)]; T.pos(sf, 0, L.position, TU.CROWN - 1.2); L.intensity = smooth(L.intensity, 38, 6, dt); } else L.intensity = smooth(L.intensity, 0, 6, dt); }
     // storm: lightning over the open sections (never in the tunnel)
-    if (!REDUCED_MOTION && focus) { this.boltT -= dt; if (this.boltT < 0) { this.boltT = 8 + Math.random() * 14; if (!inT) { const el = $('#lightning'); if (el) { el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); } this.flash = 0.5; AUDIO.thunder && AUDIO.thunder(0.35 + Math.random() * 1.4); } } }
+    if (!REDUCED_MOTION && focus && (this.weather === 'monsoon' || (this.mood && this.mood.night > 0.5))) { this.boltT -= dt; if (this.boltT < 0) { this.boltT = 8 + Math.random() * 14; if (!inT) { const el = $('#lightning'); if (el) { el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); } this.flash = 0.5; AUDIO.thunder && AUDIO.thunder(0.35 + Math.random() * 1.4); } } }
     if (this.ugSky) { const U = this.skyMat.uniforms, k = this.flash > 0 ? (this.flash > 0.3 || (this.flash > 0.1 && this.flash < 0.2) ? 1 : 0.25) * Math.min(1, this.flash * 4) : 0; U.top.value.copy(this.ugSky.top).lerp(_ugFlash, k * 0.35); U.mid.value.copy(this.ugSky.mid).lerp(_ugFlash, k * 0.6); U.hor.value.copy(this.ugSky.hor).lerp(_ugFlash, k * 0.4); }
   },
 });

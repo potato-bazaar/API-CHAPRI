@@ -12,11 +12,15 @@
   <canvas id="speedfx" aria-hidden="true"></canvas><div id="comicLayer" aria-hidden="true"></div><div id="vignette" aria-hidden="true"></div><div id="boostFlash" aria-hidden="true"></div><div id="lightning" aria-hidden="true"></div>
 
   <!-- LOADING -->
-  <section id="loading" class="screen show">
+  <section id="loading" class="screen show" aria-live="polite">
+    <div class="load-glow" aria-hidden="true"></div>
     <div class="load-inner">
       <div class="logo big"><svg class="crown" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg><span class="l1">CHAPRI</span><span class="l2">RACER</span><span class="tape">BIKE RACING GAME</span></div>
-      <div class="bar"><i id="loadBar"></i></div>
-      <p id="loadMsg" class="load-msg">Building Mumbai…</p>
+      <div class="load-track" id="loadTrack" hidden><small id="loadKick">NEXT RACE</small><b id="loadName">Mumbai Underground</b><span id="loadSub"></span></div>
+      <div class="load-wheel" aria-hidden="true"><i></i></div>
+      <div class="load-bar" role="progressbar" aria-label="Loading the game" aria-valuemin="0" aria-valuemax="100"><i id="loadBar"></i></div>
+      <p class="load-row"><span id="loadMsg" class="load-msg">Warming up the engine…</span><b id="loadPct">0%</b></p>
+      <p class="load-tip" id="loadTip"><b>TIP</b><span>Ride through the glowing NITRO gates for a free boost.</span></p>
       <p class="note">Stunts are for the game. Don't try this on real roads.</p>
     </div>
   </section>
@@ -65,12 +69,12 @@
       </aside>
     </div>
     <nav class="bottom-nav" aria-label="Main">
-      <button class="nav on" type="button" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Home</button>
-      <button class="nav" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg>Garage</button>
-      <button class="nav" type="button" data-nav="cup"><svg viewBox="0 0 24 24"><path d="M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z"/></svg>Championship</button>
-      <button class="nav" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg>Leaderboard</button>
-      <button class="nav" type="button" data-open="howto"><svg viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1a5 5 0 0 1-9 3h-2a5 5 0 0 1-9-3v-1a5 5 0 0 1 5-5zm0 3v2H5v2h2v2h2v-2h2v-2H9v-2zm9.5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm2.5 2.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg>How to Play</button>
-      <button class="nav" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M2 3h3l2.5 11h11L21 6H7M9 20a1.6 1.6 0 1 0 0 .1M18 20a1.6 1.6 0 1 0 0 .1" fill="none" stroke-width="2.2"/></svg>Store</button>
+      <button class="nav on" type="button" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span class="nl">Home</span><span class="ns">Home</span></button>
+      <button class="nav" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg><span class="nl">Garage</span><span class="ns">Garage</span></button>
+      <button class="nav" type="button" data-nav="cup"><svg viewBox="0 0 24 24"><path d="M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z"/></svg><span class="nl">Championship</span><span class="ns">Cup</span></button>
+      <button class="nav" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg><span class="nl">Leaderboard</span><span class="ns">Ranks</span></button>
+      <button class="nav" type="button" data-open="howto"><svg viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1a5 5 0 0 1-9 3h-2a5 5 0 0 1-9-3v-1a5 5 0 0 1 5-5zm0 3v2H5v2h2v2h2v-2h2v-2H9v-2zm9.5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm2.5 2.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg><span class="nl">How to Play</span><span class="ns">Help</span></button>
+      <button class="nav" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M2 3h3l2.5 11h11L21 6H7M9 20a1.6 1.6 0 1 0 0 .1M18 20a1.6 1.6 0 1 0 0 .1" fill="none" stroke-width="2.2"/></svg><span class="nl">Store</span><span class="ns">Store</span></button>
       <button class="profile" type="button" id="profileBtn"><span class="avatar"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#ff2e88"/><circle cx="20" cy="14" r="10" fill="#1b120e"/><circle cx="12" cy="12" r="5" fill="#1b120e"/><circle cx="28" cy="12" r="5" fill="#1b120e"/><circle cx="20" cy="20" r="7.5" fill="#a86d4a"/><rect x="12.5" y="17" width="15" height="4" rx="1.5" fill="#fff"/><path d="M6 40c1-8 7-12 14-12s13 4 14 12z" fill="#ffd23f"/></svg></span><span class="pname"><b id="pName">PotatoBazaar</b><small>Lv <b id="pLv">1</b></small><span class="xpbar mini"><i id="pXp"></i></span></span></button>
     </nav>
   </section>
@@ -118,6 +122,7 @@
     <div class="hud-top"><div id="toast" class="toast" hidden><span class="tico"><svg viewBox="0 0 24 24"><path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V10V5.5a1.5 1.5 0 0 1 3 0V10V6.5a1.5 1.5 0 0 1 3 0V11V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5.6-3.8L4.5 13a1.6 1.6 0 0 1 2.5-2z"/></svg></span><b id="toastTxt">Rival Hit!</b><em id="toastPts"></em></div><div id="callouts"></div></div>
     <div class="hud-tr"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b><span class="plus">+</span></span><span class="pill parts"><i class="ico-wrench"></i><b class="partsMirror">0</b><span class="plus">+</span></span><button id="pauseBtn" class="pause-btn" type="button" aria-label="Pause"><i></i><i></i></button></div>
     <div class="minimap"><svg id="mmSvg" viewBox="0 0 100 100" aria-hidden="true"></svg><p id="mmName">Mumbai Central<br><small>1.8 km</small></p></div>
+    <div id="spdTag" class="spd-tag" hidden><b id="tagPos">1</b><span class="tag-spd"><i id="tagSpd">0</i><small>km/h</small></span></div>
     <div id="guide" class="guide" hidden></div>
     <div id="speech" aria-hidden="true"></div>
     <div id="zoneCard" class="zone-card" hidden></div>
@@ -130,7 +135,7 @@
     <div class="hud-bottom">
       <div class="steer-pad"><button class="tbtn round-xl" data-t="left" type="button" aria-label="Lean left"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="tbtn round-xl" data-t="right" type="button" aria-label="Lean right"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <div class="dash">
-        <button class="tbtn side-btn" data-t="boost" type="button" aria-label="Two-stroke kick boost"><svg viewBox="0 0 24 24"><path d="M9 2h6v3h-1v2.2c2 .8 3 2.5 3 4.8v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8c0-2.3 1-4 3-4.8V5H9z" fill="#ffc21a"/><path d="M13 10.5 10 15h2.2l-1 4 3.6-5.2h-2.3z" fill="#1b0d22"/></svg><kbd>Shift</kbd></button>
+        <button class="tbtn side-btn" data-t="boost" type="button" aria-label="Two-stroke kick boost"><svg class="bring" viewBox="0 0 48 48" aria-hidden="true"><circle class="bring-bg" cx="24" cy="24" r="21.5"/><circle class="bring-fill" id="boostRing" cx="24" cy="24" r="21.5" pathLength="100"/></svg><svg viewBox="0 0 24 24"><path d="M9 2h6v3h-1v2.2c2 .8 3 2.5 3 4.8v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8c0-2.3 1-4 3-4.8V5H9z" fill="#ffc21a"/><path d="M13 10.5 10 15h2.2l-1 4 3.6-5.2h-2.3z" fill="#1b0d22"/></svg><kbd>Shift</kbd></button>
         <div class="speedo">
           <svg viewBox="0 0 300 160" aria-hidden="true"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".6" stop-color="#ff7a2f"/><stop offset="1" stop-color="#ffc21a"/></linearGradient><linearGradient id="rgB" x1="0" x2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".35" stop-color="#3f8cff"/><stop offset="1" stop-color="#5ff2ff"/></linearGradient></defs>
             <path id="arcBg" d="M30 150 A120 120 0 0 1 270 150" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="16" stroke-linecap="round"/>
@@ -227,7 +232,6 @@
     <footer><button class="btn-yellow" type="button" id="cupGo">START CUP ››</button><button class="btn-dark" type="button" data-close>Close</button></footer>
   </div>
   <div id="flash" class="flash" hidden></div>
-  <div id="rotate" class="rotate"><div><svg viewBox="0 0 48 48"><rect x="14" y="4" width="20" height="36" rx="4" fill="none" stroke="#fff" stroke-width="3"/><path d="M38 30a14 14 0 0 1-14 14" fill="none" stroke="#ffc21a" stroke-width="3"/><path d="m24 40 0 8-6-4z" fill="#ffc21a"/></svg><p>Turn your phone sideways to race</p></div></div>
 </div>
 <!-- 3D bike: "RX100 BIKE" by patilaryush, CC BY 4.0 (gzip, base64) -->
 <script type="application/x-gzip-base64" id="bikeglb">{{BIKEGLB}}</script>

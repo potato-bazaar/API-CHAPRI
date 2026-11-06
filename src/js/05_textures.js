@@ -20,13 +20,17 @@ function buildTextures() {
   RNG = mulberry32(42);
   // Road: u spans road width (0 = right edge, 1 = left edge), v runs along the lap (1 tile = 12 m)
   {
-    const [c, x] = mkCanvas(256, 512);
-    x.fillStyle = '#4a4550'; x.fillRect(0, 0, 256, 512);
-    noise(x, 256, 512, 9000, 0.35, ['#2e2a33', '#5d5862', '#3a353f', '#6b6670']);
-    for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(30,26,34,0.25)'; x.beginPath(); x.ellipse(Math.random() * 256, Math.random() * 512, 20 + Math.random() * 40, 10 + Math.random() * 30, Math.random() * 3, 0, 7); x.fill(); }
-    x.strokeStyle = 'rgba(25,22,28,0.5)'; x.lineWidth = 1.2;
-    for (let i = 0; i < 5; i++) { x.beginPath(); let px = Math.random() * 256, py = Math.random() * 512; x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (Math.random() - 0.5) * 30; py += Math.random() * 25; x.lineTo(px, py); } x.stroke(); }
-    x.fillStyle = 'rgba(240,236,228,0.9)'; x.fillRect(9, 0, 6, 512); x.fillRect(241, 0, 6, 512);
+    // Asphalt (Auto Rush lesson: a road reads as real from its grain, its wear and its paint, not from detail). The tile
+    // covers 24 m so stains don't visibly repeat. Dark cool base, fine aggregate, darker wheel paths, a few repairs.
+    const [c, x] = mkCanvas(256, 1024);
+    x.fillStyle = '#3d3b43'; x.fillRect(0, 0, 256, 1024);
+    for (let i = 0; i < 7; i++) { const px = Math.random() * 200, py = Math.random() * 980, pw = 30 + Math.random() * 70, ph = 40 + Math.random() * 140; x.fillStyle = Math.random() < 0.5 ? 'rgba(20,19,24,0.32)' : 'rgba(92,88,98,0.16)'; x.fillRect(px, py, pw, ph); x.strokeStyle = 'rgba(18,16,22,0.35)'; x.lineWidth = 1; x.strokeRect(px, py, pw, ph); }   // patch repairs
+    for (const u of [0.17, 0.33, 0.67, 0.83]) { const g = x.createLinearGradient((u - 0.06) * 256, 0, (u + 0.06) * 256, 0); g.addColorStop(0, 'rgba(18,16,22,0)'); g.addColorStop(0.5, 'rgba(18,16,22,0.28)'); g.addColorStop(1, 'rgba(18,16,22,0)'); x.fillStyle = g; x.fillRect((u - 0.06) * 256, 0, 0.12 * 256, 1024); }   // wheel paths
+    noise(x, 256, 1024, 26000, 0.42, ['#232128', '#57545e', '#2f2d35', '#67646e', '#46434c', '#1c1b20']);
+    for (let i = 0; i < 9; i++) { const px = Math.random() * 256, py = Math.random() * 1024, r = 10 + Math.random() * 28; const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(12,10,16,0.42)'); g.addColorStop(1, 'rgba(12,10,16,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(px, py, r, r * (1.2 + Math.random()), Math.random() * 3, 0, 7); x.fill(); }   // oil drips
+    x.strokeStyle = 'rgba(16,14,20,0.55)'; x.lineWidth = 1.1;
+    for (let i = 0; i < 9; i++) { x.beginPath(); let px = Math.random() * 256, py = Math.random() * 1024; x.moveTo(px, py); for (let k = 0; k < 7; k++) { px += (Math.random() - 0.5) * 26; py += Math.random() * 22; x.lineTo(px, py); } x.stroke(); }   // cracks
+    for (let y = 0; y < 1024; y += 4) { const a = 0.55 + Math.random() * 0.35; x.fillStyle = `rgba(236,232,224,${a.toFixed(2)})`; x.fillRect(7, y, 4, 4); x.fillRect(245, y, 4, 4); }   // worn edge lines
     TEX.road = toTex(c, { repeat: true, aniso: 8 });
   }
   {
@@ -123,6 +127,10 @@ function buildTextures() {
   { const [c, x] = mkCanvas(128, 128); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.62, 'rgba(255,255,255,0)'); g.addColorStop(0.86, 'rgba(255,250,220,0.9)'); g.addColorStop(0.97, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); TEX.swoosh = toTex(c, { srgb: false }); }
   { const [c, x] = mkCanvas(128, 128); for (let i = 0; i < 22; i++) { const r = 8 + Math.random() * 26, px = 64 + (Math.random() - 0.5) * 70, py = 64 + (Math.random() - 0.5) * 70; const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(150,20,14,0.95)'); g.addColorStop(0.7, 'rgba(110,14,10,0.85)'); g.addColorStop(1, 'rgba(90,10,8,0)'); x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); }
     for (let i = 0; i < 14; i++) { x.fillStyle = 'rgba(255,190,170,0.5)'; x.beginPath(); x.ellipse(30 + Math.random() * 68, 30 + Math.random() * 68, 2 + Math.random() * 4, 1 + Math.random() * 2, Math.random() * 3, 0, 7); x.fill(); } TEX.gutkaSplat = toTex(c, { srgb: true }); }
+  // grass verge: tufts and bare patches, read from a distance as a green strip between the road and the buildings
+  { const [c, x] = mkCanvas(256, 256); x.fillStyle = '#4b6a2e'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 14; i++) { const px = Math.random() * 256, py = Math.random() * 256, r = 14 + Math.random() * 40; const g = x.createRadialGradient(px, py, 0, px, py, r); const bare = Math.random() < 0.3; g.addColorStop(0, bare ? 'rgba(120,98,64,0.55)' : 'rgba(40,70,28,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); }
+    noise(x, 256, 256, 9000, 0.5, ['#3a5a24', '#6a8a3a', '#2e4a1e', '#7e9a46', '#55703a']); TEX.grass = toTex(c, { repeat: true }); }
   // Asphalt-ish ground
   {
     const [c, x] = mkCanvas(256, 256);

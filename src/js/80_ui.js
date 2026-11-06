@@ -39,7 +39,7 @@ class UI {
     $('#pauseBtn').addEventListener('click', () => this.game.pause());
     $('#rAgain').addEventListener('click', () => this.game.restart());
     $('#rNext').addEventListener('click', () => this.game.nextTrack());
-    $('#rGarage').addEventListener('click', () => { this.game.toMenu(); this.open('garage'); });
+    $('#rGarage').addEventListener('click', () => { this.game.toMenu().then(() => this.open('garage')); });
     $('#rMenu').addEventListener('click', () => this.game.toMenu());
     $('#cupGo').addEventListener('click', () => { this.closeModal(); this.game.startCup(); });
     $('#cfNo').addEventListener('click', () => { this.closeModal(); this._cf && this._cf(false); });

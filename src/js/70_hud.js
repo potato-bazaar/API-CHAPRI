@@ -3,7 +3,7 @@ const CROWN_SVG = '<svg class="crown-i" viewBox="0 0 64 40" aria-hidden="true"><
 class HUD {
   constructor(game) {
     this.game = game; this.root = $('#hud');
-    this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]') };
+    this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]'), tag: $('#spdTag'), bring: $('#boostRing'), tagPos: $('#tagPos'), tagSpd: $('#tagSpd') };
     this.iconURL = {}; for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil', 'rod', 'katta']) this.iconURL[k] = TEX['icon_' + k].image.toDataURL();
     this.el.throwIco.style.backgroundImage = `url(${this.iconURL.bottle})`;
     // powerband arc on the dial (5,500–7,500 rpm of 10,500)
@@ -34,6 +34,21 @@ class HUD {
     this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
     this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
     const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
+    this.tagXY = null; this.el.tag.hidden = true; this.tagKey = '';
+  }
+  // the floating tag beside the rider: position + speed where your eyes already are (Auto Rush does this)
+  updateTag(dt, camera) {
+    const R = this.race; if (!R) return; const P = R.player, G = this.game, el = this.el.tag, pos = this._tagPos || 1, multi = !!this._tagMulti;
+    const show = R.state !== 'finished' && !P.crashed && !P.eliminated && !G.td && G.camMode !== 2 && !G.entry;
+    if (!show) { if (!el.hidden) el.hidden = true; this.tagXY = null; return; }
+    const v = this._tv || (this._tv = new THREE.Vector3()), T = R.track; T.pos(P.s, P.d, v, P.y - T.yAt(P.s) + 1.75); camera.updateMatrixWorld(); v.project(camera);
+    if (v.z > 1) { el.hidden = true; return; }
+    const W = G.vw, H = G.vh, portrait = H > W, x = (v.x + 1) / 2 * W + (portrait ? W * 0.11 : W * 0.06) + 8, y = (1 - v.y) / 2 * H - (portrait ? 26 : 22);
+    if (!this.tagXY) this.tagXY = [x, y]; else { const k = 1 - Math.exp(-14 * dt); this.tagXY[0] += (x - this.tagXY[0]) * k; this.tagXY[1] += (y - this.tagXY[1]) * k; }
+    const tx = clamp(this.tagXY[0], 8, W - 150), ty = clamp(this.tagXY[1], 60, H - 60);
+    el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`; if (el.hidden) el.hidden = false;
+    const kmh = Math.round(P.v * 3.6), key = (multi ? pos : '') + '|' + kmh + '|' + (P.boosting ? 1 : 0);
+    if (key !== this.tagKey) { this.tagKey = key; this.el.tagSpd.textContent = kmh; this.el.tagPos.hidden = !multi; this.el.tagPos.textContent = pos; this.el.tagPos.className = pos === 1 ? 'p1' : ''; el.classList.toggle('boost', P.boosting); }
   }
   update(dt, camera) {
     const R = this.race; if (!R) return; const P = R.player;
@@ -56,9 +71,11 @@ class HUD {
     const f = clamp(P.rpm / 10500, 0, 1); this.el.arcFill.setAttribute('stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
     this.el.needle.setAttribute('transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
     const inBand = P.rpm >= 5500 && P.rpm <= 7500; this.el.arcBand.setAttribute('stroke-width', inBand ? 8 : 4); this.el.arcBand.setAttribute('opacity', inBand ? 1 : 0.55);
-    this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30);
+    this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
+    { const rk = Math.round(P.boost); if (rk !== this._rk) { this._rk = rk; this.el.bring.style.strokeDashoffset = 100 - rk; } }
     this.el.wob.className = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : '');
     this.el.wrong.hidden = !(P.wrongT > 1);
+    this._tagPos = R.playerPos || pos; this._tagMulti = multi;
     // standings (5 Hz)
     this.lastStand -= dt;
     if (this.lastStand <= 0 && this.rows.length) { this.lastStand = 0.2;

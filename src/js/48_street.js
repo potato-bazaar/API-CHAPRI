@@ -35,6 +35,26 @@ class StreetOps {
     { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 7 * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * 7 * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
       this.arcs = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); this.arcs.frustumCulled = false; this.arcs.visible = false; this.arcs.renderOrder = 5; race.group.add(this.arcs); this.arcT = 0; }
     this.hemiBase = W.hemi.color.clone(); this.fogBase = W.fog ? W.fog.color.clone() : null;
+    // ── boost ring (Auto Rush style): a segmented ring on the road round your bike. It fills from the back, both sides
+    // at once, so from the chase cam it reads like a gauge; full ring = it pulses; while you burn it the lit arc drains.
+    { const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6,
+        uniforms: { uFill: { value: 0 }, uOn: { value: 0 }, uT: { value: 0 }, uFull: { value: 0 }, uBurn: { value: 0 } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `varying vec2 vUv; uniform float uFill, uOn, uT, uFull, uBurn;
+          void main(){ vec2 p = vUv * 2.0 - 1.0; float r = length(p);
+            float band = smoothstep(0.70, 0.735, r) * (1.0 - smoothstep(0.95, 0.985, r)); float halo = smoothstep(0.55, 0.72, r) * (1.0 - smoothstep(0.98, 1.0, r));
+            if (halo < 0.01) discard;
+            float f = abs(atan(p.x, p.y)) / 3.14159265;            // 0 straight behind the bike, 1 straight ahead
+            float N = 6.0, seg = f * N, fs = fract(seg), idx = floor(seg);
+            float gap = smoothstep(0.03, 0.12, fs) * (1.0 - smoothstep(0.88, 0.97, fs));
+            float lit = clamp(uFill * N - idx, 0.0, 1.0); lit = lit >= 0.999 ? 1.0 : lit * 0.55;
+            vec3 cOn = mix(vec3(0.25, 0.95, 1.0), vec3(1.0, 0.2, 0.62), smoothstep(0.1, 0.95, f));
+            float pulse = 1.0 + uFull * 0.35 * (0.5 + 0.5 * sin(uT * 9.0)) + uBurn * 0.4;
+            vec3 col = mix(vec3(0.82, 0.84, 0.95), cOn * pulse, lit);   // empty segments: pale glass, so the ring is always readable
+            float a = band * gap * mix(0.26, 1.0, lit) + halo * lit * (0.08 + 0.14 * uFull + 0.2 * uBurn);
+            gl_FragColor = vec4(col, a * uOn); }` });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.0), m); mesh.rotation.x = -Math.PI / 2;
+      this.ring = new THREE.Group(); this.ring.rotation.order = 'YXZ'; this.ring.add(mesh); mesh.renderOrder = 3; mesh.frustumCulled = false; race.group.add(this.ring); this.ringMat = m; this.ringFill = 0; }
   }
   // ── traffic helpers ──
   spread(zi) { const zn = this.zones[zi], cs = this.cars.filter(c => c.zi === zi), len = zn.b - zn.a;
@@ -66,7 +86,18 @@ class StreetOps {
       for (const n of T.nitros || []) { const a = T.wrapD(last - n.s), b = T.wrapD(r.s - n.s); if (a < n.len * 0.5 && b >= n.len * 0.5 && b < n.len + 6 && Math.abs(r.d - n.d) < n.hw + 0.4) {
         r.v = Math.min(r.v + 4.5, r.vTop * 1.3);
         if (r.isPlayer) { P.boost = Math.min(100, P.boost + 30); G.comicPop('NITRO!', P, 1.05, '#3fe8ff'); G.fx.fovPunch = Math.max(G.fx.fovPunch, 10); G.shake(0.22); R.rumble(0.5, 0.18); AUDIO.boostKick(); R.combat.zap && R.combat.zap(P, 1); } } } }
-    this.updateGuide(dt); this.updateBoostFX(dt);
+    this.updateGuide(dt); this.updateBoostFX(dt); this.updateRing(dt);
+  }
+  updateRing(dt) {
+    const R = this.race, T = R.track, P = R.player, G = R.game, U = this.ringMat.uniforms;
+    const show = !P.crashed && !P.finished && !P.eliminated && G.camMode !== 2 && !G.td && R.state !== 'finished';
+    this.ringFill = smooth(this.ringFill, clamp(P.boost / 100, 0, 1), 10, dt);
+    const gy = T.roof && T.gapAt(P.s) ? P.y : T.yAt(P.s), hAbove = Math.max(0, P.y - gy);
+    U.uFill.value = this.ringFill; U.uT.value += dt; U.uFull.value = smooth(U.uFull.value, P.boost >= 99 && !P.boosting ? 1 : 0, 6, dt); U.uBurn.value = smooth(U.uBurn.value, P.boosting ? 1 : 0, 8, dt);
+    U.uOn.value = smooth(U.uOn.value, show ? clamp(1 - hAbove / 3, 0.15, 1) : 0, 8, dt);
+    this.ring.visible = U.uOn.value > 0.01; if (!this.ring.visible) return;
+    T.pos(P.s, P.d, this.ring.position, gy - T.yAt(P.s) + 0.05);
+    const slope = (T.yAt(P.s + 1.5) - T.yAt(P.s - 1.5)) / 3; this.ring.rotation.set(-Math.atan(slope), T.yawAt(P.s) + P.psi, 0);
   }
   // racing-line chevrons + the next-corner / nitro card
   updateGuide(dt) {
@@ -112,5 +143,5 @@ class StreetOps {
       this.arcs.geometry.attributes.position.needsUpdate = true; this.arcs.geometry.attributes.color.needsUpdate = true; } }
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
-    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } for (const t of this.trail) { t.g.dispose(); t.m.material.dispose(); } this.arcs.geometry.dispose(); this.arcs.material.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
+    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } for (const t of this.trail) { t.g.dispose(); t.m.material.dispose(); } this.arcs.geometry.dispose(); this.arcs.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
 }

@@ -3,17 +3,17 @@
 // pavement, markings and puddle shaders sample it through the mirror camera's projection, smear it along the screen
 // vertical like wet asphalt does, and ripple it with raindrop rings. Strength follows wetness and the Fresnel angle.
 const REFL = {
-  U: { tRefl: { value: null }, uReflMat: { value: new THREE.Matrix4() }, uWet: { value: 0 }, uReflOn: { value: 0 }, uRTime: { value: 0 }, uRTexel: { value: new THREE.Vector2(1 / 512, 1 / 256) } },
+  U: { tRefl: { value: null }, uReflMat: { value: new THREE.Matrix4() }, uWet: { value: 0 }, uRain: { value: 0 }, uReflOn: { value: 0 }, uRTime: { value: 0 }, uRTexel: { value: new THREE.Vector2(1 / 512, 1 / 256) } },
   // k: how mirror-like this surface gets; puddly: 1 = the whole patch is standing water
   patch(mat, k, puddly = 0, flow = 0) {
     const U = this.U, prev = mat.onBeforeCompile, uk = { value: k }, up = { value: puddly }, uf = { value: flow }; mat.userData.reflK = uk;
     mat.onBeforeCompile = (sh, r) => {
       if (prev) prev(sh, r);
-      Object.assign(sh.uniforms, { tRefl: U.tRefl, uReflMat: U.uReflMat, uWet: U.uWet, uReflOn: U.uReflOn, uRTime: U.uRTime, uRTexel: U.uRTexel, uReflK: uk, uPuddly: up, uFlow: uf });
+      Object.assign(sh.uniforms, { tRefl: U.tRefl, uReflMat: U.uReflMat, uWet: U.uWet, uRain: U.uRain, uReflOn: U.uReflOn, uRTime: U.uRTime, uRTexel: U.uRTexel, uReflK: uk, uPuddly: up, uFlow: uf });
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 uReflMat; varying vec4 vRefl; varying vec3 vRW;')
         .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 rwp = modelMatrix * vec4(transformed, 1.0); vRW = rwp.xyz; vRefl = uReflMat * rwp; }');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-uniform sampler2D tRefl; uniform float uWet, uReflOn, uRTime, uReflK, uPuddly, uFlow; uniform vec2 uRTexel; varying vec4 vRefl; varying vec3 vRW;
+uniform sampler2D tRefl; uniform float uWet, uRain, uReflOn, uRTime, uReflK, uPuddly, uFlow; uniform vec2 uRTexel; varying vec4 vRefl; varying vec3 vRW;
 float rHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float rNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(rHash(i), rHash(i + vec2(1.0, 0.0)), f.x), mix(rHash(i + vec2(0.0, 1.0)), rHash(i + vec2(1.0, 1.0)), f.x), f.y); }
 // raindrop rings: one drop per cell, an expanding ring that fades out; returns (normal tilt xy, ring brightness)
@@ -25,7 +25,7 @@ vec3 rRipple(vec2 p, float t){ vec3 acc = vec3(0.0);
         .replace('#include <opaque_fragment>', `if (uReflOn > 0.5) {
   vec3 Vw = normalize(cameraPosition - vRW); float ndv = clamp(abs(Vw.y), 0.0, 1.0); float fres = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
   float pud = max(uPuddly, smoothstep(0.5, 0.72, rNoise(vRW.xz * 0.16) * 0.75 + rNoise(vRW.xz * 0.8) * 0.25));
-  float wetK = max(uWet, uFlow); vec3 rip = wetK > 0.01 ? rRipple(vRW.xz, uRTime) * wetK : vec3(0.0);
+  float wetK = max(uWet, uFlow), rainK = max(uRain, uFlow); vec3 rip = rainK > 0.01 ? rRipple(vRW.xz, uRTime) * rainK : vec3(0.0);
   vec2 jit = (vec2(rNoise(vRW.xz * 2.3), rNoise(vRW.zx * 2.3 + 4.0)) - 0.5) * mix(0.016, 0.003, pud);
   jit += (vec2(rNoise(vRW.xz * 1.3 + vec2(uRTime * 1.6, 0.0)), rNoise(vRW.zx * 1.3 - vec2(0.0, uRTime * 1.3))) - 0.5) * 0.03 * uFlow;   // moving water
   vec2 uv = vRefl.xy / vRefl.w + rip.xy * 0.02 + jit;
@@ -33,7 +33,7 @@ vec3 rRipple(vec2 p, float t){ vec3 acc = vec3(0.0);
   vec3 rc = texture2D(tRefl, uv).rgb * 0.28 + (texture2D(tRefl, uv + st * 2.0).rgb + texture2D(tRefl, uv - st * 2.0).rgb) * 0.2 + (texture2D(tRefl, uv + st * 5.0).rgb + texture2D(tRefl, uv - st * 5.0).rgb) * 0.16;
   float kd = 0.06 + 0.22 * fres, kw = mix(0.3, 0.9, pud) * (0.5 + 0.5 * fres);
   float k = clamp(uReflK * mix(kd, kw, wetK), 0.0, 0.95);
-  outgoingLight = outgoingLight * (1.0 - k * 0.8) + rc * k + rip.z * wetK * 0.08 * (vec3(0.6, 0.65, 0.75) + rc);
+  outgoingLight = outgoingLight * (1.0 - k * 0.8) * (1.0 - pud * wetK * 0.35) + rc * k + rip.z * rainK * 0.1 * (vec3(0.6, 0.65, 0.75) + rc);
 }
 #include <opaque_fragment>`);
     };

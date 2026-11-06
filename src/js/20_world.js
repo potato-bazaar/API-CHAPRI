@@ -1,11 +1,18 @@
 // ───────────────────────── WORLD BUILDER ─────────────────────────
 const MOODS = {
-  morning: { sky: ['#6fa3d8', '#bcd6ee', '#f7e3c2'], fog: '#e8d9c3', fogNear: 90, fogFar: 620, sun: '#fff1d6', sunI: 3.4, sunDir: [0.55, 0.62, 0.35], hemiSky: '#cfe0f2', hemiGround: '#8d7a62', hemiI: 2.1, night: 0, exposure: 1.0, sunDisc: '#fff6e0' },
-  golden: { sky: ['#6a3494', '#e85f9e', '#ffb36b'], fog: '#f2a682', fogNear: 80, fogFar: 560, sun: '#ffbe85', sunI: 3.4, sunDir: [-0.7, 0.32, 0.5], hemiSky: '#ffb0d0', hemiGround: '#8a6250', hemiI: 2.1, night: 0.15, exposure: 1.15, sunDisc: '#ffd59a' },
-  night: { sky: ['#0a0a22', '#26205a', '#5e3a6e'], fog: '#2e2448', fogNear: 40, fogFar: 380, sun: '#b4c4ff', sunI: 1.15, sunDir: [0.3, 0.7, -0.4], hemiSky: '#6a5cb0', hemiGround: '#3a2a30', hemiI: 2.15, night: 1, exposure: 1.32, sunDisc: '#dfe6ff' },
+  // each time of day has its own light AND its own grade, so they read as different times, not one look at three brightnesses:
+  // morning = hard white sun, blue sky, crisp shadows, cool haze; golden = low orange sun, warm tint; night = violet neon.
+  morning: { sky: ['#3d7fd0', '#8fc1ec', '#eef0e6'], fog: '#cbdbe8', fogNear: 110, fogFar: 700, sun: '#fff3dc', sunI: 4.6, sunDir: [0.55, 0.62, 0.35], hemiSky: '#b9d6f2', hemiGround: '#8a7a64', hemiI: 1.6, night: 0, exposure: 1.06, sunDisc: '#fffaf0',
+    grade: { lift: 0.0, gamma: 1.0, sat: 1.12, tint: [1.03, 1.01, 0.97], liftC: [1, 1, 1], warm: 0.02, contrast: 1.07, vig: 0.12, dof: 0.55 } },
+  golden: { sky: ['#3e4f92', '#ea8a5e', '#ffd08c'], fog: '#e8a87a', fogNear: 90, fogFar: 600, sun: '#ffb066', sunI: 4.1, sunDir: [-0.7, 0.24, 0.5], hemiSky: '#ffc4a2', hemiGround: '#7a5a48', hemiI: 1.7, night: 0.15, exposure: 1.12, sunDisc: '#ffd59a',
+    grade: { lift: 0.02, gamma: 0.97, sat: 1.18, tint: [1.08, 0.99, 0.86], liftC: [1.0, 0.7, 0.55], warm: 0.06, contrast: 1.06, vig: 0.2, dof: 0.6 } },
+  night: { sky: ['#0a0a22', '#26205a', '#5e3a6e'], fog: '#2e2448', fogNear: 40, fogFar: 380, sun: '#b4c4ff', sunI: 1.15, sunDir: [0.3, 0.7, -0.4], hemiSky: '#6a5cb0', hemiGround: '#3a2a30', hemiI: 2.15, night: 1, exposure: 1.32, sunDisc: '#dfe6ff',
+    grade: { lift: 0.085, gamma: 0.84, sat: 1.15, tint: [0.97, 0.97, 1.04], liftC: [0.62, 0.66, 1.0], warm: 0.0, contrast: 1.06, vig: 0.24, dof: 0.6 } },
 };
 const WALL_COLS = { city: ['#efe3cf', '#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#f5e6cc', '#7fb3a8', '#e6c9a8'], basti: ['#3e8e8a', '#c96f4a', '#e8b4b8', '#9fd3c7', '#d9c27a', '#b5a58f', '#8fb6d9', '#e09a6a', '#c9c2b5'], market: ['#e6c9a8', '#d98a6a', '#f2c46d', '#c96f4a', '#efe3cf', '#9fd3c7'] };
 const SIDEWALK = { city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
+// the verge between the footpath and the building line (Auto Rush keeps the scenery back: you read the road, not the props)
+const VERGE = { city: 7.5, market: 4.0, basti: 0, sea: 4.0, flyover: 6.0 };
 
 class World {
   constructor(track, opts) {
@@ -30,6 +37,7 @@ class World {
       tarp: new THREE.MeshLambertMaterial({ map: TEX.tarp, side: THREE.DoubleSide }),
       glowBasic: new THREE.MeshBasicMaterial({ vertexColors: true }),
       ground: new THREE.MeshLambertMaterial({ map: TEX.ground }),
+      grass: new THREE.MeshLambertMaterial({ map: TEX.grass }),
       marks: new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
       pool: new THREE.MeshBasicMaterial({ map: TEX.glow, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffb347, opacity: 0.0, polygonOffset: true, polygonOffsetFactor: -2 }),
     };
@@ -40,10 +48,11 @@ class World {
   }
   build() {
     const T = this.track, th = this.theme;
-    const B = { dirt: new Batch(), road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
+    const B = { grass: new Batch(), dirt: new Batch(), road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
     this.B = B;
     this.buildRoad(B);
     this.buildRoadside(B);
+    this.buildVerge(B);
     this.buildBuildings(B);
     this.buildSpecials(B);
     this.buildLandmark(B);
@@ -62,6 +71,7 @@ class World {
     this.roadMesh = add(B.road, this.mats.road, { receive: true });
     if (B.dirt.n) { this.dirtRoadMat = new THREE.MeshLambertMaterial({ map: TEX.dirt, color: '#d9c3a0', vertexColors: true }); this.disposables.push(this.dirtRoadMat); this.dirtRoad = add(B.dirt, this.dirtRoadMat, { receive: true }); }
     add(B.kerb, this.mats.kerb, { receive: true });
+    if (B.grass.n) add(B.grass, this.mats.grass, { receive: true });
     add(B.pave, this.mats.pave, { receive: true });
     add(B.facade, this.mats.facade, { receive: true });
     add(B.basti, this.mats.basti, { receive: true });
@@ -92,7 +102,7 @@ class World {
     for (let s = 0; s < T.L - 1e-6;) { rows.push(s); const inBump = bumpZones.some(([a, b]) => s > a - 2 && s < b + 2); s += inBump ? 0.25 : 2; }
     rows.push(T.L);
     const white = new THREE.Color('#ffffff'), paveC = new THREE.Color('#ffffff'), curbC = new THREE.Color('#bdb3a6');
-    const concrete = new THREE.Color('#a59a90'), concreteDark = new THREE.Color('#6d655f');
+    const concrete = new THREE.Color('#a59a90'), concreteDark = new THREE.Color('#6d655f'); const plazaC = new THREE.Color('#bfae98');
     this.cx = 0; this.cz = 0;
     for (let r = 0; r < rows.length - 1; r++) {
       const s0 = rows[r], s1 = rows[r + 1];
@@ -107,7 +117,7 @@ class World {
         continue;
       }
       T.pos(s0, -w0, pA, 0.0); T.pos(s1, -w1, pB, 0.0); T.pos(s1, w1, pC, 0.0); T.pos(s0, w0, pD, 0.0);
-      B.road.quad(pA, pB, pC, pD, white, [[0, s0 / 12], [0, s1 / 12], [1, s1 / 12], [1, s0 / 12]], UP);
+      B.road.quad(pA, pB, pC, pD, white, [[0, s0 / 24], [0, s1 / 24], [1, s1 / 24], [1, s0 / 24]], UP);
       const elevated = Math.max(y0, y1) > 1.2;
       for (const side of [-1, 1]) {
         // kerb strip
@@ -122,6 +132,10 @@ class World {
           B.pave.quad(pA, pB, pC, pD, paveC, [[0, s0 / 3], [0, s1 / 3], [sw / 3, s1 / 3], [sw / 3, s0 / 3]], UP);
           T.pos(s0, side * o0, pA, 0.18); T.pos(s1, side * o1, pB, 0.18); T.pos(s1, side * o1, pC, -0.06); T.pos(s0, side * o0, pD, -0.06);
           B.pave.quad(pA, pB, pC, pD, curbC, [[0, 0], [1, 0], [1, 0.05], [0, 0.05]]);
+          const V = this.vergeAt(s0);
+          if (V > 0) { T.pos(s0, side * o0, pA, -0.035); T.pos(s1, side * o1, pB, -0.035); T.pos(s1, side * (o1 + V), pC, -0.035); T.pos(s0, side * (o0 + V), pD, -0.035);
+            if (this.theme === 'market') B.pave.quad(pA, pB, pC, pD, plazaC, [[0, s0 / 3], [0, s1 / 3], [V / 3, s1 / 3], [V / 3, s0 / 3]], UP);   // the market gets a paved forecourt
+            else B.grass.quad(pA, pB, pC, pD, white, [[0, s0 / 5], [0, s1 / 5], [V / 5, s1 / 5], [V / 5, s0 / 5]], UP); }
         } else {
           // parapet wall on elevated deck
           const o0 = w0 + 0.45, o1 = w1 + 0.45;
@@ -252,6 +266,16 @@ class World {
     if (th !== 'sea') for (let s = 70; s < T.L - 40; s += 140 + RNG() * 80) { const sd = RNG() < 0.5 ? -1 : 1; if (T.yAt(s) > 1 || sw < 2 || (this.ugSkip && this.ugSkip(s, 'auto'))) continue; T.pos(s, sd * (T.wAt(s) / 2 + 1.6), p); this.auto(B, p.x, p.y + 0.18, p.z, T.yawAt(s) + (RNG() < 0.5 ? 0 : Math.PI), RNG() < 0.5 ? 'kaali' : 'cng'); }
   }
   isSea(x) { return this.def.sea && x < this.def.sea.x; }
+  // verge width at s: none on decks, in halls, at the Underground's special zones, or where the road bends back near itself
+  vergeAt(s) { const T = this.track, V = VERGE[this.theme] || 0; if (!V || T.yAt(s) > 1.2 || T.hallAt(s) || (this.ugSkip && this.ugSkip(s, 'tree'))) return 0; return V; }
+  // trees and bushes on the verge: a green band that hides how simple the buildings behind it are
+  buildVerge(B) {
+    const T = this.track, sw = SIDEWALK[this.theme], p = new THREE.Vector3(), g = ['#3f6b2f', '#4f7d35', '#2f5a28', '#5a8a3a'];
+    for (let s = 8; s < T.L - 8; s += 9) for (const sd of [-1, 1]) { const V = this.vergeAt(s); if (V < 2) continue;
+      const base = T.wAt(s) / 2 + 0.45 + sw, r = RNG(); T.pos(s + (RNG() - 0.5) * 4, sd * (base + V * (0.3 + RNG() * 0.45)), p); p.y = 0; if (this.isSea(p.x) || T.clearance(p.x, p.z) < 2.5) continue;
+      if (r < 0.34) { if (this.theme === 'sea' || RNG() < 0.25) this.palm(B, p.x, p.y, p.z, 7 + RNG() * 4); else this.tree(B, p.x, p.y, p.z, 6 + RNG() * 4); }
+      else if (r < 0.7) { for (let i = 0; i < 3; i++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 2.4, 0.35, p.z + (RNG() - 0.5) * 2.4, RNG() * 6, 0.9 + RNG() * 0.6, 0.55 + RNG() * 0.3, 0.9 + RNG() * 0.6, pick(g)); } }
+  }
   tree(B, x, y, z, h) { const ry = RNG() * 3; B.props.box(x, y, z, 0.35, h * 0.55, 0.35, ry, '#5a3e2a'); B.props.box(x, y, z, 0.38, 0.85, 0.38, ry, '#f2eee4'); B.props.box(x, y + 0.85, z, 0.39, 0.16, 0.39, ry, '#c8201e'); /* trunks painted white and red, Indian roadside style */ const g = ['#3f6b2f', '#4f7d35', '#2f5a28']; for (let i = 0; i < 4; i++) B.props.geom(BLOB, x + (RNG() - 0.5) * 2, y + h * (0.6 + RNG() * 0.3), z + (RNG() - 0.5) * 2, RNG() * 6, 1.6 + RNG(), 1.3 + RNG() * 0.6, 1.6 + RNG(), pick(g)); }
   palm(B, x, y, z, h) {
     const lean = (RNG() - 0.5) * 0.3, dir = RNG() * 6; let px = x, pz = z, py = y;
@@ -286,8 +310,8 @@ class World {
         const depth = th === 'basti' ? 5 + RNG() * 3 : 9 + RNG() * 7;
         let h = th === 'city' ? 9 + RNG() * 20 : th === 'market' ? 7 + RNG() * 9 : th === 'basti' ? 2.8 + RNG() * 1.0 : th === 'sea' ? 18 + RNG() * 26 : 6 + RNG() * 10;
         const inHall = !!(T.halls.length && (T.hallAt(sc) || T.hallAt(sc - frontage / 2) || T.hallAt(sc + frontage / 2)));
-        const setback = y > 1.2 ? 9 : inHall ? 0.9 : 0;
-        const off = T.wAt(sc) / 2 + 0.45 + sw + depth / 2 + 0.15 + setback;
+        const setback = y > 1.2 ? 9 : inHall ? 0.9 : 0, verge = inHall ? 0 : Math.max(this.vergeAt(sc), this.vergeAt(sc - frontage / 2), this.vergeAt(sc + frontage / 2));
+        const off = T.wAt(sc) / 2 + 0.45 + sw + depth / 2 + 0.15 + setback + verge;
         const c = T.pos(sc, side * off, new THREE.Vector3()); c.y = 0;
         const yaw = T.yawAt(sc);
         if (this.isSea(c.x + 12) || this.isSea(c.x - 12)) { s += frontage; continue; }
@@ -547,8 +571,9 @@ class World {
     const white = new THREE.Color('#e6e1d8'), tar = new THREE.Color('#2a262e'), tar2 = new THREE.Color('#3a3540');
     const quadAt = (s0, s1, d0, d1, c) => { T.pos(s0, d0, p[0], 0.012); T.pos(s1, d0, p[1], 0.012); T.pos(s1, d1, p[2], 0.012); T.pos(s0, d1, p[3], 0.012); B.marks.quad(p[0], p[1], p[2], p[3], c, undefined, UP); };
     const nearBump = (s) => (T.ug && T.dirtAt(s)) || T.bumps.some(b => Math.abs(b.s - s) < b.len + 6) || T.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 2) || T.hazards.some(h => Math.abs(h.s - s) < 4);
-    // centre dashes: 3 m paint, 4.5 m gap
-    for (let s = 0; s < T.L - 3; s += 7.5) { if (T.wAt(s) < 7.2 || nearBump(s)) continue; quadAt(s, s + 3, -0.08, 0.08, white); }
+    // lane dashes (3 m paint, 4.5 m gap) on every lane line: a wide road reads as a road from its lanes
+    for (let s = 0; s < T.L - 3; s += 7.5) { const w = T.w0At(s); if (w < 8 || nearBump(s)) continue; const n = Math.max(2, Math.round(w / 3.8));
+      for (let k = 1; k < n; k++) { const d = -w / 2 + k * w / n; quadAt(s, s + 3, d - 0.075, d + 0.075, white); } }
     // zebra crossings on wide sections
     for (let s = 160; s < T.L - 20; s += 240) { const w = T.wAt(s) / 2; if (w < 3.5 || T.yAt(s) > 0.3 || nearBump(s)) continue; for (let d = -w + 0.5; d < w - 0.5; d += 1.0) quadAt(s, s + 3, d, d + 0.5, white); }
     // tar patches and manholes
@@ -840,7 +865,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     const M = MOODS[timeKey] || MOODS.golden; this.mood = M; this.timeKey = timeKey; this.weather = weather;
     const wet = weather === 'monsoon', nt = M.night > 0.5;
     // monsoon: overcast blue-grey sky, soft sun, more sky light, haze — still readable, never murky
-    const RS = nt ? ['#0e1220', '#1e2436', '#323a4e'] : ['#55627a', '#8a94a8', '#b4bac6'];
+    const RS = nt ? ['#100f22', '#211f38', '#3a3650'] : ['#55566f', '#8a8aa2', '#bab6c8'];   // monsoon: Auto Rush's lavender-grey overcast
     const sky = (i) => new THREE.Color(M.sky[i]).lerp(new THREE.Color(RS[i]), wet ? 0.8 : 0);
     this.skyMat.uniforms.top.value.copy(sky(0)); this.skyMat.uniforms.mid.value.copy(sky(1)); this.skyMat.uniforms.hor.value.copy(sky(2));
     const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt && !wet ? 1 : 0;
@@ -855,9 +880,12 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     this.mats.facade.emissive.set('#ffb347').multiplyScalar(lit * 0.9 + 0.05);
     this.mats.shops.emissive.set('#ffffff').multiplyScalar(0.08 + lit * 0.55);
     this.mats.signs.emissive.set('#ffffff').multiplyScalar(0.12 + lit * 0.7);
-    this.mats.pool.opacity = lit * 0.7; if (this.glowMat) this.glowMat.opacity = 0.25 + lit * 0.75;
+    this.mats.pool.opacity = lit * 0.7; if (this.glowMat) this.glowMat.opacity = lit < 0.05 ? 0 : 0.25 + lit * 0.75;   // street lamps are off in daylight
     this.mats.glowBasic.color.set('#ffffff').multiplyScalar(n > 0.5 ? 1.0 : 0.85);
-    this.mats.road.roughness = wet ? 0.62 : 0.92; this.mats.road.color.set(wet ? '#7c7886' : '#ffffff'); this.mats.road.metalness = wet ? 0.1 : 0; REFL.U.uWet.value = wet ? 1 : 0;
+    // monsoon = soaked; nights are damp (the puddles pick up the neon, Auto Rush style); days are dry
+    this.mats.road.roughness = wet ? 0.62 : nt ? 0.8 : 0.92; this.mats.road.color.set(wet ? '#7c7886' : nt ? '#928d9c' : '#ffffff'); this.mats.road.metalness = wet ? 0.1 : 0;
+    REFL.U.uWet.value = wet ? 1 : nt ? 0.42 : timeKey === 'golden' ? 0.1 : 0.04; REFL.U.uRain.value = wet ? 1 : 0;
+    this.mats.grass.color.set(wet ? '#7d8a78' : nt ? '#6a7290' : '#ffffff');
     this.headlight.intensity = n > 0.5 ? 220 : 0;
     if (this.hazDry) this.hazDry.visible = !wet; if (this.hazWet) this.hazWet.visible = wet;
     if (this.dirtMat) this.dirtMat.color.set(wet ? '#7a6656' : '#ffffff');
