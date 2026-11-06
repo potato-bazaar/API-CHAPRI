@@ -1,6 +1,7 @@
 // ───────────────────────── SHARE YOUR WIN ─────────────────────────
 // The results screen's SHARE button: a 1080×1920 brag card (the orbit shot of your rider behind the results, your
 // position, track, time, best lap and top speed), shown as a preview with the phone's share sheet and a plain download.
+let UI_NOTE = null;   // the UI's flash note, set once the UI is up
 const SHARE = {
   W: 1080, H: 1920,
   // grab the 3D view right after drawing it (the WebGL buffer is only readable in the same task)
@@ -69,6 +70,9 @@ const SHARE = {
       $('#shareImg').src = this.url;
       const file = new File([blob], `chapri-racer-${R.def.id}.jpg`, { type: 'image/jpeg' }); this.file = file;
       const can = !!(navigator.canShare && navigator.canShare({ files: [file] })); $('#shareGo').hidden = !can;
+      // inside the claude.ai viewer a plain download link does nothing: saving goes through the viewer's own prompt
+      const dl = await this.downloader(), framed = !!(window.claude && window.claude.use), canSave = !!dl || !framed;
+      $('#shareSave').hidden = !canSave; $('#shareHint').hidden = can || canSave;
       g.ui.open('share');
     } catch (e) { console.warn('share', e); g.ui.flashNote('Could not make the share card here.'); }
     finally { btn.disabled = false; }
@@ -77,5 +81,14 @@ const SHARE = {
     if (!this.file) return;
     try { await navigator.share({ files: [this.file], title: 'Chapri Racer', text: 'Beat that? 🏍️ Chapri Racer' }); } catch (e) { if (e && e.name !== 'AbortError') this.save(); }
   },
-  save() { if (!this.url) return; const a = document.createElement('a'); a.href = this.url; a.download = this.file ? this.file.name : 'chapri-racer.jpg'; document.body.appendChild(a); a.click(); a.remove(); },
+  // the viewer's download capability (claude.ai artifact), or null in the standalone/web builds
+  downloader() {
+    if (!this._dl) this._dl = (async () => { try { return window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { return null; } })();
+    return this._dl;
+  },
+  async save() {
+    if (!this.blob) return; const name = this.file ? this.file.name : 'chapri-racer.jpg', dl = await this.downloader();
+    if (dl) { try { await dl.save({ filename: name, data: this.blob }); } catch (e) { const c = e && e.code; if (c !== 'declined' && c !== 'rate_limited' && typeof UI_NOTE === 'function') UI_NOTE('Could not save here. Press and hold the card instead.'); } return; }
+    const a = document.createElement('a'); a.href = this.url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  },
 };

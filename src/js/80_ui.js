@@ -40,7 +40,8 @@ class UI {
     $('#rAgain').addEventListener('click', () => this.game.restart());
     $('#rNext').addEventListener('click', () => this.game.nextTrack());
     $('#rGarage').addEventListener('click', () => { this.game.toMenu().then(() => this.open('garage')); });
-    $('#rShare').addEventListener('click', () => { AUDIO.click(); SHARE.open(this.game); });
+    $('#rShare').addEventListener('click', () => { AUDIO.click(); SHARE.open(this.game); }); SHARE.downloader();   // ask early; it answers after load
+    UI_NOTE = (t) => this.flashNote(t);
     $('#shareGo').addEventListener('click', () => { AUDIO.click(); SHARE.go(); }); $('#shareSave').addEventListener('click', () => { AUDIO.click(); SHARE.save(); });
     $('#rMenu').addEventListener('click', () => this.game.toMenu());
     $('#cupGo').addEventListener('click', () => { this.closeModal(); this.game.startCup(); });
