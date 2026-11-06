@@ -13,6 +13,16 @@ async function loadRiderModel() {
     for (const n of ['body', 'body_lod', 'Eyes', 'Eyebrows', 'hair_quiff', 'hair_long', 'hair_buzz', 'hair_pomp', 'beard', 'shirt', 'shirt_lod']) if (!meshes[n]) throw new Error('missing ' + n);
     const bm = meshes.body.material; RIDER_MODEL.base = bm.map; RIDER_MODEL.mask = bm.aoMap; RIDER_MODEL.hairTex = meshes.hair_quiff.material.map;
     RIDER_MODEL.eyesMat = meshes.Eyes.material; RIDER_MODEL.scene = sc; RIDER_MODEL.ready = true;
+    // the meshes are quantised (positions stored as -1..1, the real size baked into the inverse bind matrices): keep the
+    // dequantisation per mesh so the shaders can work in real bind-pose metres, the space the texture was painted in
+    sc.updateMatrixWorld(true); RIDER_MODEL.deq = {};
+    for (const [n, m] of Object.entries(meshes)) { const sk = m.skeleton, D = sk.bones[0].matrixWorld.clone().multiply(sk.boneInverses[0]).multiply(m.bindMatrix).elements; RIDER_MODEL.deq[n] = new THREE.Vector4(D[0], D[12], D[13], D[14]); }
+    try { // the skin tone a bare torso is painted with: averaged off the model's forearms
+      const img = bm.map.image, cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, 64, 64); const px = cx.getImageData(0, 0, 64, 64).data;
+      const g = meshes.body.geometry, P = g.attributes.position, UV = g.attributes.uv, dq = RIDER_MODEL.deq.body; let r = 0, gg = 0, b = 0, n = 0;
+      for (let i = 0; i < P.count; i += 3) { const x = Math.abs(P.getX(i) * dq.x + dq.y), y = P.getY(i) * dq.x + dq.z; if (x < 0.4 || x > 0.55 || y < 1.25) continue; const u = Math.floor(UV.getX(i) * 63), v = Math.floor(UV.getY(i) * 63), k = (v * 64 + u) * 4; r += px[k]; gg += px[k + 1]; b += px[k + 2]; n++; }
+      if (n > 10) RIDER_MODEL.skin = '#' + new THREE.Color(r / n / 255, gg / n / 255, b / n / 255).getHexString(THREE.LinearSRGBColorSpace);
+    } catch (e) { /* keep the default skin tone */ }
     return true;
   } catch (e) { console.warn('Rider model unavailable, using the built-in rider:', e && e.message); return false; }
 }
@@ -23,13 +33,57 @@ const RIDER_HOOK = `#include <map_fragment>
   vec3 rShirt = texture2D(riderShirt, vMapUv * 3.2).rgb;
   diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * rG, rM.r);
   diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);
-  diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;`;
-function riderBodyMat(shirtTex, jeans, low, stubble) {
-  const key = shirtTex.uuid + '|' + jeans + '|' + (low ? 1 : 0) + (stubble ? 's' : ''); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
+  diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;
+  { // wardrobe, decided from the bind-pose position (the same space the texture was painted in, tools/model/paint-rider.py)
+    float aX = abs(vRB.x), y = vRB.y;
+    float vestP = step(0.995, y) * step(y, 1.375) * step(aX, 0.2);                 // the painted white baniyan
+    float collarV = step(0.0, vRB.z) * step(1.33, y) * step(y, 1.5) * step(aX, 0.03 + (y - 1.33) * 0.8);   // the open-collar V painted as skin
+    float covered = max(max(rM.r, vestP), collarV);                                  // everything a top can cover
+    if (riderTop > 0.5 && covered > 0.5) {
+      // bare skin, with definition on the front of a bare torso (pecs, sternum, abs, navel), sharper with muscle
+      float fz = smoothstep(0.02, 0.07, vRB.z), dk = 0.4 + 0.6 * min(riderMuscle, 1.5);
+      float pec = exp(-pow((y - (1.255 - aX * 0.22)) / 0.011, 2.0)) * step(aX, 0.15), stern = exp(-pow(vRB.x / 0.006, 2.0)) * step(1.17, y) * step(y, 1.36);
+      float absV = exp(-pow(vRB.x / 0.005, 2.0)) * step(1.0, y) * step(y, 1.2), absH = 0.0;
+      for (int i = 0; i < 3; i++) absH += exp(-pow((y - (1.06 + 0.05 * float(i))) / 0.006, 2.0)) * step(aX, 0.07);
+      float navel = exp(-(pow(vRB.x / 0.01, 2.0) + pow((y - 1.03) / 0.012, 2.0)));
+      vec3 skin = riderSkin * (1.0 - ((pec * 0.32 + stern * 0.14 + absV * 0.22 + absH * 0.2) * dk + navel * 0.4) * fz);
+      vec3 top = skin;
+      if (riderTop < 1.5) { // baniyan: torso, straps over the shoulders, a scoop neck and armholes
+        float strap = step(0.055, aX) * step(aX, 0.125) * step(y, 1.5);
+        float body = step(aX, 0.2) * step(y, 1.43) * (1.0 - step(1.3, y) * smoothstep(0.13, 0.15, aX + (y - 1.3) * 0.25));   // armholes curve in
+        float back = step(vRB.z, -0.02) * step(aX, 0.125) * step(y, 1.46);
+        float neck = step(0.0, vRB.z) * step(aX, 0.075 + (y - 1.36) * 0.6) * step(1.36, y);                               // scoop neck
+        float isVest = max(max(body, strap), back) * (1.0 - neck) * step(0.995, y);
+        float sh = vestP > 0.5 ? clamp(sampledDiffuseColor.g / 0.8, 0.6, 1.15) : 1.0;
+        top = mix(skin, riderVest * sh, isVest);
+      }
+      diffuseColor.rgb = top;
+    }
+    // the waistband above the jeans: brand elastic, leopard, a pantie band or lace (alpha = coverage)
+    if (riderBandOn > 0.5) { float bv = (y - 0.988) / 0.052;
+      if (bv > 0.0 && bv < 1.0 && aX < 0.25) { vec4 bt = texture2D(riderBandTex, vec2((atan(vRB.x, vRB.z) / 6.2832 + 0.5) * 3.0, bv)); diffuseColor.rgb = mix(diffuseColor.rgb, bt.rgb, bt.a); } }
+  }`;
+// bind-space position for the wardrobe + the muscle push (before skinning, along the bind normal). T-pose: arms out along x.
+const RIDER_VS = `#include <begin_vertex>
+  vec3 pR = position * riderDeq.x + riderDeq.yzw; vRB = pR;
+  { float aX = abs(pR.x), y = pR.y, z = pR.z, w = 0.0;
+    float arm = smoothstep(0.17, 0.24, aX) * (1.0 - smoothstep(0.62, 0.7, aX)) * smoothstep(1.27, 1.33, y);
+    w += arm * (exp(-pow((aX - 0.3) / 0.07, 2.0)) + exp(-pow((aX - 0.2) / 0.045, 2.0)) * 0.9 + exp(-pow((aX - 0.46) / 0.07, 2.0)) * 0.45) * 0.024;   // biceps, delts, forearms
+    float tor = step(aX, 0.22) * smoothstep(1.05, 1.18, y) * (1.0 - smoothstep(1.42, 1.5, y));
+    w += tor * smoothstep(0.03, 0.09, z) * exp(-pow((y - 1.3) / 0.07, 2.0)) * 0.022;                       // pecs
+    w += tor * smoothstep(-0.05, -0.1, z) * exp(-pow((y - 1.28) / 0.1, 2.0)) * 0.016;                      // lats
+    w += step(aX, 0.2) * smoothstep(1.4, 1.46, y) * (1.0 - smoothstep(1.53, 1.58, y)) * smoothstep(0.04, 0.1, aX) * 0.014;   // traps
+    w += smoothstep(0.5, 0.6, y) * (1.0 - smoothstep(0.86, 0.93, y)) * step(0.04, aX) * step(aX, 0.2) * 0.011;            // thighs
+    transformed += normal * (w * riderMuscle / riderDeq.x); }`;
+function riderVS(sh, U) { Object.assign(sh.uniforms, U); sh.vertexShader = 'uniform float riderMuscle; uniform vec4 riderDeq; varying vec3 vRB;\n' + sh.vertexShader.replace('#include <begin_vertex>', RIDER_VS); }
+const RIDER_FS_HEAD = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble; uniform float riderTop, riderMuscle, riderBandOn; uniform vec3 riderSkin, riderVest; uniform sampler2D riderBandTex; varying vec3 vRB;\n';
+function riderWardrobeU(o, mesh) { return { riderDeq: { value: (RIDER_MODEL.deq && RIDER_MODEL.deq[mesh]) || new THREE.Vector4(1, 0, 0, 0) }, riderTop: { value: o.top === 'bare' ? 2 : o.top === 'vest' ? 1 : 0 }, riderMuscle: { value: o.muscle || 0 }, riderBandOn: { value: o.band ? 1 : 0 }, riderSkin: { value: new THREE.Color(RIDER_MODEL.skin || '#b07a52') }, riderVest: { value: new THREE.Color(o.vest || '#f2efe6') }, riderBandTex: { value: o.band ? bandTexture(o.band) : (RIDER_MODEL.blank || (RIDER_MODEL.blank = Object.assign(new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1), { needsUpdate: true }))) } }; }
+function riderBodyMat(shirtTex, jeans, low, stubble, o = {}) {
+  const key = [shirtTex.uuid, jeans, low ? 1 : 0, stubble ? 's' : '', o.top, o.vest, o.band && o.band.id, o.muscle || 0, o.lod ? 'lod' : ''].join('|'); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
-  const U = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
-  m.customProgramCacheKey = () => low ? 'rider-l' : 'rider-s';
+  const U = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } }, riderWardrobeU(o, o.lod ? 'body_lod' : 'body'));
+  m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  m.customProgramCacheKey = () => low ? 'rider-l2' : 'rider-s2'; m.userData.riderU = U;
   RIDER_MODEL.mats.set(key, m); return m;
 }
 // cloth + hair streaming in the wind: displaced after skinning, in the rider's own space (+z forward), scaled per vertex
@@ -43,12 +97,12 @@ function flutterMat(base, U, key) { // base: a fresh material; U: this rider's {
     sh.vertexShader = 'attribute float _flutter; uniform float uWind; uniform float uTime;\n' + sh.vertexShader.replace('#include <skinning_vertex>', FLUTTER_VS); };
   base.customProgramCacheKey = () => key; return base;
 }
-function riderShellMat(shirtTex, jeans, low, U) {
+function riderShellMat(shirtTex, jeans, low, U, o = {}) {
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.8, metalness: 0 });
-  const FU = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: 0 } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, FU); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  const FU = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: 0 } }, riderWardrobeU(Object.assign({}, o, { top: 'shirt', band: null }), o.lod ? 'shirt_lod' : 'shirt'));
+  m.onBeforeCompile = (sh) => { riderVS(sh, FU); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); }; m.userData.riderU = FU;
   m.side = THREE.DoubleSide;
-  return flutterMat(m, U, low ? 'shell-l' : 'shell-s');
+  return flutterMat(m, U, low ? 'shell-l2' : 'shell-s2');
 }
 function riderHairFlutterMat(color, low, U) {
   const c = new THREE.Color(color).multiplyScalar(1.6);
@@ -106,10 +160,11 @@ class RiderModel {
     const keep = new Set([o.lod ? 'body_lod' : 'body', o.lod ? 'shirt_lod' : 'shirt', 'Eyes', 'Eyebrows', hair, o.beard ? 'beard' : null]);
     this.U = { uWind: { value: 0 }, uTime: { value: 0 } }; this.ownMats = [];
     for (const [n, m] of Object.entries(meshes)) { if (!keep.has(n)) { m.parent.remove(m); continue; } m.castShadow = cast; m.frustumCulled = false; }
-    const shirtKey = o.shirt + (o.flowers ? 'f' : o.check ? 'c' : 'p');
-    if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, o.flowers ? 'flowers' : o.check ? 'check' : 'plain');
-    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble);
-    { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U); meshes[o.lod ? 'shirt_lod' : 'shirt'].material = sm; this.ownMats.push(sm); }
+    const pat = o.flowers ? 'flowers' : o.check ? 'check' : o.pattern || 'plain', shirtKey = o.shirt + pat;
+    if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, pat);
+    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble, o);
+    { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U, o), sh = meshes[o.lod ? 'shirt_lod' : 'shirt']; sh.material = sm; this.ownMats.push(sm);
+      if (o.top === 'vest' || o.top === 'bare') sh.visible = false; }   // baniyan / no shirt: the open shirt comes off
     if (hair) { const hm = hair === 'hair_pomp' ? riderPompMat(o.hairColor || '#5a3320', low, this.U) : riderHairFlutterMat(o.hairColor || HAIR_DYES[0], low, this.U); meshes[hair].material = hm; this.ownMats.push(hm); }
     if (o.beard) meshes.beard.material = riderHairMat('#1a120d', low);
     meshes.Eyebrows.material = riderHairMat('#140d09', low);
@@ -141,7 +196,8 @@ class RiderModel {
     const pb = wp('pelvis').divideScalar(RIDER_FIT.scale); // pelvis in model units
     this.root.position.set(RIDER_FIT.pelvis[0] - pb.x * RIDER_FIT.scale, RIDER_FIT.pelvis[1] - pb.y * RIDER_FIT.scale, RIDER_FIT.pelvis[2] - pb.z * RIDER_FIT.scale);
     rig.body.add(this.root); this.baseY = this.root.position.y; this.baseX = this.root.position.x;
-    this.cloth = new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast);
+    this.cloth = o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
+      : new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast, { muscle: o.muscle || 0, hem: o.band ? 1.06 : 0.92 });   // a shorter back when the waistband shows
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;

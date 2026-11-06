@@ -616,3 +616,23 @@ kbd { font-family: var(--f-num); }
 .bb-bar { position: absolute; left: 14%; right: 14%; top: calc(100% + .45rem); height: .62rem; border-radius: 99px; background: rgba(8, 14, 44, .88); box-shadow: 0 0 0 2px #5ff2ff, 0 0 12px rgba(63, 200, 255, .75); overflow: hidden; }
 .bb-bar i { display: block; height: 100%; width: 100%; background: repeating-linear-gradient(90deg, #8ff8ff 0 calc(12.5% - 3px), transparent calc(12.5% - 3px) 12.5%); box-shadow: 0 0 10px #3fe8ff; transition: width .12s linear; }
 @media (orientation: portrait) { .boost-banner { top: 34vh; } .zone-card { top: 22vh; } }
+
+/* ───── store = the chapri wardrobe: tabs + a grid on one side, the rider on the other ───── */
+.store-body { display: grid; grid-template-columns: minmax(20rem, 44%) 1fr; gap: 1rem; overflow: hidden; min-height: 0; }
+.store-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .6rem; padding: .7rem; min-height: 0; }
+.store-stage { pointer-events: none; }
+.store-tabs { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; } .store-tabs::-webkit-scrollbar { display: none; }
+.store-tabs button { flex: none; padding: .35rem .8rem; border-radius: 99px; background: rgba(255, 255, 255, .07); font-weight: 800; font-size: 1rem; letter-spacing: .02em; text-transform: uppercase; color: rgba(255, 255, 255, .8); }
+.store-tabs button.on { background: var(--marigold); color: #1b0d22; }
+.store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .45rem; overflow-y: auto; align-content: start; touch-action: pan-y; overscroll-behavior: contain; padding-right: .2rem; }
+.store-item .sw.band { display: grid; place-items: center; background: var(--b); border-radius: 6px; height: 1.2rem; align-self: center; box-shadow: inset 0 3px 0 rgba(0, 0, 0, .25), inset 0 -3px 0 rgba(0, 0, 0, .25); overflow: hidden; }
+.store-item .sw.band i { font-style: italic; font-weight: 900; font-size: .55rem; color: var(--i); letter-spacing: .04em; line-height: 1; }
+.store-item .sw.none { background: repeating-linear-gradient(45deg, #333 0 6px, #444 6px 12px); }
+.store-item .sw.body { display: grid; place-items: center; background: rgba(255, 255, 255, .08); font-size: calc(1rem + var(--m) * .55rem); }
+@media (orientation: portrait) {
+  .store-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 38vh minmax(0, 1fr); }
+  .store-stage { grid-row: 1; } .store-panel { grid-row: 2; }
+  .store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .store-item { grid-template-columns: 1.8rem 1fr; } .store-item .cost { grid-column: 2; font-size: 1.1rem; } .store-item .sw { width: 1.8rem; height: 1.8rem; }
+  .store-item .sw.band { height: 1rem; }
+}

@@ -6,7 +6,8 @@ function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
   const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0]; const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
   const hair = COSMETICS.hair.find(h => h.id === SAVE.cos.hair) || COSMETICS.hair[0];
-  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.base, flowers: shirt.flowers, check: shirt.check, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: '#1f2a4a', mods: modsFor(b.id) };
+  const ch = COSMETICS.chaddi.find(c => c.id === SAVE.cos.chaddi) || COSMETICS.chaddi[1], jn = COSMETICS.jeans.find(j => j.id === SAVE.cos.jeans) || COSMETICS.jeans[0], bd = COSMETICS.body.find(x => x.id === SAVE.cos.body) || COSMETICS.body[0];
+  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.top ? '#888888' : shirt.base, flowers: shirt.flowers, check: shirt.check, pattern: shirt.pattern, top: shirt.top || 'shirt', vest: shirt.vest, band: ch.band ? ch : null, muscle: bd.muscle, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: jn.color, mods: modsFor(b.id) };
 }
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 // resolves after the browser has really painted the current DOM (rAF runs before paint; the timeout runs after it)
@@ -69,7 +70,7 @@ class Game {
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC, OST };
-    if (DEBUG.test) window.__DEBUG = DEBUG;
+    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; }
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.hideLoader(); this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -324,7 +325,7 @@ class Game {
   // 0 in landscape, 1 on a 9:16 phone held upright (in between for tall tablets)
   portraitK() { return clamp((1 - this.vw / this.vh) / 0.5, 0, 1); }
   // slide the picture up without turning the camera (projection offset), so the bike sits above the portrait panels
-  viewShift(y) { const c = this.camera; if (Math.abs(y) < 1e-3) { if (c.view && c.view.enabled) c.clearViewOffset(); return; } c.setViewOffset(this.vw, this.vh, 0, this.vh * y, this.vw, this.vh); }
+  viewShift(y, x = 0) { const c = this.camera; if (Math.abs(y) < 1e-3 && Math.abs(x) < 1e-3) { if (c.view && c.view.enabled) c.clearViewOffset(); return; } c.setViewOffset(this.vw, this.vh, this.vw * x, this.vh * y, this.vw, this.vh); }
   // ── frame loop ──
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
@@ -492,13 +493,16 @@ class Game {
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    let target, look; const pk = this.portraitK(); let shift = 0, fovAdd = 0;
+    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0;
     if (this.state === 'garage') {
       if (!(this.ui.dragT > 0)) this.ui.garageYaw += dt * 0.25; else this.ui.dragT -= dt;
       const a = yaw + this.ui.garageYaw, rr = 3.6 * (1 + pk * 0.55); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + 1.35 + pk * 0.3, p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + 0.75, p.z);
       shift = pk * 0.27; fovAdd = pk * 14;
     } else if (this.state === 'store') {
-      const a = yaw + 0.9 + Math.sin(this.t * 0.3) * 0.15; target = new THREE.Vector3(p.x + Math.sin(a) * 2.1, p.y + 1.55, p.z + Math.cos(a) * 2.1); look = new THREE.Vector3(p.x, p.y + 1.3, p.z);
+      // the wardrobe camera turns to what you're shopping for: the back for the waistband, the face for hair and shades
+      const V = { shirt: [0.9, 2.2, 1.55, 1.25], chaddi: [Math.PI - 0.45, 1.7, 1.45, 1.0], jeans: [1.45, 2.7, 1.15, 0.75], body: [0.55, 2.4, 1.55, 1.2], hair: [0.7, 1.35, 1.8, 1.6], helmet: [0.7, 1.45, 1.8, 1.6], shades: [0.35, 1.2, 1.72, 1.62] }[this.ui.storeTab || 'shirt'] || [0.9, 2.2, 1.55, 1.25];
+      const a = yaw + V[0] + Math.sin(this.t * 0.3) * 0.12, rr = V[1] * (1 + pk * 0.45); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + V[2], p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + V[3], p.z);
+      shiftX = pk > 0.3 ? 0 : -0.21; shift = pk * 0.25; fovAdd = pk * 12;
     } else {
       // hero shot from the front-left, bike framed in the right half of the screen
       // low and close like a poster: the bike big in the middle, the rider's face in the light
@@ -508,7 +512,7 @@ class Game {
       if (this.state === 'menu') { shift = pk * 0.19; fovAdd = pk * 10; }
     }
     if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-4 * dt));
-    this.camera.lookAt(look); this.viewShift(shift); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
+    this.camera.lookAt(look); this.viewShift(shift, shiftX); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
     // idle exhaust puffs
     this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1) { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
     this.menuSmoke.mat.uniforms.scale.value = this.vh * 0.6; this.menuSmoke.update(dt);

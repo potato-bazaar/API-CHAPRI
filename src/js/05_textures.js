@@ -232,10 +232,46 @@ function shirtTexture(base, kind) {
   } else if (kind === 'check') {
     x.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 256; i += 32) { x.fillRect(i, 0, 14, 256); x.fillRect(0, i, 256, 14); }
     x.fillStyle = 'rgba(255,255,255,0.25)'; for (let i = 16; i < 256; i += 32) { x.fillRect(i, 0, 3, 256); x.fillRect(0, i, 256, 3); }
+  } else if (kind === 'denim') {   // twill + fades + double stitching
+    for (let i = -256; i < 512; i += 3) { x.strokeStyle = i % 6 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)'; x.lineWidth = 1; x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 256, 256); x.stroke(); }
+    noise(x, 256, 256, 2500, 0.18, ['#ffffff', '#0a1a33']);
+    x.strokeStyle = 'rgba(230,170,70,0.75)'; x.setLineDash([4, 3]); x.lineWidth = 1.5; for (const yy of [60, 66, 190, 196]) { x.beginPath(); x.moveTo(0, yy); x.lineTo(256, yy); x.stroke(); } x.setLineDash([]);
+  } else if (kind === 'neon') {     // windcheater: cyan body, pink + white chevron panels, a reflective strip
+    x.fillStyle = '#ff2e88'; x.beginPath(); x.moveTo(0, 90); x.lineTo(128, 150); x.lineTo(256, 90); x.lineTo(256, 130); x.lineTo(128, 190); x.lineTo(0, 130); x.fill();
+    x.fillStyle = '#f4f4f8'; x.beginPath(); x.moveTo(0, 130); x.lineTo(128, 190); x.lineTo(256, 130); x.lineTo(256, 142); x.lineTo(128, 202); x.lineTo(0, 142); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.55)'; x.fillRect(0, 40, 256, 6); noise(x, 256, 256, 900, 0.1, ['#000000', '#ffffff']);
+  } else if (kind === 'leopard') {
+    const R = mulberry32(911); for (let i = 0; i < 70; i++) { const px = R() * 256, py = R() * 256, r = 6 + R() * 9;
+      for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { x.fillStyle = '#5a3412'; x.beginPath(); x.ellipse(px + dx, py + dy, r, r * 0.8, R() * 3, 0, 7); x.fill(); x.fillStyle = '#1c120a'; x.lineWidth = 3; x.strokeStyle = '#1c120a'; x.beginPath(); x.arc(px + dx, py + dy, r, 0.3, 2.4); x.stroke(); x.beginPath(); x.arc(px + dx, py + dy, r, 3.4, 5.4); x.stroke(); } }
   } else {
     noise(x, 256, 256, 1500, 0.15, ['#000000', '#ffffff']);
   }
   return toTex(c, { repeat: true });
+}
+// the waistband above the jeans: elastic with the brand repeated, or leopard, a thin pantie band with bows, or lace.
+// Alpha = coverage: lace holes and the pantie's open top show the skin / vest underneath.
+const BAND_TEX_CACHE = {};
+function bandTexture(it) {
+  if (BAND_TEX_CACHE[it.id]) return BAND_TEX_CACHE[it.id];
+  const [c, x] = mkCanvas(512, 64), col = new THREE.Color(it.band), dark = '#' + col.clone().multiplyScalar(0.62).getHexString();
+  if (it.style === 'pantie' || it.style === 'lace') {
+    const top = it.style === 'pantie' ? 26 : 10;
+    x.fillStyle = it.band; x.fillRect(0, top, 512, 64 - top);
+    if (it.style === 'lace') {   // scalloped edge, flower cut-outs
+      x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 512; i += 24) { x.beginPath(); x.arc(i + 12, top, 10, 0, Math.PI); x.fill(); }
+      for (let i = 0; i < 512; i += 32) for (let j = 0; j < 2; j++) { const cx = i + 16 + (j ? 16 : 0), cy = 30 + j * 16; for (let p = 0; p < 5; p++) { const a = p / 5 * 6.283; x.beginPath(); x.arc(cx + Math.cos(a) * 4.5, cy + Math.sin(a) * 4.5, 2.6, 0, 7); x.fill(); } x.beginPath(); x.arc(cx, cy, 1.6, 0, 7); x.fill(); }
+      x.globalCompositeOperation = 'source-over'; x.fillStyle = dark; x.fillRect(0, 58, 512, 6);
+    } else {   // little satin bows
+      x.fillStyle = dark; x.fillRect(0, top, 512, 3);
+      for (const bx of [0, 512]) { x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(bx, 38); x.lineTo(bx - 13, 28); x.lineTo(bx - 13, 48); x.fill(); x.beginPath(); x.moveTo(bx, 38); x.lineTo(bx + 13, 28); x.lineTo(bx + 13, 48); x.fill(); x.beginPath(); x.arc(bx, 38, 4, 0, 7); x.fill(); }
+    }
+  } else {
+    x.fillStyle = it.band; x.fillRect(0, 0, 512, 64); x.fillStyle = dark; x.fillRect(0, 0, 512, 5); x.fillRect(0, 59, 512, 5);
+    if (it.style === 'leopard') { const R = mulberry32(77); for (let i = 0; i < 60; i++) { const px = R() * 512, py = 8 + R() * 48, r = 3 + R() * 5; x.fillStyle = '#1c120a'; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); x.fillStyle = '#7a4a1a'; x.beginPath(); x.arc(px, py, r * 0.55, 0, 7); x.fill(); } }
+    else { x.fillStyle = it.ink; x.font = '900 italic 34px "Arial Black", Impact, sans-serif'; x.textBaseline = 'middle'; const w = x.measureText(UW_BRAND).width, n = Math.max(1, Math.floor(512 / (w + 24))), step = 512 / n;   // whole repeats, so it tiles round the waist
+      for (let k = 0; k < n; k++) x.fillText(UW_BRAND, k * step + (step - w) / 2, 33); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return BAND_TEX_CACHE[it.id] = t;
 }
 
 function buildShopAtlas() {

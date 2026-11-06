@@ -124,14 +124,23 @@ class UI {
     else { act.innerHTML = `UNLOCK ${coinI} ${fmtNum(b.cost)}`; act.disabled = SAVE.coins < b.cost; act.onclick = async () => { if (SAVE.coins < b.cost) return; if (!(await this.confirm('Unlock build?', `Spend ${fmtNum(b.cost)} coins on the ${b.name}?`, 'Unlock'))) return; SAVE.coins -= b.cost; SAVE.owned[b.id] = true; SAVE.build = b.id; persist(); AUDIO.finish(true); this.game.showScreen('garage'); this.renderGarage(); this.game.refreshMenuRig(b.id); }; }
   }
   setupDrag() { const stage = $('.garage-stage'); let x0 = null; stage.addEventListener('pointerdown', (e) => { x0 = e.clientX; stage.setPointerCapture(e.pointerId); }); stage.addEventListener('pointermove', (e) => { if (x0 === null) return; this.garageYaw += (e.clientX - x0) * 0.01; x0 = e.clientX; this.dragT = 2; }); stage.addEventListener('pointerup', () => (x0 = null)); }
-  // ── store ──
+  // ── store: the chapri wardrobe. Tabs per category; tap to try it on (the camera turns to show it), buy with coins ──
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
-    const col = (key, title) => `<div class="panel store-col"><h3>${title}</h3>${COSMETICS[key].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0; const on = SAVE.cos[key] === it.id;
-      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${key}:${it.id}"><span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span><span><b>${it.name}</b></span><span class="cost">${on ? 'WEARING' : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('')}</div>`;
-    $('#storeBody').innerHTML = col('shirt', 'SHIRTS') + col('hair', 'HAIR') + col('helmet', 'HELMETS') + col('shades', 'SHADES');
+    const TABS = [['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades']];
+    const tab = this.storeTab = this.storeTab || 'shirt';
+    const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
+      : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;
+    const items = COSMETICS[tab].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0, on = SAVE.cos[tab] === it.id;
+      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${tab}:${it.id}">${sw(tab, it)}<span><b>${it.name}</b></span><span class="cost">${on ? 'WEARING' : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('');
+    $('#storeBody').innerHTML = `<div class="panel store-panel"><div class="store-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-stab="${k}">${n}</button>`).join('')}</div><div class="store-grid">${items}</div></div><div class="store-stage" aria-hidden="true"></div>`;
+    $$('[data-stab]').forEach(b => b.addEventListener('click', () => { this.storeTab = b.dataset.stab; AUDIO.click && AUDIO.click(); this.renderStore(); }));
     $$('[data-cos]').forEach(btn => btn.addEventListener('click', async () => { const [key, id] = btn.dataset.cos.split(':'); const it = COSMETICS[key].find(x => x.id === id); const own = SAVE.ownedCos[id] || it.cost === 0;
-      if (!own) { if (SAVE.coins < it.cost) { this.flashNote('Not enough coins yet. Race to earn more.'); return; } if (!(await this.confirm('Buy?', `Spend ${fmtNum(it.cost)} coins on ${it.name}?`, 'Buy'))) { this.game.showScreen('store'); return; } SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; this.game.showScreen('store'); }
+      if (!own) { const prev = SAVE.cos[key]; SAVE.cos[key] = id; this.game.refreshMenuRig();   // try it on first
+        if (SAVE.coins < it.cost) { SAVE.cos[key] = prev; this.flashNote(`Need ${fmtNum(it.cost - SAVE.coins)} more coins for ${it.name}. Race to earn more.`); setTimeout(() => { if (SAVE.cos[key] === prev) this.game.refreshMenuRig(); }, 1600); return; }
+        const ok = await this.confirm('Buy?', `Spend ${fmtNum(it.cost)} coins on ${it.name}?`, 'Buy'); this.game.showScreen('store');
+        if (!ok) { SAVE.cos[key] = prev; this.renderStore(); this.game.refreshMenuRig(); return; }
+        SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; }
       SAVE.cos[key] = id; persist(); AUDIO.pickup(); this.renderStore(); this.game.refreshMenuRig(); }));
   }
   // ── race setup ──

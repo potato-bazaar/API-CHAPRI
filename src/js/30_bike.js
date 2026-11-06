@@ -188,6 +188,14 @@ function outlineMat() {
   m.customProgramCacheKey = () => 'chapri-outline';
   return OUTLINE_MAT = m;
 }
+// a muscular rider's outline has to grow with him: same shell, plus the rider's own muscle push (shared uniform)
+const OUTLINE_MUSCLE = new Map();
+function outlineMatMuscle(U) {
+  if (OUTLINE_MUSCLE.has(U)) return OUTLINE_MUSCLE.get(U);
+  const base = outlineMat(), m = base.clone(); const ob = base.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => { ob(sh, r); sh.uniforms.riderMuscle = U.riderMuscle; sh.uniforms.riderDeq = U.riderDeq; sh.vertexShader = 'uniform float riderMuscle; uniform vec4 riderDeq; varying vec3 vRB;\n' + sh.vertexShader.replace('#include <begin_vertex>', RIDER_VS); };
+  m.customProgramCacheKey = () => 'chapri-outline-m'; OUTLINE_MUSCLE.set(U, m); return m;
+}
 // soft contact shadow under a bike: always there, day or night, so the bike sits on the road instead of floating
 function blobShadowTex() {
   if (TEX.blobShadow) return TEX.blobShadow;
@@ -275,7 +283,8 @@ class BikeRig {
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
-    for (const m of list) { const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, mat) : new THREE.Mesh(m.geometry, mat);
+    for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
+      const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, om) : new THREE.Mesh(m.geometry, om);
       if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
     this.outlineOn = true;
   }

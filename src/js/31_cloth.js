@@ -11,25 +11,25 @@ const CLOTH_BONES = ['pelvis', 'spine_01', 'spine_02', 'spine_03'];
 const boneForY = (y) => y >= 1.31 ? 3 : y >= 1.18 ? 2 : 1;
 
 class ShirtCloth {
-  constructor(rm, rig, shirtTex, low, lod, cast) {
-    this.rm = rm; this.rig = rig; this.acc = 0; this.t = Math.random() * 10; this.ready = false;
+  constructor(rm, rig, shirtTex, low, lod, cast, opt = {}) {
+    this.rm = rm; this.rig = rig; this.acc = 0; this.t = Math.random() * 10; this.ready = false; this.inf = (opt.muscle || 0) * 0.02;   // muscle: the shirt sits further out
     const dim = lod ? SHIRT_DIM.lo : SHIRT_DIM.hi;
     this.mat = low ? new THREE.MeshLambertMaterial({ map: shirtTex, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: shirtTex, side: THREE.DoubleSide, roughness: 0.82 });
     this.panels = [
-      this.panel(dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, 0.92, [0, 1]),     // back, seams on both sides
+      this.panel(dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, opt.hem || 0.92, [0, 1]),     // back, seams on both sides (cropped when the waistband shows)
       this.panel(dim.front, -0.35, 1.22, 1.4, 0.97, [0]),                                     // left front (rider's left = +x)
       this.panel(dim.front, Math.PI + 0.35, Math.PI - 1.22, 1.4, 0.97, [0]),                   // right front
     ];
     for (const p of this.panels) { p.mesh.castShadow = cast; p.mesh.frustumCulled = false; rig.body.add(p.mesh); }
     this.D = CLOTH_BONES.map(() => new THREE.Matrix4()); this.sc = 1; this.off = new THREE.Vector3();
-    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136, 2], [0, 1.36, -0.018, 0.168, 3]];
+    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136 + this.inf, 2], [0, 1.36, -0.018, 0.168 + this.inf * 1.2, 3]];
     this.sw = this.spheres.map(() => [new THREE.Vector3(), 0]); this._v = new THREE.Vector3(); this.g = new THREE.Vector3(); this._q = new THREE.Quaternion();
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)
   panel([cols, rows], a0, a1, y0, y1, seams) {
     const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02;
+      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
       B[i * 3] = (hw + o) * Math.cos(th); B[i * 3 + 1] = y; B[i * 3 + 2] = cz + (hd + o) * Math.sin(th);
       const seamCol = (seams.includes(0) && c === 0) || (seams.includes(1) && c === cols - 1);
       if (r === 0 || (seamCol && y >= 1.15)) pin[i] = boneForY(y);

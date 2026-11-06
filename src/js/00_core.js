@@ -78,6 +78,8 @@ const MODS = {
 };
 const modsFor = (buildId) => { const b = BUILDS.find(x => x.id === buildId) || BUILDS[0]; return Object.assign({ exhaust: 'stock', tyres: 'stock', kit: 'none', finish: b.chrome ? 'chrome' : 'gloss' }, (SAVE.mods || {})[buildId] || {}); };
 const modItem = (slot, id) => MODS[slot].items.find(x => x.id === id) || MODS[slot].items[0];
+// the underwear brand printed on the waistband (swap it here; a real brand name needs the brand owner's permission)
+const UW_BRAND = 'LUX COZI';
 const COSMETICS = {
   shirt: [
     { id: 'floral-pink', name: 'Floral Pink', cost: 0, base: '#f04b8c', flowers: true },
@@ -85,6 +87,41 @@ const COSMETICS = {
     { id: 'check', name: 'Check Shirt', cost: 400, base: '#c8321e', check: true },
     { id: 'leather', name: 'Black Leather', cost: 900, base: '#1c1a1f' },
     { id: 'marigold', name: 'Marigold Kurta', cost: 600, base: '#ffb000' },
+    { id: 'baniyan', name: 'Just Baniyan (white)', cost: 250, top: 'vest', vest: '#f2efe6', base: '#f2efe6' },
+    { id: 'baniyan-black', name: 'Black Baniyan', cost: 350, top: 'vest', vest: '#26242c', base: '#26242c' },
+    { id: 'baniyan-pink', name: 'Pink Gym Vest', cost: 450, top: 'vest', vest: '#ff4f9a', base: '#ff4f9a' },
+    { id: 'shirtless', name: 'No Shirt (full chapri)', cost: 600, top: 'bare', base: 'linear-gradient(135deg,#c98a5e,#9a6440)' },
+    { id: 'denim-jacket', name: 'Denim Jacket', cost: 1200, base: '#3d5f8f', pattern: 'denim' },
+    { id: 'bomber', name: 'Olive Bomber', cost: 1100, base: '#5b6236' },
+    { id: 'neon-jacket', name: 'Neon Windcheater', cost: 1500, base: '#19d8ff', pattern: 'neon' },
+    { id: 'leopard-shirt', name: 'Leopard Print', cost: 1300, base: '#d9a441', pattern: 'leopard' },
+  ],
+  // the waistband that shows above the jeans (the chapri signature). The brand name is one constant: UW_BRAND.
+  chaddi: [
+    { id: 'hidden', name: 'Belt up (hidden)', cost: 0 },
+    { id: 'kozi-white', name: UW_BRAND + ' White', cost: 0, band: '#f4f2ec', ink: '#d01c2a', style: 'brand' },
+    { id: 'kozi-black', name: UW_BRAND + ' Black', cost: 300, band: '#17161b', ink: '#ffffff', style: 'brand' },
+    { id: 'kozi-red', name: UW_BRAND + ' Red', cost: 300, band: '#c8202f', ink: '#ffffff', style: 'brand' },
+    { id: 'kozi-neon', name: UW_BRAND + ' Neon', cost: 500, band: '#20e0ff', ink: '#16101c', style: 'brand' },
+    { id: 'leopard', name: 'Leopard Trunk', cost: 700, band: '#d9a441', style: 'leopard' },
+    { id: 'pantie', name: 'Pink Pantie', cost: 900, band: '#ff7ab8', style: 'pantie' },
+    { id: 'lace', name: 'Lace Pantie', cost: 1400, band: '#e0459a', style: 'lace' },
+    { id: 'lace-black', name: 'Black Lace', cost: 1600, band: '#1c1220', style: 'lace' },
+  ],
+  jeans: [
+    { id: 'blue', name: 'Blue Jeans', cost: 0, color: '#1f2a4a' },
+    { id: 'black', name: 'Black Jeans', cost: 300, color: '#151418' },
+    { id: 'acid', name: 'Acid Wash', cost: 600, color: '#5f7898' },
+    { id: 'white', name: 'White Jeans', cost: 700, color: '#d6d3cb' },
+    { id: 'red', name: 'Red Pants', cost: 800, color: '#7a1622' },
+    { id: 'cargo', name: 'Olive Cargo', cost: 700, color: '#4d5130' },
+  ],
+  // body: muscle grows the arms, chest, back, traps and thighs (a vertex push in the rider's shaders)
+  body: [
+    { id: 'slim', name: 'Patla (slim)', cost: 0, muscle: 0 },
+    { id: 'fit', name: 'Fit', cost: 600, muscle: 0.5 },
+    { id: 'muscle', name: 'Muscular', cost: 1500, muscle: 1.0 },
+    { id: 'gym-bhai', name: 'Gym Bhai', cost: 3000, muscle: 1.6 },
   ],
   helmet: [
     { id: 'none', name: 'No helmet', cost: 0 },
@@ -172,7 +209,7 @@ function defaultSave() {
     name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
-    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
+    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},

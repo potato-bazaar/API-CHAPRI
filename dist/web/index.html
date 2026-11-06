@@ -622,6 +622,26 @@ kbd { font-family: var(--f-num); }
 .bb-bar { position: absolute; left: 14%; right: 14%; top: calc(100% + .45rem); height: .62rem; border-radius: 99px; background: rgba(8, 14, 44, .88); box-shadow: 0 0 0 2px #5ff2ff, 0 0 12px rgba(63, 200, 255, .75); overflow: hidden; }
 .bb-bar i { display: block; height: 100%; width: 100%; background: repeating-linear-gradient(90deg, #8ff8ff 0 calc(12.5% - 3px), transparent calc(12.5% - 3px) 12.5%); box-shadow: 0 0 10px #3fe8ff; transition: width .12s linear; }
 @media (orientation: portrait) { .boost-banner { top: 34vh; } .zone-card { top: 22vh; } }
+
+/* ───── store = the chapri wardrobe: tabs + a grid on one side, the rider on the other ───── */
+.store-body { display: grid; grid-template-columns: minmax(20rem, 44%) 1fr; gap: 1rem; overflow: hidden; min-height: 0; }
+.store-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .6rem; padding: .7rem; min-height: 0; }
+.store-stage { pointer-events: none; }
+.store-tabs { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; } .store-tabs::-webkit-scrollbar { display: none; }
+.store-tabs button { flex: none; padding: .35rem .8rem; border-radius: 99px; background: rgba(255, 255, 255, .07); font-weight: 800; font-size: 1rem; letter-spacing: .02em; text-transform: uppercase; color: rgba(255, 255, 255, .8); }
+.store-tabs button.on { background: var(--marigold); color: #1b0d22; }
+.store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .45rem; overflow-y: auto; align-content: start; touch-action: pan-y; overscroll-behavior: contain; padding-right: .2rem; }
+.store-item .sw.band { display: grid; place-items: center; background: var(--b); border-radius: 6px; height: 1.2rem; align-self: center; box-shadow: inset 0 3px 0 rgba(0, 0, 0, .25), inset 0 -3px 0 rgba(0, 0, 0, .25); overflow: hidden; }
+.store-item .sw.band i { font-style: italic; font-weight: 900; font-size: .55rem; color: var(--i); letter-spacing: .04em; line-height: 1; }
+.store-item .sw.none { background: repeating-linear-gradient(45deg, #333 0 6px, #444 6px 12px); }
+.store-item .sw.body { display: grid; place-items: center; background: rgba(255, 255, 255, .08); font-size: calc(1rem + var(--m) * .55rem); }
+@media (orientation: portrait) {
+  .store-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 38vh minmax(0, 1fr); }
+  .store-stage { grid-row: 1; } .store-panel { grid-row: 2; }
+  .store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .store-item { grid-template-columns: 1.8rem 1fr; } .store-item .cost { grid-column: 2; font-size: 1.1rem; } .store-item .sw { width: 1.8rem; height: 1.8rem; }
+  .store-item .sw.band { height: 1rem; }
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -939,6 +959,8 @@ const MODS = {
 };
 const modsFor = (buildId) => { const b = BUILDS.find(x => x.id === buildId) || BUILDS[0]; return Object.assign({ exhaust: 'stock', tyres: 'stock', kit: 'none', finish: b.chrome ? 'chrome' : 'gloss' }, (SAVE.mods || {})[buildId] || {}); };
 const modItem = (slot, id) => MODS[slot].items.find(x => x.id === id) || MODS[slot].items[0];
+// the underwear brand printed on the waistband (swap it here; a real brand name needs the brand owner's permission)
+const UW_BRAND = 'LUX COZI';
 const COSMETICS = {
   shirt: [
     { id: 'floral-pink', name: 'Floral Pink', cost: 0, base: '#f04b8c', flowers: true },
@@ -946,6 +968,41 @@ const COSMETICS = {
     { id: 'check', name: 'Check Shirt', cost: 400, base: '#c8321e', check: true },
     { id: 'leather', name: 'Black Leather', cost: 900, base: '#1c1a1f' },
     { id: 'marigold', name: 'Marigold Kurta', cost: 600, base: '#ffb000' },
+    { id: 'baniyan', name: 'Just Baniyan (white)', cost: 250, top: 'vest', vest: '#f2efe6', base: '#f2efe6' },
+    { id: 'baniyan-black', name: 'Black Baniyan', cost: 350, top: 'vest', vest: '#26242c', base: '#26242c' },
+    { id: 'baniyan-pink', name: 'Pink Gym Vest', cost: 450, top: 'vest', vest: '#ff4f9a', base: '#ff4f9a' },
+    { id: 'shirtless', name: 'No Shirt (full chapri)', cost: 600, top: 'bare', base: 'linear-gradient(135deg,#c98a5e,#9a6440)' },
+    { id: 'denim-jacket', name: 'Denim Jacket', cost: 1200, base: '#3d5f8f', pattern: 'denim' },
+    { id: 'bomber', name: 'Olive Bomber', cost: 1100, base: '#5b6236' },
+    { id: 'neon-jacket', name: 'Neon Windcheater', cost: 1500, base: '#19d8ff', pattern: 'neon' },
+    { id: 'leopard-shirt', name: 'Leopard Print', cost: 1300, base: '#d9a441', pattern: 'leopard' },
+  ],
+  // the waistband that shows above the jeans (the chapri signature). The brand name is one constant: UW_BRAND.
+  chaddi: [
+    { id: 'hidden', name: 'Belt up (hidden)', cost: 0 },
+    { id: 'kozi-white', name: UW_BRAND + ' White', cost: 0, band: '#f4f2ec', ink: '#d01c2a', style: 'brand' },
+    { id: 'kozi-black', name: UW_BRAND + ' Black', cost: 300, band: '#17161b', ink: '#ffffff', style: 'brand' },
+    { id: 'kozi-red', name: UW_BRAND + ' Red', cost: 300, band: '#c8202f', ink: '#ffffff', style: 'brand' },
+    { id: 'kozi-neon', name: UW_BRAND + ' Neon', cost: 500, band: '#20e0ff', ink: '#16101c', style: 'brand' },
+    { id: 'leopard', name: 'Leopard Trunk', cost: 700, band: '#d9a441', style: 'leopard' },
+    { id: 'pantie', name: 'Pink Pantie', cost: 900, band: '#ff7ab8', style: 'pantie' },
+    { id: 'lace', name: 'Lace Pantie', cost: 1400, band: '#e0459a', style: 'lace' },
+    { id: 'lace-black', name: 'Black Lace', cost: 1600, band: '#1c1220', style: 'lace' },
+  ],
+  jeans: [
+    { id: 'blue', name: 'Blue Jeans', cost: 0, color: '#1f2a4a' },
+    { id: 'black', name: 'Black Jeans', cost: 300, color: '#151418' },
+    { id: 'acid', name: 'Acid Wash', cost: 600, color: '#5f7898' },
+    { id: 'white', name: 'White Jeans', cost: 700, color: '#d6d3cb' },
+    { id: 'red', name: 'Red Pants', cost: 800, color: '#7a1622' },
+    { id: 'cargo', name: 'Olive Cargo', cost: 700, color: '#4d5130' },
+  ],
+  // body: muscle grows the arms, chest, back, traps and thighs (a vertex push in the rider's shaders)
+  body: [
+    { id: 'slim', name: 'Patla (slim)', cost: 0, muscle: 0 },
+    { id: 'fit', name: 'Fit', cost: 600, muscle: 0.5 },
+    { id: 'muscle', name: 'Muscular', cost: 1500, muscle: 1.0 },
+    { id: 'gym-bhai', name: 'Gym Bhai', cost: 3000, muscle: 1.6 },
   ],
   helmet: [
     { id: 'none', name: 'No helmet', cost: 0 },
@@ -1033,7 +1090,7 @@ function defaultSave() {
     name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
-    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
+    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},
@@ -1305,10 +1362,46 @@ function shirtTexture(base, kind) {
   } else if (kind === 'check') {
     x.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 256; i += 32) { x.fillRect(i, 0, 14, 256); x.fillRect(0, i, 256, 14); }
     x.fillStyle = 'rgba(255,255,255,0.25)'; for (let i = 16; i < 256; i += 32) { x.fillRect(i, 0, 3, 256); x.fillRect(0, i, 256, 3); }
+  } else if (kind === 'denim') {   // twill + fades + double stitching
+    for (let i = -256; i < 512; i += 3) { x.strokeStyle = i % 6 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)'; x.lineWidth = 1; x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 256, 256); x.stroke(); }
+    noise(x, 256, 256, 2500, 0.18, ['#ffffff', '#0a1a33']);
+    x.strokeStyle = 'rgba(230,170,70,0.75)'; x.setLineDash([4, 3]); x.lineWidth = 1.5; for (const yy of [60, 66, 190, 196]) { x.beginPath(); x.moveTo(0, yy); x.lineTo(256, yy); x.stroke(); } x.setLineDash([]);
+  } else if (kind === 'neon') {     // windcheater: cyan body, pink + white chevron panels, a reflective strip
+    x.fillStyle = '#ff2e88'; x.beginPath(); x.moveTo(0, 90); x.lineTo(128, 150); x.lineTo(256, 90); x.lineTo(256, 130); x.lineTo(128, 190); x.lineTo(0, 130); x.fill();
+    x.fillStyle = '#f4f4f8'; x.beginPath(); x.moveTo(0, 130); x.lineTo(128, 190); x.lineTo(256, 130); x.lineTo(256, 142); x.lineTo(128, 202); x.lineTo(0, 142); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.55)'; x.fillRect(0, 40, 256, 6); noise(x, 256, 256, 900, 0.1, ['#000000', '#ffffff']);
+  } else if (kind === 'leopard') {
+    const R = mulberry32(911); for (let i = 0; i < 70; i++) { const px = R() * 256, py = R() * 256, r = 6 + R() * 9;
+      for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { x.fillStyle = '#5a3412'; x.beginPath(); x.ellipse(px + dx, py + dy, r, r * 0.8, R() * 3, 0, 7); x.fill(); x.fillStyle = '#1c120a'; x.lineWidth = 3; x.strokeStyle = '#1c120a'; x.beginPath(); x.arc(px + dx, py + dy, r, 0.3, 2.4); x.stroke(); x.beginPath(); x.arc(px + dx, py + dy, r, 3.4, 5.4); x.stroke(); } }
   } else {
     noise(x, 256, 256, 1500, 0.15, ['#000000', '#ffffff']);
   }
   return toTex(c, { repeat: true });
+}
+// the waistband above the jeans: elastic with the brand repeated, or leopard, a thin pantie band with bows, or lace.
+// Alpha = coverage: lace holes and the pantie's open top show the skin / vest underneath.
+const BAND_TEX_CACHE = {};
+function bandTexture(it) {
+  if (BAND_TEX_CACHE[it.id]) return BAND_TEX_CACHE[it.id];
+  const [c, x] = mkCanvas(512, 64), col = new THREE.Color(it.band), dark = '#' + col.clone().multiplyScalar(0.62).getHexString();
+  if (it.style === 'pantie' || it.style === 'lace') {
+    const top = it.style === 'pantie' ? 26 : 10;
+    x.fillStyle = it.band; x.fillRect(0, top, 512, 64 - top);
+    if (it.style === 'lace') {   // scalloped edge, flower cut-outs
+      x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 512; i += 24) { x.beginPath(); x.arc(i + 12, top, 10, 0, Math.PI); x.fill(); }
+      for (let i = 0; i < 512; i += 32) for (let j = 0; j < 2; j++) { const cx = i + 16 + (j ? 16 : 0), cy = 30 + j * 16; for (let p = 0; p < 5; p++) { const a = p / 5 * 6.283; x.beginPath(); x.arc(cx + Math.cos(a) * 4.5, cy + Math.sin(a) * 4.5, 2.6, 0, 7); x.fill(); } x.beginPath(); x.arc(cx, cy, 1.6, 0, 7); x.fill(); }
+      x.globalCompositeOperation = 'source-over'; x.fillStyle = dark; x.fillRect(0, 58, 512, 6);
+    } else {   // little satin bows
+      x.fillStyle = dark; x.fillRect(0, top, 512, 3);
+      for (const bx of [0, 512]) { x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(bx, 38); x.lineTo(bx - 13, 28); x.lineTo(bx - 13, 48); x.fill(); x.beginPath(); x.moveTo(bx, 38); x.lineTo(bx + 13, 28); x.lineTo(bx + 13, 48); x.fill(); x.beginPath(); x.arc(bx, 38, 4, 0, 7); x.fill(); }
+    }
+  } else {
+    x.fillStyle = it.band; x.fillRect(0, 0, 512, 64); x.fillStyle = dark; x.fillRect(0, 0, 512, 5); x.fillRect(0, 59, 512, 5);
+    if (it.style === 'leopard') { const R = mulberry32(77); for (let i = 0; i < 60; i++) { const px = R() * 512, py = 8 + R() * 48, r = 3 + R() * 5; x.fillStyle = '#1c120a'; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); x.fillStyle = '#7a4a1a'; x.beginPath(); x.arc(px, py, r * 0.55, 0, 7); x.fill(); } }
+    else { x.fillStyle = it.ink; x.font = '900 italic 34px "Arial Black", Impact, sans-serif'; x.textBaseline = 'middle'; const w = x.measureText(UW_BRAND).width, n = Math.max(1, Math.floor(512 / (w + 24))), step = 512 / n;   // whole repeats, so it tiles round the waist
+      for (let k = 0; k < n; k++) x.fillText(UW_BRAND, k * step + (step - w) / 2, 33); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return BAND_TEX_CACHE[it.id] = t;
 }
 
 function buildShopAtlas() {
@@ -3658,6 +3751,16 @@ async function loadRiderModel() {
     for (const n of ['body', 'body_lod', 'Eyes', 'Eyebrows', 'hair_quiff', 'hair_long', 'hair_buzz', 'hair_pomp', 'beard', 'shirt', 'shirt_lod']) if (!meshes[n]) throw new Error('missing ' + n);
     const bm = meshes.body.material; RIDER_MODEL.base = bm.map; RIDER_MODEL.mask = bm.aoMap; RIDER_MODEL.hairTex = meshes.hair_quiff.material.map;
     RIDER_MODEL.eyesMat = meshes.Eyes.material; RIDER_MODEL.scene = sc; RIDER_MODEL.ready = true;
+    // the meshes are quantised (positions stored as -1..1, the real size baked into the inverse bind matrices): keep the
+    // dequantisation per mesh so the shaders can work in real bind-pose metres, the space the texture was painted in
+    sc.updateMatrixWorld(true); RIDER_MODEL.deq = {};
+    for (const [n, m] of Object.entries(meshes)) { const sk = m.skeleton, D = sk.bones[0].matrixWorld.clone().multiply(sk.boneInverses[0]).multiply(m.bindMatrix).elements; RIDER_MODEL.deq[n] = new THREE.Vector4(D[0], D[12], D[13], D[14]); }
+    try { // the skin tone a bare torso is painted with: averaged off the model's forearms
+      const img = bm.map.image, cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, 64, 64); const px = cx.getImageData(0, 0, 64, 64).data;
+      const g = meshes.body.geometry, P = g.attributes.position, UV = g.attributes.uv, dq = RIDER_MODEL.deq.body; let r = 0, gg = 0, b = 0, n = 0;
+      for (let i = 0; i < P.count; i += 3) { const x = Math.abs(P.getX(i) * dq.x + dq.y), y = P.getY(i) * dq.x + dq.z; if (x < 0.4 || x > 0.55 || y < 1.25) continue; const u = Math.floor(UV.getX(i) * 63), v = Math.floor(UV.getY(i) * 63), k = (v * 64 + u) * 4; r += px[k]; gg += px[k + 1]; b += px[k + 2]; n++; }
+      if (n > 10) RIDER_MODEL.skin = '#' + new THREE.Color(r / n / 255, gg / n / 255, b / n / 255).getHexString(THREE.LinearSRGBColorSpace);
+    } catch (e) { /* keep the default skin tone */ }
     return true;
   } catch (e) { console.warn('Rider model unavailable, using the built-in rider:', e && e.message); return false; }
 }
@@ -3668,13 +3771,57 @@ const RIDER_HOOK = `#include <map_fragment>
   vec3 rShirt = texture2D(riderShirt, vMapUv * 3.2).rgb;
   diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * rG, rM.r);
   diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);
-  diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;`;
-function riderBodyMat(shirtTex, jeans, low, stubble) {
-  const key = shirtTex.uuid + '|' + jeans + '|' + (low ? 1 : 0) + (stubble ? 's' : ''); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
+  diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;
+  { // wardrobe, decided from the bind-pose position (the same space the texture was painted in, tools/model/paint-rider.py)
+    float aX = abs(vRB.x), y = vRB.y;
+    float vestP = step(0.995, y) * step(y, 1.375) * step(aX, 0.2);                 // the painted white baniyan
+    float collarV = step(0.0, vRB.z) * step(1.33, y) * step(y, 1.5) * step(aX, 0.03 + (y - 1.33) * 0.8);   // the open-collar V painted as skin
+    float covered = max(max(rM.r, vestP), collarV);                                  // everything a top can cover
+    if (riderTop > 0.5 && covered > 0.5) {
+      // bare skin, with definition on the front of a bare torso (pecs, sternum, abs, navel), sharper with muscle
+      float fz = smoothstep(0.02, 0.07, vRB.z), dk = 0.4 + 0.6 * min(riderMuscle, 1.5);
+      float pec = exp(-pow((y - (1.255 - aX * 0.22)) / 0.011, 2.0)) * step(aX, 0.15), stern = exp(-pow(vRB.x / 0.006, 2.0)) * step(1.17, y) * step(y, 1.36);
+      float absV = exp(-pow(vRB.x / 0.005, 2.0)) * step(1.0, y) * step(y, 1.2), absH = 0.0;
+      for (int i = 0; i < 3; i++) absH += exp(-pow((y - (1.06 + 0.05 * float(i))) / 0.006, 2.0)) * step(aX, 0.07);
+      float navel = exp(-(pow(vRB.x / 0.01, 2.0) + pow((y - 1.03) / 0.012, 2.0)));
+      vec3 skin = riderSkin * (1.0 - ((pec * 0.32 + stern * 0.14 + absV * 0.22 + absH * 0.2) * dk + navel * 0.4) * fz);
+      vec3 top = skin;
+      if (riderTop < 1.5) { // baniyan: torso, straps over the shoulders, a scoop neck and armholes
+        float strap = step(0.055, aX) * step(aX, 0.125) * step(y, 1.5);
+        float body = step(aX, 0.2) * step(y, 1.43) * (1.0 - step(1.3, y) * smoothstep(0.13, 0.15, aX + (y - 1.3) * 0.25));   // armholes curve in
+        float back = step(vRB.z, -0.02) * step(aX, 0.125) * step(y, 1.46);
+        float neck = step(0.0, vRB.z) * step(aX, 0.075 + (y - 1.36) * 0.6) * step(1.36, y);                               // scoop neck
+        float isVest = max(max(body, strap), back) * (1.0 - neck) * step(0.995, y);
+        float sh = vestP > 0.5 ? clamp(sampledDiffuseColor.g / 0.8, 0.6, 1.15) : 1.0;
+        top = mix(skin, riderVest * sh, isVest);
+      }
+      diffuseColor.rgb = top;
+    }
+    // the waistband above the jeans: brand elastic, leopard, a pantie band or lace (alpha = coverage)
+    if (riderBandOn > 0.5) { float bv = (y - 0.988) / 0.052;
+      if (bv > 0.0 && bv < 1.0 && aX < 0.25) { vec4 bt = texture2D(riderBandTex, vec2((atan(vRB.x, vRB.z) / 6.2832 + 0.5) * 3.0, bv)); diffuseColor.rgb = mix(diffuseColor.rgb, bt.rgb, bt.a); } }
+  }`;
+// bind-space position for the wardrobe + the muscle push (before skinning, along the bind normal). T-pose: arms out along x.
+const RIDER_VS = `#include <begin_vertex>
+  vec3 pR = position * riderDeq.x + riderDeq.yzw; vRB = pR;
+  { float aX = abs(pR.x), y = pR.y, z = pR.z, w = 0.0;
+    float arm = smoothstep(0.17, 0.24, aX) * (1.0 - smoothstep(0.62, 0.7, aX)) * smoothstep(1.27, 1.33, y);
+    w += arm * (exp(-pow((aX - 0.3) / 0.07, 2.0)) + exp(-pow((aX - 0.2) / 0.045, 2.0)) * 0.9 + exp(-pow((aX - 0.46) / 0.07, 2.0)) * 0.45) * 0.024;   // biceps, delts, forearms
+    float tor = step(aX, 0.22) * smoothstep(1.05, 1.18, y) * (1.0 - smoothstep(1.42, 1.5, y));
+    w += tor * smoothstep(0.03, 0.09, z) * exp(-pow((y - 1.3) / 0.07, 2.0)) * 0.022;                       // pecs
+    w += tor * smoothstep(-0.05, -0.1, z) * exp(-pow((y - 1.28) / 0.1, 2.0)) * 0.016;                      // lats
+    w += step(aX, 0.2) * smoothstep(1.4, 1.46, y) * (1.0 - smoothstep(1.53, 1.58, y)) * smoothstep(0.04, 0.1, aX) * 0.014;   // traps
+    w += smoothstep(0.5, 0.6, y) * (1.0 - smoothstep(0.86, 0.93, y)) * step(0.04, aX) * step(aX, 0.2) * 0.011;            // thighs
+    transformed += normal * (w * riderMuscle / riderDeq.x); }`;
+function riderVS(sh, U) { Object.assign(sh.uniforms, U); sh.vertexShader = 'uniform float riderMuscle; uniform vec4 riderDeq; varying vec3 vRB;\n' + sh.vertexShader.replace('#include <begin_vertex>', RIDER_VS); }
+const RIDER_FS_HEAD = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble; uniform float riderTop, riderMuscle, riderBandOn; uniform vec3 riderSkin, riderVest; uniform sampler2D riderBandTex; varying vec3 vRB;\n';
+function riderWardrobeU(o, mesh) { return { riderDeq: { value: (RIDER_MODEL.deq && RIDER_MODEL.deq[mesh]) || new THREE.Vector4(1, 0, 0, 0) }, riderTop: { value: o.top === 'bare' ? 2 : o.top === 'vest' ? 1 : 0 }, riderMuscle: { value: o.muscle || 0 }, riderBandOn: { value: o.band ? 1 : 0 }, riderSkin: { value: new THREE.Color(RIDER_MODEL.skin || '#b07a52') }, riderVest: { value: new THREE.Color(o.vest || '#f2efe6') }, riderBandTex: { value: o.band ? bandTexture(o.band) : (RIDER_MODEL.blank || (RIDER_MODEL.blank = Object.assign(new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1), { needsUpdate: true }))) } }; }
+function riderBodyMat(shirtTex, jeans, low, stubble, o = {}) {
+  const key = [shirtTex.uuid, jeans, low ? 1 : 0, stubble ? 's' : '', o.top, o.vest, o.band && o.band.id, o.muscle || 0, o.lod ? 'lod' : ''].join('|'); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
-  const U = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
-  m.customProgramCacheKey = () => low ? 'rider-l' : 'rider-s';
+  const U = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } }, riderWardrobeU(o, o.lod ? 'body_lod' : 'body'));
+  m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  m.customProgramCacheKey = () => low ? 'rider-l2' : 'rider-s2'; m.userData.riderU = U;
   RIDER_MODEL.mats.set(key, m); return m;
 }
 // cloth + hair streaming in the wind: displaced after skinning, in the rider's own space (+z forward), scaled per vertex
@@ -3688,12 +3835,12 @@ function flutterMat(base, U, key) { // base: a fresh material; U: this rider's {
     sh.vertexShader = 'attribute float _flutter; uniform float uWind; uniform float uTime;\n' + sh.vertexShader.replace('#include <skinning_vertex>', FLUTTER_VS); };
   base.customProgramCacheKey = () => key; return base;
 }
-function riderShellMat(shirtTex, jeans, low, U) {
+function riderShellMat(shirtTex, jeans, low, U, o = {}) {
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.8, metalness: 0 });
-  const FU = { riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: 0 } };
-  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, FU); sh.fragmentShader = 'uniform sampler2D riderMask; uniform sampler2D riderShirt; uniform vec3 riderJeans; uniform float riderStubble;\n' + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
+  const FU = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: 0 } }, riderWardrobeU(Object.assign({}, o, { top: 'shirt', band: null }), o.lod ? 'shirt_lod' : 'shirt'));
+  m.onBeforeCompile = (sh) => { riderVS(sh, FU); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); }; m.userData.riderU = FU;
   m.side = THREE.DoubleSide;
-  return flutterMat(m, U, low ? 'shell-l' : 'shell-s');
+  return flutterMat(m, U, low ? 'shell-l2' : 'shell-s2');
 }
 function riderHairFlutterMat(color, low, U) {
   const c = new THREE.Color(color).multiplyScalar(1.6);
@@ -3751,10 +3898,11 @@ class RiderModel {
     const keep = new Set([o.lod ? 'body_lod' : 'body', o.lod ? 'shirt_lod' : 'shirt', 'Eyes', 'Eyebrows', hair, o.beard ? 'beard' : null]);
     this.U = { uWind: { value: 0 }, uTime: { value: 0 } }; this.ownMats = [];
     for (const [n, m] of Object.entries(meshes)) { if (!keep.has(n)) { m.parent.remove(m); continue; } m.castShadow = cast; m.frustumCulled = false; }
-    const shirtKey = o.shirt + (o.flowers ? 'f' : o.check ? 'c' : 'p');
-    if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, o.flowers ? 'flowers' : o.check ? 'check' : 'plain');
-    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble);
-    { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U); meshes[o.lod ? 'shirt_lod' : 'shirt'].material = sm; this.ownMats.push(sm); }
+    const pat = o.flowers ? 'flowers' : o.check ? 'check' : o.pattern || 'plain', shirtKey = o.shirt + pat;
+    if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, pat);
+    meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble, o);
+    { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U, o), sh = meshes[o.lod ? 'shirt_lod' : 'shirt']; sh.material = sm; this.ownMats.push(sm);
+      if (o.top === 'vest' || o.top === 'bare') sh.visible = false; }   // baniyan / no shirt: the open shirt comes off
     if (hair) { const hm = hair === 'hair_pomp' ? riderPompMat(o.hairColor || '#5a3320', low, this.U) : riderHairFlutterMat(o.hairColor || HAIR_DYES[0], low, this.U); meshes[hair].material = hm; this.ownMats.push(hm); }
     if (o.beard) meshes.beard.material = riderHairMat('#1a120d', low);
     meshes.Eyebrows.material = riderHairMat('#140d09', low);
@@ -3786,7 +3934,8 @@ class RiderModel {
     const pb = wp('pelvis').divideScalar(RIDER_FIT.scale); // pelvis in model units
     this.root.position.set(RIDER_FIT.pelvis[0] - pb.x * RIDER_FIT.scale, RIDER_FIT.pelvis[1] - pb.y * RIDER_FIT.scale, RIDER_FIT.pelvis[2] - pb.z * RIDER_FIT.scale);
     rig.body.add(this.root); this.baseY = this.root.position.y; this.baseX = this.root.position.x;
-    this.cloth = new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast);
+    this.cloth = o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
+      : new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast, { muscle: o.muscle || 0, hem: o.band ? 1.06 : 0.92 });   // a shorter back when the waistband shows
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;
@@ -4122,6 +4271,14 @@ function outlineMat() {
   m.customProgramCacheKey = () => 'chapri-outline';
   return OUTLINE_MAT = m;
 }
+// a muscular rider's outline has to grow with him: same shell, plus the rider's own muscle push (shared uniform)
+const OUTLINE_MUSCLE = new Map();
+function outlineMatMuscle(U) {
+  if (OUTLINE_MUSCLE.has(U)) return OUTLINE_MUSCLE.get(U);
+  const base = outlineMat(), m = base.clone(); const ob = base.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => { ob(sh, r); sh.uniforms.riderMuscle = U.riderMuscle; sh.uniforms.riderDeq = U.riderDeq; sh.vertexShader = 'uniform float riderMuscle; uniform vec4 riderDeq; varying vec3 vRB;\n' + sh.vertexShader.replace('#include <begin_vertex>', RIDER_VS); };
+  m.customProgramCacheKey = () => 'chapri-outline-m'; OUTLINE_MUSCLE.set(U, m); return m;
+}
 // soft contact shadow under a bike: always there, day or night, so the bike sits on the road instead of floating
 function blobShadowTex() {
   if (TEX.blobShadow) return TEX.blobShadow;
@@ -4209,7 +4366,8 @@ class BikeRig {
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
-    for (const m of list) { const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, mat) : new THREE.Mesh(m.geometry, mat);
+    for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
+      const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, om) : new THREE.Mesh(m.geometry, om);
       if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
     this.outlineOn = true;
   }
@@ -4390,25 +4548,25 @@ const CLOTH_BONES = ['pelvis', 'spine_01', 'spine_02', 'spine_03'];
 const boneForY = (y) => y >= 1.31 ? 3 : y >= 1.18 ? 2 : 1;
 
 class ShirtCloth {
-  constructor(rm, rig, shirtTex, low, lod, cast) {
-    this.rm = rm; this.rig = rig; this.acc = 0; this.t = Math.random() * 10; this.ready = false;
+  constructor(rm, rig, shirtTex, low, lod, cast, opt = {}) {
+    this.rm = rm; this.rig = rig; this.acc = 0; this.t = Math.random() * 10; this.ready = false; this.inf = (opt.muscle || 0) * 0.02;   // muscle: the shirt sits further out
     const dim = lod ? SHIRT_DIM.lo : SHIRT_DIM.hi;
     this.mat = low ? new THREE.MeshLambertMaterial({ map: shirtTex, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: shirtTex, side: THREE.DoubleSide, roughness: 0.82 });
     this.panels = [
-      this.panel(dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, 0.92, [0, 1]),     // back, seams on both sides
+      this.panel(dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, opt.hem || 0.92, [0, 1]),     // back, seams on both sides (cropped when the waistband shows)
       this.panel(dim.front, -0.35, 1.22, 1.4, 0.97, [0]),                                     // left front (rider's left = +x)
       this.panel(dim.front, Math.PI + 0.35, Math.PI - 1.22, 1.4, 0.97, [0]),                   // right front
     ];
     for (const p of this.panels) { p.mesh.castShadow = cast; p.mesh.frustumCulled = false; rig.body.add(p.mesh); }
     this.D = CLOTH_BONES.map(() => new THREE.Matrix4()); this.sc = 1; this.off = new THREE.Vector3();
-    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136, 2], [0, 1.36, -0.018, 0.168, 3]];
+    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136 + this.inf, 2], [0, 1.36, -0.018, 0.168 + this.inf * 1.2, 3]];
     this.sw = this.spheres.map(() => [new THREE.Vector3(), 0]); this._v = new THREE.Vector3(); this.g = new THREE.Vector3(); this._q = new THREE.Quaternion();
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)
   panel([cols, rows], a0, a1, y0, y1, seams) {
     const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02;
+      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
       B[i * 3] = (hw + o) * Math.cos(th); B[i * 3 + 1] = y; B[i * 3 + 2] = cz + (hd + o) * Math.sin(th);
       const seamCol = (seams.includes(0) && c === 0) || (seams.includes(1) && c === cols - 1);
       if (r === 0 || (seamCol && y >= 1.15)) pin[i] = boneForY(y);
@@ -4879,6 +5037,9 @@ class Race {
       const stock = buildStatsStock();
       RIVALS.forEach((rv, i) => {
         const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
+          // the grid is a wardrobe show too: baniyans, a bare-chested gym bhai, waistbands on display
+          top: ['shirt', 'vest', 'shirt', 'bare', 'shirt', 'vest', 'shirt'][i % 7], vest: ['#f2efe6', '#26242c', '#ff4f9a'][i % 3], muscle: [0, 0.5, 0, 1.4, 0.3, 1.0, 0][i % 7],
+          band: i % 3 === 2 ? null : COSMETICS.chaddi[[1, 3, 2, 5, 4, 1, 3][i % 7]],
           mods: { exhaust: ['stock', 'long', 'twin', 'dragon', 'long'][i % 5], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
         const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: stock, look: lk, rival: rv });
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;
@@ -7080,14 +7241,23 @@ class UI {
     else { act.innerHTML = `UNLOCK ${coinI} ${fmtNum(b.cost)}`; act.disabled = SAVE.coins < b.cost; act.onclick = async () => { if (SAVE.coins < b.cost) return; if (!(await this.confirm('Unlock build?', `Spend ${fmtNum(b.cost)} coins on the ${b.name}?`, 'Unlock'))) return; SAVE.coins -= b.cost; SAVE.owned[b.id] = true; SAVE.build = b.id; persist(); AUDIO.finish(true); this.game.showScreen('garage'); this.renderGarage(); this.game.refreshMenuRig(b.id); }; }
   }
   setupDrag() { const stage = $('.garage-stage'); let x0 = null; stage.addEventListener('pointerdown', (e) => { x0 = e.clientX; stage.setPointerCapture(e.pointerId); }); stage.addEventListener('pointermove', (e) => { if (x0 === null) return; this.garageYaw += (e.clientX - x0) * 0.01; x0 = e.clientX; this.dragT = 2; }); stage.addEventListener('pointerup', () => (x0 = null)); }
-  // ── store ──
+  // ── store: the chapri wardrobe. Tabs per category; tap to try it on (the camera turns to show it), buy with coins ──
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
-    const col = (key, title) => `<div class="panel store-col"><h3>${title}</h3>${COSMETICS[key].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0; const on = SAVE.cos[key] === it.id;
-      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${key}:${it.id}"><span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span><span><b>${it.name}</b></span><span class="cost">${on ? 'WEARING' : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('')}</div>`;
-    $('#storeBody').innerHTML = col('shirt', 'SHIRTS') + col('hair', 'HAIR') + col('helmet', 'HELMETS') + col('shades', 'SHADES');
+    const TABS = [['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades']];
+    const tab = this.storeTab = this.storeTab || 'shirt';
+    const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
+      : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;
+    const items = COSMETICS[tab].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0, on = SAVE.cos[tab] === it.id;
+      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${tab}:${it.id}">${sw(tab, it)}<span><b>${it.name}</b></span><span class="cost">${on ? 'WEARING' : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('');
+    $('#storeBody').innerHTML = `<div class="panel store-panel"><div class="store-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-stab="${k}">${n}</button>`).join('')}</div><div class="store-grid">${items}</div></div><div class="store-stage" aria-hidden="true"></div>`;
+    $$('[data-stab]').forEach(b => b.addEventListener('click', () => { this.storeTab = b.dataset.stab; AUDIO.click && AUDIO.click(); this.renderStore(); }));
     $$('[data-cos]').forEach(btn => btn.addEventListener('click', async () => { const [key, id] = btn.dataset.cos.split(':'); const it = COSMETICS[key].find(x => x.id === id); const own = SAVE.ownedCos[id] || it.cost === 0;
-      if (!own) { if (SAVE.coins < it.cost) { this.flashNote('Not enough coins yet. Race to earn more.'); return; } if (!(await this.confirm('Buy?', `Spend ${fmtNum(it.cost)} coins on ${it.name}?`, 'Buy'))) { this.game.showScreen('store'); return; } SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; this.game.showScreen('store'); }
+      if (!own) { const prev = SAVE.cos[key]; SAVE.cos[key] = id; this.game.refreshMenuRig();   // try it on first
+        if (SAVE.coins < it.cost) { SAVE.cos[key] = prev; this.flashNote(`Need ${fmtNum(it.cost - SAVE.coins)} more coins for ${it.name}. Race to earn more.`); setTimeout(() => { if (SAVE.cos[key] === prev) this.game.refreshMenuRig(); }, 1600); return; }
+        const ok = await this.confirm('Buy?', `Spend ${fmtNum(it.cost)} coins on ${it.name}?`, 'Buy'); this.game.showScreen('store');
+        if (!ok) { SAVE.cos[key] = prev; this.renderStore(); this.game.refreshMenuRig(); return; }
+        SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; }
       SAVE.cos[key] = id; persist(); AUDIO.pickup(); this.renderStore(); this.game.refreshMenuRig(); }));
   }
   // ── race setup ──
@@ -7267,7 +7437,8 @@ function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
   const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0]; const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
   const hair = COSMETICS.hair.find(h => h.id === SAVE.cos.hair) || COSMETICS.hair[0];
-  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.base, flowers: shirt.flowers, check: shirt.check, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: '#1f2a4a', mods: modsFor(b.id) };
+  const ch = COSMETICS.chaddi.find(c => c.id === SAVE.cos.chaddi) || COSMETICS.chaddi[1], jn = COSMETICS.jeans.find(j => j.id === SAVE.cos.jeans) || COSMETICS.jeans[0], bd = COSMETICS.body.find(x => x.id === SAVE.cos.body) || COSMETICS.body[0];
+  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.top ? '#888888' : shirt.base, flowers: shirt.flowers, check: shirt.check, pattern: shirt.pattern, top: shirt.top || 'shirt', vest: shirt.vest, band: ch.band ? ch : null, muscle: bd.muscle, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: jn.color, mods: modsFor(b.id) };
 }
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 // resolves after the browser has really painted the current DOM (rAF runs before paint; the timeout runs after it)
@@ -7330,7 +7501,7 @@ class Game {
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC, OST };
-    if (DEBUG.test) window.__DEBUG = DEBUG;
+    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; }
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.hideLoader(); this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -7585,7 +7756,7 @@ class Game {
   // 0 in landscape, 1 on a 9:16 phone held upright (in between for tall tablets)
   portraitK() { return clamp((1 - this.vw / this.vh) / 0.5, 0, 1); }
   // slide the picture up without turning the camera (projection offset), so the bike sits above the portrait panels
-  viewShift(y) { const c = this.camera; if (Math.abs(y) < 1e-3) { if (c.view && c.view.enabled) c.clearViewOffset(); return; } c.setViewOffset(this.vw, this.vh, 0, this.vh * y, this.vw, this.vh); }
+  viewShift(y, x = 0) { const c = this.camera; if (Math.abs(y) < 1e-3 && Math.abs(x) < 1e-3) { if (c.view && c.view.enabled) c.clearViewOffset(); return; } c.setViewOffset(this.vw, this.vh, this.vw * x, this.vh * y, this.vw, this.vh); }
   // ── frame loop ──
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
@@ -7753,13 +7924,16 @@ class Game {
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    let target, look; const pk = this.portraitK(); let shift = 0, fovAdd = 0;
+    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0;
     if (this.state === 'garage') {
       if (!(this.ui.dragT > 0)) this.ui.garageYaw += dt * 0.25; else this.ui.dragT -= dt;
       const a = yaw + this.ui.garageYaw, rr = 3.6 * (1 + pk * 0.55); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + 1.35 + pk * 0.3, p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + 0.75, p.z);
       shift = pk * 0.27; fovAdd = pk * 14;
     } else if (this.state === 'store') {
-      const a = yaw + 0.9 + Math.sin(this.t * 0.3) * 0.15; target = new THREE.Vector3(p.x + Math.sin(a) * 2.1, p.y + 1.55, p.z + Math.cos(a) * 2.1); look = new THREE.Vector3(p.x, p.y + 1.3, p.z);
+      // the wardrobe camera turns to what you're shopping for: the back for the waistband, the face for hair and shades
+      const V = { shirt: [0.9, 2.2, 1.55, 1.25], chaddi: [Math.PI - 0.45, 1.7, 1.45, 1.0], jeans: [1.45, 2.7, 1.15, 0.75], body: [0.55, 2.4, 1.55, 1.2], hair: [0.7, 1.35, 1.8, 1.6], helmet: [0.7, 1.45, 1.8, 1.6], shades: [0.35, 1.2, 1.72, 1.62] }[this.ui.storeTab || 'shirt'] || [0.9, 2.2, 1.55, 1.25];
+      const a = yaw + V[0] + Math.sin(this.t * 0.3) * 0.12, rr = V[1] * (1 + pk * 0.45); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + V[2], p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + V[3], p.z);
+      shiftX = pk > 0.3 ? 0 : -0.21; shift = pk * 0.25; fovAdd = pk * 12;
     } else {
       // hero shot from the front-left, bike framed in the right half of the screen
       // low and close like a poster: the bike big in the middle, the rider's face in the light
@@ -7769,7 +7943,7 @@ class Game {
       if (this.state === 'menu') { shift = pk * 0.19; fovAdd = pk * 10; }
     }
     if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-4 * dt));
-    this.camera.lookAt(look); this.viewShift(shift); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
+    this.camera.lookAt(look); this.viewShift(shift, shiftX); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
     // idle exhaust puffs
     this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1) { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
     this.menuSmoke.mat.uniforms.scale.value = this.vh * 0.6; this.menuSmoke.update(dt);
