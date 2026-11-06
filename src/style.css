@@ -636,3 +636,39 @@ kbd { font-family: var(--f-num); }
   .store-item { grid-template-columns: 1.8rem 1fr; } .store-item .cost { grid-column: 2; font-size: 1.1rem; } .store-item .sw { width: 1.8rem; height: 1.8rem; }
   .store-item .sw.band { height: 1rem; }
 }
+
+/* ── first-race coach: one prompt at a time, the matching button pulses ── */
+.coach { position: absolute; left: 50%; top: 26vh; translate: -50% 0; z-index: 6; display: grid; grid-template-columns: 1fr auto; column-gap: .9rem; align-items: center;
+  width: max-content; max-width: min(92vw, 34rem); padding: .55rem .65rem .6rem 1.1rem; border-radius: 16px; background: rgba(20, 10, 26, .9);
+  border: 2px solid rgba(63, 208, 201, .55); box-shadow: 0 6px 0 rgba(0, 0, 0, .35), 0 0 22px rgba(255, 46, 136, .25); pointer-events: none; }
+.coach .coach-k { grid-column: 1; font-family: var(--f-display); font-weight: 800; font-size: .72rem; letter-spacing: .26em; color: var(--teal); }
+.coach b { grid-column: 1; font-family: var(--f-display); font-weight: 800; font-size: 1.32rem; line-height: 1.12; color: #fff; }
+.coach b b { color: var(--marigold); font-size: inherit; }
+.coach small { grid-column: 1; font-size: .92rem; color: var(--muted); line-height: 1.25; }
+.coach kbd { grid-column: 1; justify-self: start; margin-top: .3rem; padding: .02em .5em; border-radius: 6px; background: rgba(255, 255, 255, .12); color: #fff; font-size: 1.05rem; }
+.coach .coach-skip { grid-column: 2; grid-row: 1 / span 4; align-self: center; pointer-events: auto; padding: .45rem .8rem; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .25);
+  background: transparent; color: var(--muted); font: 700 .85rem var(--f-display); letter-spacing: .06em; cursor: pointer; }
+.coach .coach-skip:hover { color: #fff; border-color: #fff; }
+.coach.final { border-color: var(--marigold); } .coach.final .coach-skip { display: none; }
+.coach.final b { font-size: 1.7rem; color: var(--marigold); }
+.coach.in { animation: coachIn .32s cubic-bezier(.2, 1.4, .4, 1); }
+.coach.done { border-color: var(--good); animation: coachDone .9s ease-out forwards; }
+.coach.done .coach-k::after { content: '  ✓ NICE'; color: var(--good); }
+.coach.out { animation: coachOut .45s ease-in forwards; }
+@keyframes coachIn { from { transform: translateY(-10px) scale(.92); opacity: 0; } }
+@keyframes coachDone { 0% { transform: scale(1); } 18% { transform: scale(1.06); } 70% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+@keyframes coachOut { to { transform: translateY(-8px); opacity: 0; } }
+.coach-hl::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 3px solid var(--marigold); pointer-events: none; animation: coachRing 1.05s ease-out infinite; }
+.speedo.coach-hl::after { inset: -2% 6% 18%; border-radius: 50% 50% 12px 12px; }
+.tbtn.gas.coach-hl::after { border-radius: 22px; }
+@keyframes coachRing { 0% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1.22); opacity: 0; } }
+.coach-again { margin: .8rem 0 0; }
+@media (orientation: portrait) { .coach { top: 25vh; max-width: 92vw; } .coach b { font-size: 1.18rem; } .coach small { font-size: .84rem; } }
+@media (prefers-reduced-motion: reduce) { .coach-hl::after, .coach.in, .coach.done, .coach.out { animation: none; } }
+
+/* ── share card ── */
+.btn-dark .i-share { width: 1.15em; height: 1.15em; }
+.share-modal { width: min(94vw, 30rem); }
+.share-modal .modal-body { display: grid; justify-items: center; gap: .9rem; }
+.share-img { display: block; height: min(64vh, 40rem); aspect-ratio: 9 / 16; max-width: 100%; object-fit: contain; border-radius: 14px; background: #140a1a; box-shadow: 0 8px 0 rgba(0, 0, 0, .35); }
+.share-btns { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; }

@@ -225,6 +225,7 @@ class Game {
       await painted();
       this.hideLoader(); $('#hud').classList.add('show');
       this.state = 'race'; this.setMusic('race'); MUSIC.setLevel(0); this.last = performance.now();
+      this.coach = Coach.maybe(this, this.race);   // first race only: one prompt at a time
       if (IS_TOUCH && !matchMedia('(orientation: portrait)').matches) { try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); } catch (_) {} }
       void prevState;
     } catch (e) { console.error('startRace', e); this.hideLoader(); if (!this.race) this.toMenu(); else { $('#hud').classList.add('show'); this.state = 'race'; } }
@@ -258,7 +259,7 @@ class Game {
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
   startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
-  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  endRace() { if (this.coach) { this.coach.dispose(); this.coach = null; } if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
@@ -283,7 +284,7 @@ class Game {
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
-    const res = this.computeResults(R); this.state = 'results'; this.setMusic('menu');
+    const res = this.computeResults(R); this.lastRes = res; this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
   }
@@ -377,6 +378,7 @@ class Game {
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
+    if (this.coach) this.coach.update(dt, inp);
     R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
     if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }

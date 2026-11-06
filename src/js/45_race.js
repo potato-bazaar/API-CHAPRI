@@ -97,6 +97,7 @@ class Race {
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
     if (this.state === 'racing' || this.state === 'finished') this.recordGhost();
+    if (this.state === 'racing' && !P.finished && P.v > (P.vMax || 0)) P.vMax = P.v;   // for the share card
     this.syncVisuals(dt);
     this.taunts.update(dt, this.game.camera);
   }

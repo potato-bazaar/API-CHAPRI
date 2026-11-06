@@ -90,6 +90,16 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - South mass: live-synth parai and thavil koothu grooves, a nadaswaram hook, brass and guitar stabs, theatre whistles and crowd "HEY!"s.
   - Dhinchak DJ: live-synth dhol, tabla and a tumbi riff.
   The winner's hero-entry theme is always live synth.
+- **First-race coach.** A new player's first race shows one prompt at a time, and the matching touch button pulses. Keyboard players see the key instead. The prompts:
+  - gas on the green light;
+  - lean;
+  - brake before a real corner;
+  - keep the needle in the powerband;
+  - boost (the coach tops up the kick meter);
+  - MAAR once fights switch on.
+
+  Each step ticks off when the player does it, or moves on after a few seconds. It's skippable, runs once per save, and **Help → Coach me in my next race** brings it back. Saves that already have races skip it. `?coach` forces it for testing.
+- **Share your race.** **Share** on the results screen makes a 1080×1920 card: a close hero shot of your rider, position, track, time, best lap, top speed, coins and overtakes. It opens the phone's share sheet (WhatsApp, Instagram…) where the browser supports sharing files, and always offers **Save image**.
 - **Smoothness.** A race frame on a phone-sized screen costs about 30% less than before the November audit:
   - the wet-road mirror only draws layer 1 (the world, all lights, and bike/rider parts bigger than about 20 cm), not ink outlines, particles, glows or tiny parts;
   - each racing rig welds its fixed parts that share a material into one mesh;
@@ -110,6 +120,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | `?post=0` | No glow or comic pass |
 | `?comic=0` | Glow without the comic look |
 | `?nocap` | No 60 fps cap on 120/144 Hz screens |
+| `?coach` | Show the first-race coach even on a save that has raced |
 | `?bike=basic` | Built-in primitive bike instead of the GLB |
 | `?rider=basic` | Built-in primitive rider instead of the GLB |
 | `?autopilot&track=dharavi-lanes&weather=monsoon&time=night&laps=1` | Watch an AI-driven race |

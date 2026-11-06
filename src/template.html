@@ -126,6 +126,7 @@
     <div id="guide" class="guide" hidden></div>
     <div id="speech" aria-hidden="true"></div>
     <div id="zoneCard" class="zone-card" hidden></div>
+    <div id="coach" class="coach" hidden><span class="coach-k">COACH</span><b></b><small></small><kbd hidden></kbd><button class="coach-skip" type="button">Skip</button></div>
     <div id="bigText" class="big-text" hidden></div>
     <div id="wrongWay" class="wrongway" hidden>WRONG WAY!</div>
     <div id="warnL" class="warn left" hidden>‹‹</div><div id="warnR" class="warn right" hidden>››</div>
@@ -175,11 +176,15 @@
         <div class="res-daily" id="rDaily"></div>
       </div>
     </div>
-    <div class="res-actions"><button class="btn-yellow" id="rAgain" type="button">RACE AGAIN</button><button class="btn-pink" id="rNext" type="button">NEXT TRACK ›</button><button class="btn-dark" id="rGarage" type="button">Garage</button><button class="btn-dark" id="rMenu" type="button">Main Menu</button></div>
+    <div class="res-actions"><button class="btn-yellow" id="rAgain" type="button">RACE AGAIN</button><button class="btn-pink" id="rNext" type="button">NEXT TRACK ›</button><button class="btn-dark" id="rShare" type="button"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Share</button><button class="btn-dark" id="rGarage" type="button">Garage</button><button class="btn-dark" id="rMenu" type="button">Main Menu</button></div>
   </section>
 
   <!-- MODALS -->
   <div id="modalBack" class="modal-back" hidden></div>
+  <div id="share" class="modal panel share-modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden>
+    <header><h2 id="shareTitle">SHARE YOUR RACE</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body"><img id="shareImg" class="share-img" alt="Your race card: position, track, time, best lap and top speed"><div class="share-btns"><button class="btn-yellow" id="shareGo" type="button">SHARE</button><button class="btn-dark" id="shareSave" type="button">Save image</button></div></div>
+  </div>
   <div id="setup" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="setupTitle" hidden>
     <header><h2 id="setupTitle">RACE SETUP</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
     <div class="modal-body">

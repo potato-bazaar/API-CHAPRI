@@ -40,6 +40,8 @@ class UI {
     $('#rAgain').addEventListener('click', () => this.game.restart());
     $('#rNext').addEventListener('click', () => this.game.nextTrack());
     $('#rGarage').addEventListener('click', () => { this.game.toMenu().then(() => this.open('garage')); });
+    $('#rShare').addEventListener('click', () => { AUDIO.click(); SHARE.open(this.game); });
+    $('#shareGo').addEventListener('click', () => { AUDIO.click(); SHARE.go(); }); $('#shareSave').addEventListener('click', () => { AUDIO.click(); SHARE.save(); });
     $('#rMenu').addEventListener('click', () => this.game.toMenu());
     $('#cupGo').addEventListener('click', () => { this.closeModal(); this.game.startCup(); });
     $('#cfNo').addEventListener('click', () => { this.closeModal(); this._cf && this._cf(false); });
@@ -217,7 +219,9 @@ class UI {
       <div><h4>Police Express+</h4><table>${row('Solo escape on Bhaag Chapri Bhaag. Finish 2 laps before the BUSTED meter fills', '🚨')}${row('Cops close to you fill the meter; crashing near them fills it fast. Get 12 m clear and it drains', '12 m')}${row('Nakabandi: hit the yellow ramps and fly over the barricades. Smashing through costs speed and heat', '↗')}${row('A red laser means a rifle is locked on you. Swerve before the shot', '⦿')}${row('Kick or hit the cops off their bikes. Watch for stray dogs, the steps and the flooded nala', '🐕')}</table></div>
       <div><h4>Garage mods</h4><table>${row('Silencers: lambi pipe, twin upswept, dragon mouth (fire on boost)', '🔥')}${row('Mota or racing tyres, crash guard with fog lamps, café cowl', '⚙')}${row('Paint and finish: gloss, matte, metal flake, chrome. Bought once, fits every bike', '🎨')}</table></div>
       <div><h4>Tips</h4><table>${row('Brake upright, then lean. Braking and leaning share one grip budget.', '')}${row('Keep the needle in the yellow powerband out of corners.', '')}${row('Slide 90° gali corners instead of braking to a crawl.', '')}${row('Sit in a rival\'s slipstream to fill the kick meter.', '')}${row('A full wobble meter throws you off. Straighten up to recover.', '')}</table></div></div>
+      <p class="coach-again"><button class="btn-dark" type="button" id="coachAgain">${SAVE.coachDone === false ? '✓ Coach is on for your next race' : 'Coach me in my next race'}</button></p>
       <p class="muted small credits">3D bike: <a href="https://sketchfab.com/3d-models/rx100-bike-06a03105792a418bba751e67506d4e86" target="_blank" rel="noopener">“RX100 BIKE”</a> by <a href="https://sketchfab.com/patilaryush" target="_blank" rel="noopener">patilaryush</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Modified for this game: rebadged CR100, repaintable tank, centre stand removed, resized and simplified.${BIKE_MODEL.ready ? '' : ' (Not loaded on this device; the built-in bike is shown.)'}<br>Riders: base body and hair from <a href="https://quaternius.com/packs/universalbasecharacters.html" target="_blank" rel="noopener">Universal Base Characters</a> by Quaternius (CC0), slimmed down and dressed for Chapri Racer.<br>Music: original chapri DJ beats, made for this game.</p>`;
+    $('#coachAgain').addEventListener('click', (e) => { AUDIO.click(); SAVE.coachDone = false; persist(); e.currentTarget.textContent = '✓ Coach is on for your next race'; });
   }
   renderBoard() {
     const rows = TRACKS.map(t => { const r = SAVE.records[t.id] || {}; return `<tr><td>${t.short}</td><td class="n">${r.bestLap ? fmtTime(r.bestLap) : '—'}</td><td class="n">${r.bestStunt ? fmtNum(r.bestStunt) : '—'}</td><td class="n">${r.bestPos ? r.bestPos + ordinal(r.bestPos).toLowerCase() : '—'}</td></tr>`; }).join('');

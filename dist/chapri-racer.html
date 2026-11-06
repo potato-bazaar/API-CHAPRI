@@ -642,6 +642,42 @@ kbd { font-family: var(--f-num); }
   .store-item { grid-template-columns: 1.8rem 1fr; } .store-item .cost { grid-column: 2; font-size: 1.1rem; } .store-item .sw { width: 1.8rem; height: 1.8rem; }
   .store-item .sw.band { height: 1rem; }
 }
+
+/* ── first-race coach: one prompt at a time, the matching button pulses ── */
+.coach { position: absolute; left: 50%; top: 26vh; translate: -50% 0; z-index: 6; display: grid; grid-template-columns: 1fr auto; column-gap: .9rem; align-items: center;
+  width: max-content; max-width: min(92vw, 34rem); padding: .55rem .65rem .6rem 1.1rem; border-radius: 16px; background: rgba(20, 10, 26, .9);
+  border: 2px solid rgba(63, 208, 201, .55); box-shadow: 0 6px 0 rgba(0, 0, 0, .35), 0 0 22px rgba(255, 46, 136, .25); pointer-events: none; }
+.coach .coach-k { grid-column: 1; font-family: var(--f-display); font-weight: 800; font-size: .72rem; letter-spacing: .26em; color: var(--teal); }
+.coach b { grid-column: 1; font-family: var(--f-display); font-weight: 800; font-size: 1.32rem; line-height: 1.12; color: #fff; }
+.coach b b { color: var(--marigold); font-size: inherit; }
+.coach small { grid-column: 1; font-size: .92rem; color: var(--muted); line-height: 1.25; }
+.coach kbd { grid-column: 1; justify-self: start; margin-top: .3rem; padding: .02em .5em; border-radius: 6px; background: rgba(255, 255, 255, .12); color: #fff; font-size: 1.05rem; }
+.coach .coach-skip { grid-column: 2; grid-row: 1 / span 4; align-self: center; pointer-events: auto; padding: .45rem .8rem; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .25);
+  background: transparent; color: var(--muted); font: 700 .85rem var(--f-display); letter-spacing: .06em; cursor: pointer; }
+.coach .coach-skip:hover { color: #fff; border-color: #fff; }
+.coach.final { border-color: var(--marigold); } .coach.final .coach-skip { display: none; }
+.coach.final b { font-size: 1.7rem; color: var(--marigold); }
+.coach.in { animation: coachIn .32s cubic-bezier(.2, 1.4, .4, 1); }
+.coach.done { border-color: var(--good); animation: coachDone .9s ease-out forwards; }
+.coach.done .coach-k::after { content: '  ✓ NICE'; color: var(--good); }
+.coach.out { animation: coachOut .45s ease-in forwards; }
+@keyframes coachIn { from { transform: translateY(-10px) scale(.92); opacity: 0; } }
+@keyframes coachDone { 0% { transform: scale(1); } 18% { transform: scale(1.06); } 70% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+@keyframes coachOut { to { transform: translateY(-8px); opacity: 0; } }
+.coach-hl::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 3px solid var(--marigold); pointer-events: none; animation: coachRing 1.05s ease-out infinite; }
+.speedo.coach-hl::after { inset: -2% 6% 18%; border-radius: 50% 50% 12px 12px; }
+.tbtn.gas.coach-hl::after { border-radius: 22px; }
+@keyframes coachRing { 0% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1.22); opacity: 0; } }
+.coach-again { margin: .8rem 0 0; }
+@media (orientation: portrait) { .coach { top: 25vh; max-width: 92vw; } .coach b { font-size: 1.18rem; } .coach small { font-size: .84rem; } }
+@media (prefers-reduced-motion: reduce) { .coach-hl::after, .coach.in, .coach.done, .coach.out { animation: none; } }
+
+/* ── share card ── */
+.btn-dark .i-share { width: 1.15em; height: 1.15em; }
+.share-modal { width: min(94vw, 30rem); }
+.share-modal .modal-body { display: grid; justify-items: center; gap: .9rem; }
+.share-img { display: block; height: min(64vh, 40rem); aspect-ratio: 9 / 16; max-width: 100%; object-fit: contain; border-radius: 14px; background: #140a1a; box-shadow: 0 8px 0 rgba(0, 0, 0, .35); }
+.share-btns { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -764,6 +800,7 @@ kbd { font-family: var(--f-num); }
     <div id="guide" class="guide" hidden></div>
     <div id="speech" aria-hidden="true"></div>
     <div id="zoneCard" class="zone-card" hidden></div>
+    <div id="coach" class="coach" hidden><span class="coach-k">COACH</span><b></b><small></small><kbd hidden></kbd><button class="coach-skip" type="button">Skip</button></div>
     <div id="bigText" class="big-text" hidden></div>
     <div id="wrongWay" class="wrongway" hidden>WRONG WAY!</div>
     <div id="warnL" class="warn left" hidden>‹‹</div><div id="warnR" class="warn right" hidden>››</div>
@@ -813,11 +850,15 @@ kbd { font-family: var(--f-num); }
         <div class="res-daily" id="rDaily"></div>
       </div>
     </div>
-    <div class="res-actions"><button class="btn-yellow" id="rAgain" type="button">RACE AGAIN</button><button class="btn-pink" id="rNext" type="button">NEXT TRACK ›</button><button class="btn-dark" id="rGarage" type="button">Garage</button><button class="btn-dark" id="rMenu" type="button">Main Menu</button></div>
+    <div class="res-actions"><button class="btn-yellow" id="rAgain" type="button">RACE AGAIN</button><button class="btn-pink" id="rNext" type="button">NEXT TRACK ›</button><button class="btn-dark" id="rShare" type="button"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Share</button><button class="btn-dark" id="rGarage" type="button">Garage</button><button class="btn-dark" id="rMenu" type="button">Main Menu</button></div>
   </section>
 
   <!-- MODALS -->
   <div id="modalBack" class="modal-back" hidden></div>
+  <div id="share" class="modal panel share-modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden>
+    <header><h2 id="shareTitle">SHARE YOUR RACE</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body"><img id="shareImg" class="share-img" alt="Your race card: position, track, time, best lap and top speed"><div class="share-btns"><button class="btn-yellow" id="shareGo" type="button">SHARE</button><button class="btn-dark" id="shareSave" type="button">Save image</button></div></div>
+  </div>
   <div id="setup" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="setupTitle" hidden>
     <header><h2 id="setupTitle">RACE SETUP</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
     <div class="modal-body">
@@ -5157,6 +5198,7 @@ class Race {
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
     if (this.state === 'racing' || this.state === 'finished') this.recordGhost();
+    if (this.state === 'racing' && !P.finished && P.v > (P.vMax || 0)) P.vMax = P.v;   // for the share card
     this.syncVisuals(dt);
     this.taunts.update(dt, this.game.camera);
   }
@@ -7183,6 +7225,93 @@ class HUD {
   flashHit(side) { const f = $('#flash'); f.hidden = false; f.className = 'flash ' + (side > 0 ? 'l' : 'r'); clearTimeout(this._flT); this._flT = setTimeout(() => (f.hidden = true), 360); }
 }
 
+// ===== 72_coach.js =====
+// ───────────────────────── FIRST-RACE COACH ─────────────────────────
+// A new player's first race teaches by doing: one short prompt at a time, the matching touch button pulses, and the
+// step ticks off when they actually do it (or moves on after a few seconds, so nobody gets stuck). Skippable; runs once
+// per save, and the Help screen can switch it back on. Riders who already have races on their save never see it.
+const COACH_STEPS = [
+  { id: 'gas', text: 'Hold <b>GAS</b> as the lights go green', sub: 'Perfect start fills the kick meter', btn: ['gas'], key: 'W / ↑',
+    only: R => R.state === 'countdown', done: (C, R) => R.state === 'racing', max: 12 },
+  { id: 'lean', text: 'Lean with <b>◀ ▶</b>', sub: 'Lean into the turn and the bike follows', btn: ['left', 'right'], key: 'A D / ← →',
+    done: C => C.acc.steer > 0.9, max: 9 },
+  { id: 'brake', text: '<b>BRAKE</b> upright, then lean', sub: 'Slow down before a tight corner, not in it', btn: ['brake'], key: 'S / ↓',
+    ready: (C, R, P) => C.cornerAhead(R, P), readyMax: 8, done: C => C.acc.brake > 0.25, max: 9 },
+  { id: 'band', text: 'Keep the needle in the <b>yellow band</b>', sub: 'That is where the RX pulls hardest', el: '.speedo',
+    done: C => C.acc.band > 2.5, max: 7 },
+  { id: 'boost', text: 'Kick meter full? Tap the <b>bottle</b>', sub: 'BOOST! Ride in a rival\'s slipstream to fill it', btn: ['boost'], key: 'Shift',
+    start: (C, R, P) => { P.boost = Math.max(P.boost, 62); }, done: (C, R, P) => P.boosting, max: 10 },
+  { id: 'maar', text: 'Rival beside you? <b>MAAR!</b>', sub: 'Kick him off. Weapons on the road hit harder', btn: ['hit'], key: 'J / L',
+    only: R => R.combatOn, ready: (C, R) => R.raceT >= 10.5, readyMax: 30, done: C => C.acc.hit, max: 10 },
+  { id: 'go', text: 'Ab jeet ke dikha!', sub: 'Help has every move', max: 3.2, final: true },
+];
+class Coach {
+  // a coach for this race, or null
+  static maybe(game, R) {
+    const done = SAVE.coachDone ?? SAVE.races > 0;
+    if (URLP.has('coach')) { /* forced for testing */ } else if (done || DEBUG.autopilot || DEBUG.test) return null;
+    if (R.police || R.riders.length < 2 || R.ghost) return null;
+    return new Coach(game, R);
+  }
+  constructor(game, R) {
+    this.game = game; this.R = R; this.el = $('#coach'); this.steps = COACH_STEPS.filter(s => !s.only || s.only(R));
+    this.i = -1; this.t = 0; this.wait = 0; this.gap = 0; this.acc = {}; this.hl = [];
+    this.el.querySelector('.coach-skip').onclick = (e) => { e.stopPropagation(); AUDIO.click(); this.finish(); };
+    this.next();
+  }
+  // a tight corner 25–70 m ahead (heading turns by more than ~30°)
+  cornerAhead(R, P) {
+    const T = R.track, a = T.yawAt(P.s + 25), b = T.yawAt(P.s + 70); let d = b - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.abs(d) > 0.52;
+  }
+  next() {
+    this.clearHL(); this.i++; const s = this.steps[this.i];
+    if (!s) return this.finish();
+    this.s = s; this.t = 0; this.wait = 0; this.shown = false; this.acc = { steer: 0, brake: 0, band: 0, hit: false };
+    this.el.hidden = true;
+  }
+  show() {
+    const s = this.s, n = this.steps.length - 1, k = Math.min(this.i + 1, n);   // the last line is a send-off, not a step
+    this.el.querySelector('.coach-k').textContent = s.final ? 'COACH' : `COACH · ${k}/${n}`;
+    this.el.querySelector('b').innerHTML = s.text;
+    const sub = this.el.querySelector('small'); sub.textContent = s.sub || '';
+    const key = this.el.querySelector('kbd'); key.hidden = IS_TOUCH || !s.key; key.textContent = s.key || '';
+    this.el.classList.remove('done', 'out', 'final'); if (s.final) this.el.classList.add('final');
+    this.el.hidden = false; this.el.classList.remove('in'); void this.el.offsetWidth; this.el.classList.add('in');
+    if (IS_TOUCH && s.btn) for (const b of s.btn) { const e = $(`.tbtn[data-t="${b}"]`); if (e) { e.classList.add('coach-hl'); this.hl.push(e); } }
+    if (s.el) { const e = $(s.el); if (e) { e.classList.add('coach-hl'); this.hl.push(e); } }
+    if (s.start) s.start(this, this.R, this.R.player);
+    this.shown = true;
+  }
+  clearHL() { for (const e of this.hl) e.classList.remove('coach-hl'); this.hl = []; }
+  update(dt, inp) {
+    if (this.over) return; const R = this.R, P = R.player;
+    if (R.state === 'finished' || P.finished || P.eliminated) return this.finish();
+    if (this.gap > 0) { this.gap -= dt; if (this.gap <= 0) this.next(); return; }
+    const s = this.s; if (!s) return;
+    if (!this.shown) {   // waiting for the right moment (a corner coming up, fights switched on)
+      this.wait += dt; if (s.ready && !s.ready(this, R, P) && this.wait < (s.readyMax || 6)) return;
+      if (R.state === 'countdown' && !(s.only && s.only(R))) return;
+      this.show();
+    }
+    this.t += dt; const A = this.acc;
+    if (R.state === 'racing' && !P.crashed) {
+      if (Math.abs(P.input.steer) > 0.3) A.steer += dt;
+      if (P.input.brake > 0.3) A.brake += dt;
+      if (P.rpm >= 5500 && P.rpm <= 7500) A.band += dt;
+      if (inp && (inp.hitL || inp.hitR || inp.hitAuto)) A.hit = true;
+    }
+    if (s.done && s.done(this, R, P)) { this.el.classList.add('done'); AUDIO.click(); this.clearHL(); this.gap = 0.9; return; }
+    if (this.t > (s.max || 8)) { this.el.classList.add('out'); this.clearHL(); this.gap = s.final ? 0.01 : 0.45; }   // didn't do it: move on, never stall
+  }
+  // done for good: skipped, finished the steps, or the race ended
+  finish() {
+    if (this.over) return; this.over = true; this.clearHL(); this.el.hidden = true; this.el.classList.remove('in', 'done', 'out', 'final');
+    SAVE.coachDone = true; persist();   // one go is enough; Help can switch it back on
+  }
+  dispose() { this.finish(); }
+}
+
 // ===== 80_ui.js =====
 // ───────────────────────── MENUS, GARAGE, STORE, SETUP, RESULTS ─────────────────────────
 const STAT_ICONS = {
@@ -7226,6 +7355,8 @@ class UI {
     $('#rAgain').addEventListener('click', () => this.game.restart());
     $('#rNext').addEventListener('click', () => this.game.nextTrack());
     $('#rGarage').addEventListener('click', () => { this.game.toMenu().then(() => this.open('garage')); });
+    $('#rShare').addEventListener('click', () => { AUDIO.click(); SHARE.open(this.game); });
+    $('#shareGo').addEventListener('click', () => { AUDIO.click(); SHARE.go(); }); $('#shareSave').addEventListener('click', () => { AUDIO.click(); SHARE.save(); });
     $('#rMenu').addEventListener('click', () => this.game.toMenu());
     $('#cupGo').addEventListener('click', () => { this.closeModal(); this.game.startCup(); });
     $('#cfNo').addEventListener('click', () => { this.closeModal(); this._cf && this._cf(false); });
@@ -7403,7 +7534,9 @@ class UI {
       <div><h4>Police Express+</h4><table>${row('Solo escape on Bhaag Chapri Bhaag. Finish 2 laps before the BUSTED meter fills', '🚨')}${row('Cops close to you fill the meter; crashing near them fills it fast. Get 12 m clear and it drains', '12 m')}${row('Nakabandi: hit the yellow ramps and fly over the barricades. Smashing through costs speed and heat', '↗')}${row('A red laser means a rifle is locked on you. Swerve before the shot', '⦿')}${row('Kick or hit the cops off their bikes. Watch for stray dogs, the steps and the flooded nala', '🐕')}</table></div>
       <div><h4>Garage mods</h4><table>${row('Silencers: lambi pipe, twin upswept, dragon mouth (fire on boost)', '🔥')}${row('Mota or racing tyres, crash guard with fog lamps, café cowl', '⚙')}${row('Paint and finish: gloss, matte, metal flake, chrome. Bought once, fits every bike', '🎨')}</table></div>
       <div><h4>Tips</h4><table>${row('Brake upright, then lean. Braking and leaning share one grip budget.', '')}${row('Keep the needle in the yellow powerband out of corners.', '')}${row('Slide 90° gali corners instead of braking to a crawl.', '')}${row('Sit in a rival\'s slipstream to fill the kick meter.', '')}${row('A full wobble meter throws you off. Straighten up to recover.', '')}</table></div></div>
+      <p class="coach-again"><button class="btn-dark" type="button" id="coachAgain">${SAVE.coachDone === false ? '✓ Coach is on for your next race' : 'Coach me in my next race'}</button></p>
       <p class="muted small credits">3D bike: <a href="https://sketchfab.com/3d-models/rx100-bike-06a03105792a418bba751e67506d4e86" target="_blank" rel="noopener">“RX100 BIKE”</a> by <a href="https://sketchfab.com/patilaryush" target="_blank" rel="noopener">patilaryush</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Modified for this game: rebadged CR100, repaintable tank, centre stand removed, resized and simplified.${BIKE_MODEL.ready ? '' : ' (Not loaded on this device; the built-in bike is shown.)'}<br>Riders: base body and hair from <a href="https://quaternius.com/packs/universalbasecharacters.html" target="_blank" rel="noopener">Universal Base Characters</a> by Quaternius (CC0), slimmed down and dressed for Chapri Racer.<br>Music: original chapri DJ beats, made for this game.</p>`;
+    $('#coachAgain').addEventListener('click', (e) => { AUDIO.click(); SAVE.coachDone = false; persist(); e.currentTarget.textContent = '✓ Coach is on for your next race'; });
   }
   renderBoard() {
     const rows = TRACKS.map(t => { const r = SAVE.records[t.id] || {}; return `<tr><td>${t.short}</td><td class="n">${r.bestLap ? fmtTime(r.bestLap) : '—'}</td><td class="n">${r.bestStunt ? fmtNum(r.bestStunt) : '—'}</td><td class="n">${r.bestPos ? r.bestPos + ordinal(r.bestPos).toLowerCase() : '—'}</td></tr>`; }).join('');
@@ -7428,6 +7561,89 @@ function trackThumb(t) {
   const bg = { city: '#5b2c86,#e0589a', market: '#c96f4a,#ffb067', basti: '#3e8e8a,#c96f4a', sea: '#0b1a30,#3a6f8a', flyover: '#4a2a5c,#ff8a1f' }[t.theme].split(',');
   return `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="g${t.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient></defs><rect width="120" height="100" fill="url(#g${t.id})"/><polyline points="${pts}" fill="none" stroke="#160a12" stroke-width="7" stroke-linejoin="round"/><polyline points="${pts}" fill="none" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
 }
+
+// ===== 82_share.js =====
+// ───────────────────────── SHARE YOUR WIN ─────────────────────────
+// The results screen's SHARE button: a 1080×1920 brag card (the orbit shot of your rider behind the results, your
+// position, track, time, best lap and top speed), shown as a preview with the phone's share sheet and a plain download.
+const SHARE = {
+  W: 1080, H: 1920,
+  // grab the 3D view right after drawing it (the WebGL buffer is only readable in the same task)
+  grab(g) {
+    // a close front-three-quarter hero angle on the player for this one frame, then the orbit camera comes back
+    const C = g.camera, R = g.race, keep = { p: C.position.clone(), q: C.quaternion.clone(), fov: C.fov };
+    if (R) { const P = R.player, T = R.track, rp = T.pos(P.s, P.d, new THREE.Vector3(), P.y - T.yAt(P.s)), yaw = T.yawAt(P.s) + P.psi;
+      const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw), side = (this.side = -(this.side || 1));
+      C.position.set(rp.x + fx * 2.9 + lx * 1.5 * side, rp.y + 1.3, rp.z + fz * 2.9 + lz * 1.5 * side); const cw = g.renderer.domElement.width, ch = g.renderer.domElement.height, sh = ch * Math.max(this.W / cw, this.H * 0.8 / ch);   // how tall the shot lands on the card
+      C.fov = 2 * Math.atan(Math.tan(22 * Math.PI / 180) * sh / (this.H * 0.8)) * 180 / Math.PI; C.updateProjectionMatrix();   // same framing on a tall phone as on a wide screen
+      C.lookAt(rp.x + fx * 0.2, rp.y + 0.95, rp.z + fz * 0.2); C.updateMatrixWorld(); }
+    try { if (g.postOn()) g.comic.render(g.scene, g.camera); else g.renderer.render(g.scene, g.camera); } catch (e) { }
+    const src = g.renderer.domElement, c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    let ok = true; try { c.getContext('2d').drawImage(src, 0, 0); } catch (e) { ok = false; }
+    C.position.copy(keep.p); C.quaternion.copy(keep.q); C.fov = keep.fov; C.updateProjectionMatrix(); C.updateMatrixWorld();
+    return ok ? c : null;
+  },
+  async card(g, R, res) {
+    const W = this.W, H = this.H, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
+    const shot = this.grab(g);
+    try { await Promise.race([Promise.all(['italic 700 200px Teko', '700 80px Teko', '800 60px "Baloo 2"', '600 40px "Baloo 2"'].map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 1200))]); } catch (e) { }
+    // background: the 3D shot, cover-fitted and nudged so the rider sits in the upper two thirds
+    x.fillStyle = '#140a1a'; x.fillRect(0, 0, W, H);
+    if (shot) { const k = Math.max(W / shot.width, H * 0.8 / shot.height), sw = shot.width * k, sh = shot.height * k; x.drawImage(shot, (W - sw) / 2, Math.min(0, H * 0.42 - sh / 2), sw, sh); }   // the rider lands ~40% down, above the results
+    let gr = x.createLinearGradient(0, 0, 0, 380); gr.addColorStop(0, 'rgba(20,10,26,.92)'); gr.addColorStop(1, 'rgba(20,10,26,0)'); x.fillStyle = gr; x.fillRect(0, 0, W, 380);
+    gr = x.createLinearGradient(0, H * 0.5, 0, H); gr.addColorStop(0, 'rgba(20,10,26,0)'); gr.addColorStop(0.32, 'rgba(20,10,26,.88)'); gr.addColorStop(1, 'rgba(20,10,26,1)'); x.fillStyle = gr; x.fillRect(0, H * 0.5, W, H * 0.5);
+    const txt = (s, px, py, font, fill, stroke = 0, align = 'left') => { x.font = font; x.textAlign = align; x.textBaseline = 'alphabetic'; if (stroke) { x.lineJoin = 'round'; x.lineWidth = stroke; x.strokeStyle = '#120814'; x.strokeText(s, px, py); } x.fillStyle = fill; x.fillText(s, px, py); return x.measureText(s).width; };
+    // wordmark
+    txt('CHAPRI', 72, 150, 'italic 700 120px Teko', '#ff2e88', 14); const w1 = x.measureText('CHAPRI').width;
+    txt('RACER', 72 + w1 + 22, 150, 'italic 700 120px Teko', '#ffc21a', 14);
+    txt('BIKE RACING GAME', 76, 200, '800 34px "Baloo 2"', '#3fd0c9', 0);
+    // result block
+    const P = R.player, police = !!R.police, base = H - 640;
+    const big = res.posText, suf = police ? res.posSuf : (res.posSuf || '').toUpperCase();
+    x.font = 'italic 700 300px Teko'; let wb = x.measureText(big).width; x.font = 'italic 700 110px Teko'; const ws = suf ? x.measureText(suf).width + 16 : 0;
+    const kb = Math.min(1, (W - 144) / (wb + ws));   // a police time + ESCAPED shrinks to fit the card
+    const bw = txt(big, 72, base, `italic 700 ${Math.floor(300 * kb)}px Teko`, '#ffc21a', 22);
+    if (suf) txt(suf, 72 + bw + 16, base - 150 * kb, `italic 700 ${Math.floor(110 * kb)}px Teko`, '#ffffff', 14);
+    txt(res.title, 76, base + 92, '800 76px "Baloo 2"', '#ffffff', 12);
+    txt(R.def.name, 78, base + 152, '600 40px "Baloo 2"', '#cdb8dc');
+    // stat tiles
+    const laps = P.laps || [], total = police ? (P.finishT || R.raceT) : laps.reduce((a, b) => a + b, 0);
+    const stats = [['TIME', total > 0 ? fmtTime(total) : '—'], ['BEST LAP', isFinite(P.bestLap) ? fmtTime(P.bestLap) : '—'], ['TOP SPEED', Math.round((P.vMax || 0) * 3.6) + ' km/h']];
+    const tw = (W - 72 * 2 - 24 * 2) / 3, ty = base + 210;
+    stats.forEach(([k, v], i) => { const tx = 72 + i * (tw + 24); x.fillStyle = 'rgba(255,255,255,.08)'; this.round(x, tx, ty, tw, 170, 26); x.fill(); x.strokeStyle = i === 0 ? '#ff2e88' : i === 1 ? '#3fd0c9' : '#ffc21a'; x.lineWidth = 4; x.stroke();
+      txt(k, tx + 28, ty + 56, '800 30px "Baloo 2"', '#cdb8dc');
+      x.font = 'italic 700 84px Teko'; const fit = Math.min(84, Math.floor(84 * (tw - 50) / Math.max(1, x.measureText(v).width)));   // long values shrink to fit the tile
+      txt(v, tx + 26, ty + 140, `italic 700 ${fit}px Teko`, '#ffffff'); });
+    // rider + points
+    const S = R.score || {}, bits = [`+${fmtNum(res.total || 0)} coins`, S.overtakeCount ? `${S.overtakeCount} overtake${S.overtakeCount > 1 ? 's' : ''}` : '', S.knockCount ? `${S.knockCount} knockdown${S.knockCount > 1 ? 's' : ''}` : ''].filter(Boolean);
+    txt(bits.join('  ·  '), 76, ty + 250, '700 40px "Baloo 2"', '#6ee7a8');
+    x.fillStyle = 'rgba(255,255,255,.14)'; x.fillRect(72, H - 150, W - 144, 3);
+    txt(`${SAVE.name || 'Chapri'} on Chapri Racer`, 76, H - 82, '800 44px "Baloo 2"', '#ffffff');
+    txt('Beat that?', W - 72, H - 82, 'italic 700 64px Teko', '#ff2e88', 0, 'right');
+    return cv;
+  },
+  round(x, l, t, w, h, r) { x.beginPath(); x.moveTo(l + r, t); x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r); x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r); x.closePath(); },
+  // make the card and show it with Share / Save
+  async open(g) {
+    const R = g.race, res = g.lastRes; if (!R || !res) return;
+    const btn = $('#rShare'); btn.disabled = true;
+    try {
+      const cv = await this.card(g, R, res); const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('no image');
+      if (this.url) URL.revokeObjectURL(this.url); this.url = URL.createObjectURL(blob); this.blob = blob;
+      $('#shareImg').src = this.url;
+      const file = new File([blob], `chapri-racer-${R.def.id}.jpg`, { type: 'image/jpeg' }); this.file = file;
+      const can = !!(navigator.canShare && navigator.canShare({ files: [file] })); $('#shareGo').hidden = !can;
+      g.ui.open('share');
+    } catch (e) { console.warn('share', e); g.ui.flashNote('Could not make the share card here.'); }
+    finally { btn.disabled = false; }
+  },
+  async go() {
+    if (!this.file) return;
+    try { await navigator.share({ files: [this.file], title: 'Chapri Racer', text: 'Beat that? 🏍️ Chapri Racer' }); } catch (e) { if (e && e.name !== 'AbortError') this.save(); }
+  },
+  save() { if (!this.url) return; const a = document.createElement('a'); a.href = this.url; a.download = this.file ? this.file.name : 'chapri-racer.jpg'; document.body.appendChild(a); a.click(); a.remove(); },
+};
 
 // ===== 85_input.js =====
 // ───────────────────────── INPUT: keyboard, touch, tilt, gamepad ─────────────────────────
@@ -7725,6 +7941,7 @@ class Game {
       await painted();
       this.hideLoader(); $('#hud').classList.add('show');
       this.state = 'race'; this.setMusic('race'); MUSIC.setLevel(0); this.last = performance.now();
+      this.coach = Coach.maybe(this, this.race);   // first race only: one prompt at a time
       if (IS_TOUCH && !matchMedia('(orientation: portrait)').matches) { try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); } catch (_) {} }
       void prevState;
     } catch (e) { console.error('startRace', e); this.hideLoader(); if (!this.race) this.toMenu(); else { $('#hud').classList.add('show'); this.state = 'race'; } }
@@ -7758,7 +7975,7 @@ class Game {
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
   startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
-  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  endRace() { if (this.coach) { this.coach.dispose(); this.coach = null; } if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
@@ -7783,7 +8000,7 @@ class Game {
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
-    const res = this.computeResults(R); this.state = 'results'; this.setMusic('menu');
+    const res = this.computeResults(R); this.lastRes = res; this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
   }
@@ -7877,6 +8094,7 @@ class Game {
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
+    if (this.coach) this.coach.update(dt, inp);
     R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
     if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
