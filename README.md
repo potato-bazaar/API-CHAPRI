@@ -79,10 +79,11 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - Mota or racing tyres;
   - crash guard with fog lamps, café cowl, or the full bulky kit;
   - gloss, matte, metal-flake or chrome finish.
-- **Music.** Original music generated live with Web Audio, in two styles you pick in Settings:
-  - South mass (default): parai and thavil koothu grooves, a nadaswaram hook, brass and guitar stabs, theatre whistles and crowd "HEY!"s, plus a hero-entry theme for the winner.
-  - Dhinchak DJ: dhol, tabla and a tumbi riff.
-  The intensity follows the race.
+- **Music.** Three styles, picked in Settings:
+  - Chapri OST (default): the game's own songs. "Chapri" plays on the menu and results, "Bike Chase" (Telugu) in races and "Siren Motif" in Police Express+. Each song loops with a crossfade. The race song starts muffled for the countdown and opens up on GO; boost and the final lap add bass. Boost kicks, takedowns and the final-lap riser land on top as sub-bass booms, whistles and a "HEY!", with the song dipping for a beat so they punch through.
+  - South mass: live-synth parai and thavil koothu grooves, a nadaswaram hook, brass and guitar stabs, theatre whistles and crowd "HEY!"s.
+  - Dhinchak DJ: live-synth dhol, tabla and a tumbi riff.
+  The winner's hero-entry theme is always live synth.
 
 ![Police Express+](docs/police-express.jpg)
 
@@ -106,7 +107,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 
 ```bash
 npm install
-npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
+npm run build        # src/ + assets/  ->  dist/chapri-racer.html (one file, songs inside) and dist/web/ (index.html + music/*.mp3, streams the songs)
 ```
 
 `tools/build.mjs` concatenates `src/js/*.js` in a fixed order into one ES module and inlines `src/style.css`. It also embeds both GLB models as gzip + base64 into `src/template.html`.
@@ -151,4 +152,5 @@ node tools/t40.mjs                                           # feel audit: keybo
 - Riders and hair: Quaternius "Universal Base Characters", CC0.
 - [three.js](https://threejs.org) r160, MIT.
 - Fonts: Baloo 2 and Teko, SIL Open Font License.
-- Music and sound effects are generated in the browser and are original.
+- Songs ("Chapri", "Bike Chase", "Siren Motif"): made by Greg D'Souza for the game, in `assets/music/` (loudness-normalised to -16 LUFS).
+- The live-synth music and all sound effects are generated in the browser and are original.

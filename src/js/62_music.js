@@ -1,3 +1,63 @@
+// ───────────────────────── SOUNDTRACK: the game's own songs ─────────────────────────
+// "Chapri" plays on the menu and results, "Bike Chase" (Telugu) during races. Both ship inside the page as MP3 and stream
+// from blob URLs through Web Audio (MediaElementSource), so the volume slider, the pause muffle and a bass shelf apply
+// and nothing big is decoded into memory. Each song has two players that crossfade at the end, so the loop never jumps.
+// The live synth stays on top as the "VFX" layer: sub-bass booms, whistles, risers and HEY!s on the big moments,
+// with the song ducking for a beat so they punch through.
+const OST = {
+  ok: false, cur: null, songs: {}, XF: 1.8, level: 1,
+  init(c, dest) {
+    this.c = c;
+    this.bus = c.createGain(); this.bus.gain.value = 0.85;   // a notch under the synth so engine and hits sit on top
+    this.low = c.createBiquadFilter(); this.low.type = 'lowshelf'; this.low.frequency.value = 100; this.low.gain.value = 3.5;   // bass top-up
+    this.sub = c.createBiquadFilter(); this.sub.type = 'peaking'; this.sub.frequency.value = 52; this.sub.Q.value = 1.0; this.sub.gain.value = 2;
+    this.hi = c.createBiquadFilter(); this.hi.type = 'highshelf'; this.hi.frequency.value = 7000; this.hi.gain.value = 0;
+    this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 18000; this.lp.Q.value = 0.5;      // countdown: muffled, opens on GO
+    this.duckG = c.createGain(); this.duckG.gain.value = 1;
+    this.bus.connect(this.low); this.low.connect(this.sub); this.sub.connect(this.hi); this.hi.connect(this.lp); this.lp.connect(this.duckG); this.duckG.connect(dest);
+    // songs inside the page (the one-file build) play from blob URLs; the web build streams them from music/*.mp3
+    for (const [k, id, file] of [['menu', 'musIntro', 'intro.mp3'], ['race', 'musRace', 'race.mp3'], ['police', 'musPolice', 'police.mp3']]) {
+      try { const el = document.getElementById(id), b64 = el ? el.textContent.trim() : ''; let url;
+        if (b64.length > 1000) { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); el.textContent = ''; url = URL.createObjectURL(new Blob([u8], { type: 'audio/mpeg' })); }
+        else if (location.protocol !== 'file:') url = 'music/' + file; else continue;
+        this.songs[k] = { decks: [this.deck(url, !b64), this.deck(url, !b64)], i: 0, xf: false, remote: !b64 };
+      } catch (e) { console.warn('soundtrack', k, e); } }
+    this.ok = Object.keys(this.songs).length > 0;
+    document.addEventListener('visibilitychange', () => { for (const S of Object.values(this.songs)) for (const d of S.decks) { if (document.hidden) { d.wasOn = !d.a.paused; d.a.pause(); } else if (d.wasOn) { d.wasOn = false; this.go(d.a); } } });
+  },
+  deck(url, remote) { const a = new Audio(); a.src = url; a.preload = remote ? 'metadata' : 'auto'; a.loop = false; a.addEventListener('error', () => { if (remote) { for (const [k, S] of Object.entries(this.songs)) if (S.decks.some(d => d.a === a)) { delete this.songs[k]; if (this.cur === k) this.cur = null; } this.ok = Object.keys(this.songs).length > 0; MUSIC.restyle(); } }); const g = this.c.createGain(); g.gain.value = 0; this.c.createMediaElementSource(a).connect(g); g.connect(this.bus); return { a, g }; },
+  go(a) { const p = a.play(); if (p && p.catch) p.catch(() => {}); },
+  fade(d, to, sec) { const t = this.c.currentTime; d.g.gain.cancelScheduledValues(t); d.g.gain.setValueAtTime(d.g.gain.value, t); d.g.gain.linearRampToValueAtTime(to, t + Math.max(0.02, sec)); },
+  // start a song (from the top unless it's already the one playing and keep is set); other songs fade out
+  play(k, keep) {
+    if (!this.ok) return; const S = this.songs[k];
+    for (const [n, O] of Object.entries(this.songs)) if (n !== k) this.stopSong(O, 0.7);
+    if (!S) { this.cur = null; return; }
+    if (this.cur === k && keep && !S.decks[S.i].a.paused) return;
+    const d = S.decks[S.i], o = S.decks[1 - S.i]; this.stopDeck(o, 0.3);
+    if (this.cur !== k || !keep) { try { d.a.currentTime = 0; } catch (e) { } }
+    this.fade(d, 1, 0.35); this.go(d.a); S.xf = false; this.cur = k;
+    if (k === 'menu' && this.songs.race && this.songs.race.remote) this.songs.race.decks[0].a.preload = 'auto';   // warm the race song while on the menu
+  },
+  stopDeck(d, sec) { this.fade(d, 0, sec); clearTimeout(d.tm); d.tm = setTimeout(() => { if (d.g.gain.value < 0.02) d.a.pause(); }, sec * 1000 + 80); },
+  stopSong(S, sec) { for (const d of S.decks) if (!d.a.paused) this.stopDeck(d, sec); S.xf = false; },
+  stop(sec = 0.6) { for (const S of Object.values(this.songs)) this.stopSong(S, sec); this.cur = null; },
+  // seamless loop: as the playing deck nears its end, the other deck starts from the top and they crossfade
+  tick() {
+    if (!this.cur) return; const S = this.songs[this.cur]; if (!S) return; const d = S.decks[S.i], a = d.a;
+    if (a.paused || !isFinite(a.duration) || S.xf) return;
+    if (a.duration - a.currentTime < this.XF) { S.xf = true; const n = S.decks[1 - S.i]; try { n.a.currentTime = 0; } catch (e) { } n.g.gain.value = 0; this.go(n.a); this.fade(n, 1, this.XF * 0.8); this.stopDeck(d, this.XF);
+      S.i = 1 - S.i; setTimeout(() => { S.xf = false; }, this.XF * 1000 + 200); }
+  },
+  // 0 countdown (muffled), 1 racing, 2 boost / final lap: more bass, a little more air
+  setLevel(l) { if (!this.ok || l === this.level) return; this.level = l; const t = this.c.currentTime;
+    this.lp.frequency.setTargetAtTime(l === 0 ? 900 : 18000, t, l === 0 ? 0.05 : 0.18);
+    this.low.gain.setTargetAtTime(l === 2 ? 7 : 3.5, t, 0.25); this.sub.gain.setTargetAtTime(l === 2 ? 5 : 2, t, 0.25); this.hi.gain.setTargetAtTime(l === 2 ? 2.5 : 0, t, 0.25); },
+  menuLevel() { if (!this.ok) return; this.level = -1; const t = this.c.currentTime; this.lp.frequency.setTargetAtTime(18000, t, 0.2); this.low.gain.setTargetAtTime(3.5, t, 0.3); this.sub.gain.setTargetAtTime(2, t, 0.3); this.hi.gain.setTargetAtTime(0, t, 0.3); },
+  // dip the song for a beat so a hit lands on top of it
+  duck(depth = 0.5, sec = 0.4) { if (!this.ok || !this.cur) return; const t = this.c.currentTime, g = this.duckG.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(depth, t + 0.03); g.setTargetAtTime(1, t + 0.08, sec * 0.45); },
+};
+
 // ───────────────────────── MUSIC: original tunes, synthesised live (no files) ─────────────────────────
 // Two styles. South Indian mass (default): parai + thavil koothu groove, a nadaswaram hook, brass and guitar stabs,
 // theatre whistles and crowd "HEY!"s, plus a hero-entry theme for the winner. Dhinchak DJ: dhol + tabla + kick, a tumbi
@@ -12,23 +72,37 @@ const MUSIC = {
     // tumbi / lead echo (dotted eighth)
     this.dly = c.createDelay(1); this.fb = c.createGain(); this.fb.gain.value = 0.28; this.dlyOut = c.createGain(); this.dlyOut.gain.value = 0.32;
     this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.dlyOut); this.dlyOut.connect(this.bus);
-    this.on = true; this.applyVolume();
+    OST.init(c, this.tone);
+    this.on = true; this.applyVolume(); if (this.mode !== 'off') this.songFor(this.mode, 'off');   // the game may already be on the menu when sound unlocks
     this.timer = setInterval(() => this.tick(), 25);
   },
   applyVolume() { if (!this.on) return; const v = AUDIO.muted ? 0 : (SAVE.settings.music ?? 0.6) * 0.75; this.out.gain.setTargetAtTime(this.mode === 'off' ? 0 : v, this.c.currentTime, 0.3); },
   setMode(m) {
     if (!this.on || m === this.mode) { this.mode = m; return; }
-    const was = this.mode; this.mode = m; this.applyVolume();
+    const was = this.mode; this.mode = m; this.applyVolume(); this.songFor(m, was);
     if (m === 'race' || m === 'entry' || (m === 'menu' && was === 'off')) { this.step = 0; this.bar = 0; this.ebar = 0; this.nextT = this.c.currentTime + 0.08; this.song = (this.song + 1) % 6; }
     this.tone.frequency.setTargetAtTime(m === 'pause' ? 700 : 18000, this.c.currentTime, 0.15);
   },
   // 0 = countdown build, 1 = racing, 2 = boost / final lap (everything in)
-  setLevel(l) { this.level = l; },
+  setLevel(l) { this.level = l; if (this.ost && this.mode === 'race') OST.setLevel(l); },
+  // which song plays: menu/results = "Chapri", race (and pause, muffled) = "Bike Chase"; the winner's entry stays live
+  songFor(m, was) {
+    if (!this.ost) { OST.stop(0.4); return; }
+    if (m === 'menu') { OST.menuLevel(); OST.play('menu', was === 'menu' || was === 'off'); }
+    else if (m === 'race') { const k = GAME && GAME.race && GAME.race.police && OST.songs.police ? 'police' : 'race';   // Police Express+ gets "Siren Motif"
+      OST.play(k, was === 'pause'); if (was !== 'pause') { OST.level = -1; OST.setLevel(0); } }
+    else if (m === 'pause') { }
+    else OST.stop(m === 'entry' ? 0.25 : 0.6);
+  },
+  restyle() { if (this.on) this.songFor(this.mode, 'off'); },
+  // the player's own songs (default) or one of the two live-synth styles
+  get ost() { return (SAVE.settings.musicStyle || 'ost') === 'ost' && OST.ok; },
   get bpm() { return this.mode === 'entry' ? 146 : this.mass ? (this.mode === 'race' ? 152 : 112) : this.mode === 'race' ? 128 : 98; },
   // South Indian mass style (default) or the original dhinchak set; 'entry' is the winner's hero-entry theme
-  get mass() { return (SAVE.settings.musicStyle || 'mass') === 'mass'; },
+  get mass() { return (SAVE.settings.musicStyle || 'ost') !== 'dhinchak'; },
   tick() {
     if (!this.on || this.mode === 'off' || document.hidden) return;
+    OST.tick(); if (this.ost && this.mode !== 'entry' && OST.cur) return;   // the songs cover menu, race and pause (the synth fills in if a song is missing)
     const c = this.c; if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
     const sixteenth = 60 / this.bpm / 4; this.dly.delayTime.setTargetAtTime(sixteenth * 3, c.currentTime, 0.05);
     const swing = this.mass || this.mode === 'entry' ? 0.03 : 0.08;
@@ -147,10 +221,12 @@ const MUSIC = {
       o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.12, tt); o.frequency.exponentialRampToValueAtTime(f * 0.88, tt + 0.22); a.type = 'bandpass'; a.frequency.value = 560; a.Q.value = 5; b.type = 'bandpass'; b.frequency.value = 1900; b.Q.value = 7;
       const mix = c.createGain(); mix.gain.value = 1; o.connect(a); o.connect(b); a.connect(mix); b.connect(mix); mix.connect(g); this.env(g, tt, 0.02, v * 0.5, 0.2); g.connect(this.bus); o.start(tt); o.stop(tt + 0.3); } },
   // stingers
-  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01; if (this.mass) { const f = noteHz(50); this.brass(t, [f, f * 1.5, f * 2], 0.3, 0.09); this.whistle(t + 0.05, 0.08); return; } for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
+  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01;
+    if (this.ost) { OST.duck(0.45, 0.45); this.boom(t, 0.5); this.whistle(t + 0.05, 0.07); return; }   // no pitched notes over a song: sub drop + whistle
+    if (this.mass) { const f = noteHz(50); this.brass(t, [f, f * 1.5, f * 2], 0.3, 0.09); this.whistle(t + 0.05, 0.08); return; } for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
   riser(dur = 1.6) { if (!this.on) return; const c = this.c, t = c.currentTime, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s.buffer = AUDIO.noiseBuf; fl.type = 'bandpass'; fl.Q.value = 3;
     fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(6000, t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.1);
-    s.connect(fl); fl.connect(g); g.connect(this.bus); s.start(t); s.stop(t + dur + 0.2); },
+    s.connect(fl); fl.connect(g); g.connect(this.bus); s.start(t); s.stop(t + dur + 0.2); if (this.ost) { this.boom(t + dur, 0.55); this.hey(t + dur + 0.02, 0.4); } },
 };
 const noteHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 // Patterns: 16 steps per bar. dhol: 2 = dagga (bass hit), 1 = tilli (stick). riff/lead: semitones above E4 (null = rest).

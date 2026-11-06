@@ -68,7 +68,7 @@ class Game {
     this.setLoad(1, 'Chalo!'); await painted();
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
-    window.__chapri = this; window.__audio = { AUDIO, MUSIC };
+    window.__chapri = this; window.__audio = { AUDIO, MUSIC, OST };
     if (DEBUG.test) window.__DEBUG = DEBUG;
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.hideLoader(); this.showScreen('menu');
