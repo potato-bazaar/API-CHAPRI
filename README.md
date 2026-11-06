@@ -90,6 +90,12 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - South mass: live-synth parai and thavil koothu grooves, a nadaswaram hook, brass and guitar stabs, theatre whistles and crowd "HEY!"s.
   - Dhinchak DJ: live-synth dhol, tabla and a tumbi riff.
   The winner's hero-entry theme is always live synth.
+- **Smoothness.** A race frame on a phone-sized screen costs about 30% less than before the November audit:
+  - the wet-road mirror only draws layer 1 (the world, all lights, and bike/rider parts bigger than about 20 cm), not ink outlines, particles, glows or tiny parts;
+  - each racing rig welds its fixed parts that share a material into one mesh;
+  - rival outlines skip parts under 9 cm;
+  - the HUD only writes to the page when a value changes;
+  - 120/144 Hz screens draw every other refresh (60–72 fps), so phones don't heat up and throttle. `?nocap` turns this off.
 
 ![Police Express+](docs/police-express.jpg)
 
@@ -103,6 +109,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | `?refl=0` | No road reflections |
 | `?post=0` | No glow or comic pass |
 | `?comic=0` | Glow without the comic look |
+| `?nocap` | No 60 fps cap on 120/144 Hz screens |
 | `?bike=basic` | Built-in primitive bike instead of the GLB |
 | `?rider=basic` | Built-in primitive rider instead of the GLB |
 | `?autopilot&track=dharavi-lanes&weather=monsoon&time=night&laps=1` | Watch an AI-driven race |

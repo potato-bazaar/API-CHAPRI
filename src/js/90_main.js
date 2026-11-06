@@ -89,7 +89,7 @@ class Game {
     let h = 0; if (this.race && this.state !== 'menu' && this.state !== 'garage') { const P = this.race.player; h = P.air ? this.race.track.gy(P.s, P.d) : P.y; } else if (this.menuRig) h = this.menuRig.root.position.y;
     this.reflH = this.reflH === undefined || Math.abs(h - this.reflH) > 3 ? h : this.reflH + (h - this.reflH) * Math.min(1, dt * 8);
     REFL.U.uRTime.value = this.t;
-    this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain, this.splash && this.splash.pts]).filter(Boolean));
+    this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain, this.splash && this.splash.pts]).filter(Boolean), this.world.group);
   }
   resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
   onFirstInteract() { if (this.firstInteract) return; this.firstInteract = true; $('#soundPill').hidden = true; }
@@ -330,6 +330,9 @@ class Game {
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
     if (this.state === 'loading') { this.last = now; INPUT.endFrame(); return; }   // the loading screen covers it; give the CPU to the build
+    // 120/144 Hz screens: draw every other refresh (60–72 fps) — twice the frames only heats the phone until it throttles.
+    // 60 and 90 Hz pass every refresh (16.7 / 11.1 ms gaps are above the 10 ms floor). Skipped refreshes keep their input for the next frame.
+    if (this.last && now - this.last < 10 && !URLP.has('nocap')) return;
     const rawDt = (now - this.last) / 1000; let dt = Math.min(0.1, rawDt); this.last = now; this.t += dt; this.govern(rawDt);
     if (this.bench) { this.bench.n++; if (this.bench.n > 30) this.bench.sum += dt; if (this.bench.n > 150) { const avg = this.bench.sum / 120; SAVE.settings.detected = avg > 0.034 ? 'low' : avg > 0.021 ? 'medium' : 'high'; persist(); this.bench = null; if (SAVE.settings.detected !== this.quality && this.state === 'menu') this.applyQuality(true); } }
     dt *= DEBUG.timescale;

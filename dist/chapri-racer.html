@@ -4286,6 +4286,13 @@ function blobShadowTex() {
   g.addColorStop(0, 'rgba(0,0,0,0.82)'); g.addColorStop(0.45, 'rgba(0,0,0,0.6)'); g.addColorStop(0.8, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   x.fillStyle = g; x.fillRect(0, 0, 64, 64); return TEX.blobShadow = new THREE.CanvasTexture(c);
 }
+// a part's real size in metres (rider meshes are quantised: their raw bounds are in packed units)
+function partRadius(o) {
+  const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingSphere) return 1;
+  let s; if (o.isSkinnedMesh) { const dq = RIDER_MODEL.deq && RIDER_MODEL.deq[o.name]; s = dq ? dq.x : o.bindMatrix.getMaxScaleOnAxis(); }
+  else { o.updateWorldMatrix(true, false); s = o.matrixWorld.getMaxScaleOnAxis(); }
+  return g.boundingSphere.radius * s;
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -4361,17 +4368,59 @@ class BikeRig {
   }
   // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
   // outline shells for every solid, opaque part (skips glows, blur discs, eyes and anything transparent)
-  addOutlines() {
+  // minR: smallest part (real size, metres) that gets a shell — rivals skip brows, buckles and bolts nobody sees at speed
+  addOutlines(minR = 0.025) {
     if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
-      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
+      if (partRadius(m) < minR) return; list.push(m); });
     for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
       const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, om) : new THREE.Mesh(m.geometry, om);
       if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
     this.outlineOn = true;
   }
   setOutline(on) { if (!this.outlines || on === this.outlineOn) return; this.outlineOn = on; for (const o of this.outlines) o.visible = on; }
+  // Fewer draw calls for racing rigs: sibling parts that share a material and are never moved, hidden or recoloured on
+  // their own get welded into one mesh (in their parent's space, so wheels, fork and bones still carry them). Anything the
+  // rig keeps a handle on (weapons, props, lights, jets) is left alone. Call before addOutlines.
+  mergeParts() {
+    if (this.merged) return; this.merged = true;
+    const keep = new Set(), seen = new Set();
+    const grab = (v, d) => { if (!v || typeof v !== 'object' || seen.has(v)) return; seen.add(v); if (v.isObject3D) { keep.add(v); return; } if (v.isMaterial || v.isBufferGeometry || v.isTexture || d > 2) return; for (const x of Array.isArray(v) ? v : Object.values(v)) grab(x, d + 1); };
+    for (const v of Object.values(this)) grab(v, 0);   // e.g. this.mods.flames / siren, this.jets, this.wRod …
+    const groups = new Map(), noop = THREE.Object3D.prototype.onBeforeRender;
+    this.root.traverse(o => {
+      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || keep.has(o) || !o.visible || !o.parent || o.children.length || Array.isArray(o.material) || o.onBeforeRender !== noop || o.userData.outline) return;
+      const g = o.geometry; if (!g || g.groups.length > 1 || g.morphAttributes.position || g.attributes.tangent || !g.attributes.position) return;
+      for (let p = o.parent; p && p !== this.root; p = p.parent) if (!p.visible || p === this.cig || p === this.can) return;   // props shown later (cig.children[0] is read by index)
+      const key =o.material.id + '|' + o.renderOrder + '|' + o.castShadow + o.receiveShadow + o.frustumCulled + '|' + Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',');
+      let pm = groups.get(o.parent); if (!pm) groups.set(o.parent, pm = new Map()); const a = pm.get(key); if (a) a.push(o); else pm.set(key, [o]);
+    });
+    let saved = 0; const v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    for (const [parent, pm] of groups) for (const list of pm.values()) {
+      if (list.length < 2) continue;
+      const names = Object.keys(list[0].geometry.attributes); let nv = 0, ni = 0;
+      for (const m of list) { const g = m.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+      const out = {}; for (const k of names) out[k] = new Float32Array(nv * list[0].geometry.attributes[k].itemSize);
+      const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni); let vo = 0, io = 0;
+      for (const m of list) {
+        const g = m.geometry, n = g.attributes.position.count; m.updateMatrix(); nm.getNormalMatrix(m.matrix);
+        for (const k of names) { const A = g.attributes[k], s = A.itemSize, dst = out[k];
+          for (let i = 0; i < n; i++) {
+            if (k === 'position') { v.fromBufferAttribute(A, i).applyMatrix4(m.matrix); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+            else if (k === 'normal') { v.fromBufferAttribute(A, i).applyMatrix3(nm).normalize(); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+            else { dst[(vo + i) * s] = A.getX(i); if (s > 1) dst[(vo + i) * s + 1] = A.getY(i); if (s > 2) dst[(vo + i) * s + 2] = A.getZ(i); if (s > 3) dst[(vo + i) * s + 3] = A.getW(i); }
+          } }
+        if (g.index) { const ix = g.index; for (let i = 0; i < ix.count; i++) idx[io++] = ix.getX(i) + vo; } else for (let i = 0; i < n; i++) idx[io++] = vo + i;
+        vo += n;
+      }
+      const geo = new THREE.BufferGeometry(); for (const k of names) geo.setAttribute(k, new THREE.BufferAttribute(out[k], list[0].geometry.attributes[k].itemSize));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeBoundingSphere(); geo.computeBoundingBox(); this.geoms.push(geo);
+      const f = list[0], mesh = new THREE.Mesh(geo, f.material); mesh.renderOrder = f.renderOrder; mesh.castShadow = f.castShadow; mesh.receiveShadow = f.receiveShadow; mesh.frustumCulled = f.frustumCulled; mesh.name = 'merged';
+      for (const m of list) parent.remove(m); parent.add(mesh); saved += list.length - 1;
+    }
+    return saved;
+  }
   // a parked bike (menu, garage) gets its contact shadow as a child; racing bikes get theirs from the race (they lean)
   addBlob() { if (this.blob) return; this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     this.blob.position.y = 0.025; this.blob.renderOrder = 2; this.root.add(this.blob); }
@@ -5052,7 +5101,8 @@ class Race {
     order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
     if (!M.rivals) this.player.place(-4, 0);
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
-    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; r.rig.addOutlines(); });   // ink outline shells (shown near the camera)
+    // weld each racing rig's fixed parts (fewer draw calls), then the ink outline shells (shown near the camera)
+    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; r.rig.mergeParts(); r.rig.addOutlines(r.isPlayer ? 0.025 : 0.09); });
     this.combat = new Combat(this); this.group.add(this.combat.group);
     // swagger: each rider does a style move now and then on a calm stretch; smoke from the cigarette drifts back off the bike
     const pv = new THREE.Vector3();
@@ -5578,7 +5628,7 @@ class StreetOps {
       g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
       if (!TEX.boltGlow) { const [c, x] = mkCanvas(64, 4); const gr = x.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.42, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.5, 'rgba(255,255,255,1)'); gr.addColorStop(0.58, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 4); TEX.boltGlow = new THREE.CanvasTexture(c); }
       this.bolts = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: TEX.boltGlow, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false }));
-      this.bolts.frustumCulled = false; this.bolts.visible = false; this.bolts.renderOrder = 6; race.group.add(this.bolts); this.boltT = 0; this.boltPaths = []; this.zapK = 0; this._a = this._a || new THREE.Vector3(); this._b = this._b || new THREE.Vector3(); }
+      this.bolts.frustumCulled = false; this.bolts.userData.reflKeep = true; this.bolts.visible = false; this.bolts.renderOrder = 6; race.group.add(this.bolts); this.boltT = 0; this.boltPaths = []; this.zapK = 0; this._a = this._a || new THREE.Vector3(); this._b = this._b || new THREE.Vector3(); }
     this.hemiBase = W.hemi.color.clone(); this.fogBase = W.fog ? W.fog.color.clone() : null;
     // ── boost ring (Auto Rush style): a segmented ring on the road round your bike. It fills from the back, both sides
     // at once, so from the chase cam it reads like a gauge; full ring = it pulses; while you burn it the lit arc drains.
@@ -6123,7 +6173,7 @@ class SpeedFX {
   attach(scene) { scene.add(this.streaks); }
   resize() { const k = Math.min(1, 900 / Math.max(innerWidth, innerHeight)) * (devicePixelRatio > 1 ? 0.75 : 0.6); this.res = Math.max(0.35, k); this.canvas.width = Math.round(innerWidth * this.res); this.canvas.height = Math.round(innerHeight * this.res); }
   reset(race) { this.race = race; this.prevS = race.player.s; this.prevRel = new Map(); this.prevBoost = false; this.lastWhoosh = 0; this.lines.length = 0; this.sp.forEach(p => (p.alive = false)); this.fovPunch = 0; this.dip = 0; this.boostAmt = 0; this.intensity = 0; }
-  clear() { if (this.cleared) return; this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.vig.style.opacity = 0; this.vig.style.setProperty('--boost', 0); this.streaks.visible = false; this.cleared = true; $('.speedo') && $('.speedo').classList.remove('redline'); }
+  clear() { if (this.cleared) return; this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.vig.style.opacity = 0; this.vig.style.setProperty('--boost', 0); this._vop = this._vbb = null; this.streaks.visible = false; this.cleared = true; $('.speedo') && $('.speedo').classList.remove('redline'); }
   kick() {
     this.fovPunch = 13; this.dip = 0.24; this.game.shake(0.28);
     const f = this.flashEl; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
@@ -6143,8 +6193,8 @@ class SpeedFX {
     const target = racing ? clamp((kmh - 52) / 46, 0, 1) * 0.9 + this.boostAmt * 0.6 : 0;
     this.intensity = smooth(this.intensity, target * (REDUCED_MOTION ? 0.35 : 1), 5, dt);
     this.drawLines(dt, camera);
-    this.vig.style.opacity = (this.intensity * 0.55 + this.boostAmt * 0.3).toFixed(3);
-    this.vig.style.setProperty('--boost', this.boostAmt.toFixed(3));
+    { const op = (this.intensity * 0.55 + this.boostAmt * 0.3).toFixed(2), bb = this.boostAmt.toFixed(2);   // only touch the page when it changes
+      if (op !== this._vop) { this._vop = op; this.vig.style.opacity = op; } if (bb !== this._vbb) { this._vbb = bb; this.vig.style.setProperty('--boost', bb); } }
     const sp = $('.speedo'); if (sp) sp.classList.toggle('redline', racing && (P.rpm > 9300 || P.boosting) && !REDUCED_MOTION);
     this.updateStreaks(dt, P, T);
     this.whooshes(P, T, R);
@@ -6282,20 +6332,35 @@ vec3 rRipple(vec2 p, float t){ vec3 acc = vec3(0.0);
     mat.customProgramCacheKey = () => key() + '|refl'; mat.needsUpdate = true;
   },
 };
+// What the mirror draws. It used to redraw the whole scene; most of those draw calls were rider parts nobody can see in a
+// smeared wet-road reflection (ink outlines, eyes, buckles). Now it only sees layer 1: the world, every light (the
+// shaders must match the main pass or they recompile), and the big solid parts of bikes, riders and traffic.
+const REFL_LAYER = 1;
+function reflKeep(o, worldGroup) {
+  const u = o.userData; if (o.isLight || u.reflKeep) return true;
+  if (!o.isMesh || u.outline || u.noRefl) return false;                                 // particles, lines, sprites, ink shells
+  for (let p = o.parent; p; p = p.parent) if (p === worldGroup) return true;            // the world is already batched into a few big meshes
+  const ms = Array.isArray(o.material) ? o.material : [o.material];
+  if (ms.every(m => !m || m.transparent)) return false;                                  // glows, blur discs, shadow blobs, guide line
+  if (o.isInstancedMesh) return true;
+  return partRadius(o) >= 0.2;                                                           // ~20 cm: drops eyes, brows, bolts and badges
+}
 class WetReflect {
   constructor(renderer, scale) {
     this.r = renderer; this.scale = scale; this.h = 0; this.ok = !!renderer.capabilities.isWebGL2;
     if (!this.ok) return;
     this.rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, depthBuffer: true }); this.rt.texture.generateMipmaps = false;
-    REFL.U.tRefl.value = this.rt.texture; this.cam = new THREE.PerspectiveCamera();
+    REFL.U.tRefl.value = this.rt.texture; this.cam = new THREE.PerspectiveCamera(); this.cam.layers.set(REFL_LAYER);
     this.blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); this.blank.needsUpdate = true;
     this._n = new THREE.Vector3(0, 1, 0); this._p = new THREE.Vector3(); this._c = new THREE.Vector3(); this._v = new THREE.Vector3(); this._t = new THREE.Vector3(); this._la = new THREE.Vector3();
     this._rm = new THREE.Matrix4(); this._pl = new THREE.Plane(); this._cp = new THREE.Vector4(); this._q = new THREE.Vector4(); this.resize();
   }
   resize() { if (!this.ok) return; const sz = this.r.getDrawingBufferSize(new THREE.Vector2()); const w = Math.max(64, Math.round(sz.x * this.scale)), h = Math.max(36, Math.round(sz.y * this.scale)); this.rt.setSize(w, h); REFL.U.uRTexel.value.set(1 / w, 1 / h); }
   // mirror `camera` in the horizontal plane y = h and render the scene (minus `hide`) into the target
-  render(scene, camera, h, hide) {
-    if (!this.ok) return; const r = this.r, cam = this.cam, n = this._n;
+  // sort anything new into the mirror layer (each object is judged once; the walk itself is cheap)
+  mark(scene, worldGroup) { scene.traverse(o => { const u = o.userData; if (u.rf !== undefined) return; u.rf = reflKeep(o, worldGroup) ? 1 : 0; if (u.rf) o.layers.enable(REFL_LAYER); }); }
+  render(scene, camera, h, hide, worldGroup) {
+    if (!this.ok) return; const r = this.r, cam = this.cam, n = this._n; this.mark(scene, worldGroup);
     camera.updateMatrixWorld(); this._c.setFromMatrixPosition(camera.matrixWorld); if (this._c.y < h + 0.05) { REFL.U.uReflOn.value = 0; return; }
     this._p.set(this._c.x, h, this._c.z);
     this._v.subVectors(this._p, this._c).reflect(n).negate().add(this._p);                  // mirrored eye
@@ -6985,6 +7050,10 @@ const MASS = [
 
 // ===== 70_hud.js =====
 // ───────────────────────── RACE HUD ─────────────────────────
+// write-if-changed: the HUD runs every frame, and an unchanged write still costs the browser style work on cheap phones
+function setText(el, v) { v = String(v); if (el._t !== v) { el._t = v; el.textContent = v; } }
+function setAttr(el, k, v) { v = String(v); const c = el._a || (el._a = {}); if (c[k] !== v) { c[k] = v; el.setAttribute(k, v); } }
+function setStyle(el, k, v) { const c = el._s || (el._s = {}); if (c[k] !== v) { c[k] = v; el.style[k] = v; } }
 const CROWN_SVG = '<svg class="crown-i" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg>';
 class HUD {
   constructor(game) {
@@ -7040,37 +7109,37 @@ class HUD {
     const R = this.race; if (!R) return; const P = R.player;
     const rank = R.ranking(); const pos = rank.indexOf(P) + 1;
     const multi = R.riders.length > 1 && !R.police;
-    this.el.pos.textContent = multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱');
-    this.el.suf.textContent = multi ? ordinal(R.playerPos || pos) : '';
-    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); $('#heatFill').style.width = h.toFixed(1) + '%'; this.heatEl.classList.toggle('hot', h > 65);
-      $('#copGap').textContent = PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`; $('#heatLbl').textContent = PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'; }
+    setText(this.el.pos, multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱'));
+    setText(this.el.suf, multi ? ordinal(R.playerPos || pos) : '');
+    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
+      setText($('#copGap'), PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`); setText($('#heatLbl'), PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'); }
     // boost: banner on top + the dial turns electric
     if (P.boosting !== this.boostOn) { this.boostOn = P.boosting; const sp = this.el.speed.closest('.speedo'); sp.classList.toggle('boosting', P.boosting);
       if (P.boosting && !REDUCED_MOTION) { this.boostEl.hidden = false; this.boostEl.classList.remove('go'); void this.boostEl.offsetWidth; this.boostEl.classList.add('go'); } else if (!P.boosting) { clearTimeout(this._bbT); this._bbT = setTimeout(() => { if (!this.boostOn) this.boostEl.hidden = true; }, 250); } }
-    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); this.el.lap.textContent = `${lapShown}/${R.laps}`;
+    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); setText(this.el.lap, `${lapShown}/${R.laps}`);
     const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
-    this.el.time.textContent = fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt));
-    if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; this.el.best.textContent = fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9)); }
-    if (R.mode === 'stunt') this.el.best.textContent = fmtNum(R.score.stunts || 0) + ' pts';
+    setText(this.el.time, fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt)));
+    if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; setText(this.el.best, fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9))); }
+    if (R.mode === 'stunt') setText(this.el.best, fmtNum(R.score.stunts || 0) + ' pts');
     // speedo
-    const kmh = Math.round(P.v * 3.6); this.el.speed.textContent = kmh; this.el.gear.textContent = P.gear;
-    const f = clamp(P.rpm / 10500, 0, 1); this.el.arcFill.setAttribute('stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
-    this.el.needle.setAttribute('transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
-    const inBand = P.rpm >= 5500 && P.rpm <= 7500; this.el.arcBand.setAttribute('stroke-width', inBand ? 8 : 4); this.el.arcBand.setAttribute('opacity', inBand ? 1 : 0.55);
-    this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
+    const kmh = Math.round(P.v * 3.6); setText(this.el.speed, kmh); setText(this.el.gear, P.gear);
+    const f = clamp(P.rpm / 10500, 0, 1); setAttr(this.el.arcFill, 'stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
+    setAttr(this.el.needle, 'transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
+    const inBand = P.rpm >= 5500 && P.rpm <= 7500; setAttr(this.el.arcBand, 'stroke-width', inBand ? 8 : 4); setAttr(this.el.arcBand, 'opacity', inBand ? 1 : 0.55);
+    setStyle(this.el.kick, 'width', P.boost.toFixed(1) + '%'); this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
     { const rk = Math.round(P.boost); if (rk !== this._rk) { this._rk = rk; this.el.bring.style.strokeDashoffset = 100 - rk; this.el.bbFill.style.width = rk + '%'; } }
-    this.el.wob.className = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : '');
-    this.el.wrong.hidden = !(P.wrongT > 1);
+    { const wc = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : ''); if (this.el.wob.className !== wc) this.el.wob.className = wc; }
+    { const wh = !(P.wrongT > 1); if (this.el.wrong.hidden !== wh) this.el.wrong.hidden = wh; }
     this._tagPos = R.playerPos || pos; this._tagMulti = multi;
     // standings (5 Hz)
     this.lastStand -= dt;
     if (this.lastStand <= 0 && this.rows.length) { this.lastStand = 0.2;
       const lead = rank[0];
-      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; li.className = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : '') + (i === 0 ? ' lead' : ''); li.children[1].textContent = r.isPlayer ? 'You' : r.short;
+      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; { const lc = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : '') + (i === 0 ? ' lead' : ''); if (li.className !== lc) li.className = lc; } setText(li.children[1], r.isPlayer ? 'You' : r.short);
         const gap = i === 0 ? '' : r.finished && lead.finished ? '+' + (r.finishT - lead.finishT).toFixed(2) + 's' : r.eliminated ? 'OUT' : '+' + Math.min(99.99, (lead.dist - r.dist) / Math.max(6, (lead.v + r.v) / 2)).toFixed(2) + 's';
-        li.children[2].innerHTML = i === 0 ? CROWN_SVG : gap; }); }
+        { const gh = i === 0 ? CROWN_SVG : gap, c2 = li.children[2]; if (c2._h !== gh) { c2._h = gh; c2.innerHTML = gh; } } }); }
     // minimap dots
-    R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); dot.setAttribute('cx', mx.toFixed(1)); dot.setAttribute('cy', my.toFixed(1)); dot.style.display = r.eliminated ? 'none' : ''; });
+    R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); setAttr(dot, 'cx', mx.toFixed(1)); setAttr(dot, 'cy', my.toFixed(1)); setStyle(dot, 'display', r.eliminated ? 'none' : ''); });
     // weapons
     const w = P.weapons; const key = (w.melee ? w.melee.kind + w.melee.uses : '-') + (w.throw ? w.throw.kind + w.throw.uses : '-');
     if (key !== this.wKey) { this.wKey = key; let h = '';
@@ -7520,7 +7589,7 @@ class Game {
     let h = 0; if (this.race && this.state !== 'menu' && this.state !== 'garage') { const P = this.race.player; h = P.air ? this.race.track.gy(P.s, P.d) : P.y; } else if (this.menuRig) h = this.menuRig.root.position.y;
     this.reflH = this.reflH === undefined || Math.abs(h - this.reflH) > 3 ? h : this.reflH + (h - this.reflH) * Math.min(1, dt * 8);
     REFL.U.uRTime.value = this.t;
-    this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain, this.splash && this.splash.pts]).filter(Boolean));
+    this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain, this.splash && this.splash.pts]).filter(Boolean), this.world.group);
   }
   resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
   onFirstInteract() { if (this.firstInteract) return; this.firstInteract = true; $('#soundPill').hidden = true; }
@@ -7761,6 +7830,9 @@ class Game {
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
     if (this.state === 'loading') { this.last = now; INPUT.endFrame(); return; }   // the loading screen covers it; give the CPU to the build
+    // 120/144 Hz screens: draw every other refresh (60–72 fps) — twice the frames only heats the phone until it throttles.
+    // 60 and 90 Hz pass every refresh (16.7 / 11.1 ms gaps are above the 10 ms floor). Skipped refreshes keep their input for the next frame.
+    if (this.last && now - this.last < 10 && !URLP.has('nocap')) return;
     const rawDt = (now - this.last) / 1000; let dt = Math.min(0.1, rawDt); this.last = now; this.t += dt; this.govern(rawDt);
     if (this.bench) { this.bench.n++; if (this.bench.n > 30) this.bench.sum += dt; if (this.bench.n > 150) { const avg = this.bench.sum / 120; SAVE.settings.detected = avg > 0.034 ? 'low' : avg > 0.021 ? 'medium' : 'high'; persist(); this.bench = null; if (SAVE.settings.detected !== this.quality && this.state === 'menu') this.applyQuality(true); } }
     dt *= DEBUG.timescale;

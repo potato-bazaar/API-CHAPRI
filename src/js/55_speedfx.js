@@ -20,7 +20,7 @@ class SpeedFX {
   attach(scene) { scene.add(this.streaks); }
   resize() { const k = Math.min(1, 900 / Math.max(innerWidth, innerHeight)) * (devicePixelRatio > 1 ? 0.75 : 0.6); this.res = Math.max(0.35, k); this.canvas.width = Math.round(innerWidth * this.res); this.canvas.height = Math.round(innerHeight * this.res); }
   reset(race) { this.race = race; this.prevS = race.player.s; this.prevRel = new Map(); this.prevBoost = false; this.lastWhoosh = 0; this.lines.length = 0; this.sp.forEach(p => (p.alive = false)); this.fovPunch = 0; this.dip = 0; this.boostAmt = 0; this.intensity = 0; }
-  clear() { if (this.cleared) return; this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.vig.style.opacity = 0; this.vig.style.setProperty('--boost', 0); this.streaks.visible = false; this.cleared = true; $('.speedo') && $('.speedo').classList.remove('redline'); }
+  clear() { if (this.cleared) return; this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.vig.style.opacity = 0; this.vig.style.setProperty('--boost', 0); this._vop = this._vbb = null; this.streaks.visible = false; this.cleared = true; $('.speedo') && $('.speedo').classList.remove('redline'); }
   kick() {
     this.fovPunch = 13; this.dip = 0.24; this.game.shake(0.28);
     const f = this.flashEl; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
@@ -40,8 +40,8 @@ class SpeedFX {
     const target = racing ? clamp((kmh - 52) / 46, 0, 1) * 0.9 + this.boostAmt * 0.6 : 0;
     this.intensity = smooth(this.intensity, target * (REDUCED_MOTION ? 0.35 : 1), 5, dt);
     this.drawLines(dt, camera);
-    this.vig.style.opacity = (this.intensity * 0.55 + this.boostAmt * 0.3).toFixed(3);
-    this.vig.style.setProperty('--boost', this.boostAmt.toFixed(3));
+    { const op = (this.intensity * 0.55 + this.boostAmt * 0.3).toFixed(2), bb = this.boostAmt.toFixed(2);   // only touch the page when it changes
+      if (op !== this._vop) { this._vop = op; this.vig.style.opacity = op; } if (bb !== this._vbb) { this._vbb = bb; this.vig.style.setProperty('--boost', bb); } }
     const sp = $('.speedo'); if (sp) sp.classList.toggle('redline', racing && (P.rpm > 9300 || P.boosting) && !REDUCED_MOTION);
     this.updateStreaks(dt, P, T);
     this.whooshes(P, T, R);

@@ -1,4 +1,8 @@
 // ───────────────────────── RACE HUD ─────────────────────────
+// write-if-changed: the HUD runs every frame, and an unchanged write still costs the browser style work on cheap phones
+function setText(el, v) { v = String(v); if (el._t !== v) { el._t = v; el.textContent = v; } }
+function setAttr(el, k, v) { v = String(v); const c = el._a || (el._a = {}); if (c[k] !== v) { c[k] = v; el.setAttribute(k, v); } }
+function setStyle(el, k, v) { const c = el._s || (el._s = {}); if (c[k] !== v) { c[k] = v; el.style[k] = v; } }
 const CROWN_SVG = '<svg class="crown-i" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg>';
 class HUD {
   constructor(game) {
@@ -54,37 +58,37 @@ class HUD {
     const R = this.race; if (!R) return; const P = R.player;
     const rank = R.ranking(); const pos = rank.indexOf(P) + 1;
     const multi = R.riders.length > 1 && !R.police;
-    this.el.pos.textContent = multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱');
-    this.el.suf.textContent = multi ? ordinal(R.playerPos || pos) : '';
-    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); $('#heatFill').style.width = h.toFixed(1) + '%'; this.heatEl.classList.toggle('hot', h > 65);
-      $('#copGap').textContent = PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`; $('#heatLbl').textContent = PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'; }
+    setText(this.el.pos, multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱'));
+    setText(this.el.suf, multi ? ordinal(R.playerPos || pos) : '');
+    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
+      setText($('#copGap'), PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`); setText($('#heatLbl'), PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'); }
     // boost: banner on top + the dial turns electric
     if (P.boosting !== this.boostOn) { this.boostOn = P.boosting; const sp = this.el.speed.closest('.speedo'); sp.classList.toggle('boosting', P.boosting);
       if (P.boosting && !REDUCED_MOTION) { this.boostEl.hidden = false; this.boostEl.classList.remove('go'); void this.boostEl.offsetWidth; this.boostEl.classList.add('go'); } else if (!P.boosting) { clearTimeout(this._bbT); this._bbT = setTimeout(() => { if (!this.boostOn) this.boostEl.hidden = true; }, 250); } }
-    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); this.el.lap.textContent = `${lapShown}/${R.laps}`;
+    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); setText(this.el.lap, `${lapShown}/${R.laps}`);
     const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
-    this.el.time.textContent = fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt));
-    if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; this.el.best.textContent = fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9)); }
-    if (R.mode === 'stunt') this.el.best.textContent = fmtNum(R.score.stunts || 0) + ' pts';
+    setText(this.el.time, fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt)));
+    if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; setText(this.el.best, fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9))); }
+    if (R.mode === 'stunt') setText(this.el.best, fmtNum(R.score.stunts || 0) + ' pts');
     // speedo
-    const kmh = Math.round(P.v * 3.6); this.el.speed.textContent = kmh; this.el.gear.textContent = P.gear;
-    const f = clamp(P.rpm / 10500, 0, 1); this.el.arcFill.setAttribute('stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
-    this.el.needle.setAttribute('transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
-    const inBand = P.rpm >= 5500 && P.rpm <= 7500; this.el.arcBand.setAttribute('stroke-width', inBand ? 8 : 4); this.el.arcBand.setAttribute('opacity', inBand ? 1 : 0.55);
-    this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
+    const kmh = Math.round(P.v * 3.6); setText(this.el.speed, kmh); setText(this.el.gear, P.gear);
+    const f = clamp(P.rpm / 10500, 0, 1); setAttr(this.el.arcFill, 'stroke-dasharray', `${(f * 100).toFixed(1)} 100`);
+    setAttr(this.el.needle, 'transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
+    const inBand = P.rpm >= 5500 && P.rpm <= 7500; setAttr(this.el.arcBand, 'stroke-width', inBand ? 8 : 4); setAttr(this.el.arcBand, 'opacity', inBand ? 1 : 0.55);
+    setStyle(this.el.kick, 'width', P.boost.toFixed(1) + '%'); this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
     { const rk = Math.round(P.boost); if (rk !== this._rk) { this._rk = rk; this.el.bring.style.strokeDashoffset = 100 - rk; this.el.bbFill.style.width = rk + '%'; } }
-    this.el.wob.className = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : '');
-    this.el.wrong.hidden = !(P.wrongT > 1);
+    { const wc = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : ''); if (this.el.wob.className !== wc) this.el.wob.className = wc; }
+    { const wh = !(P.wrongT > 1); if (this.el.wrong.hidden !== wh) this.el.wrong.hidden = wh; }
     this._tagPos = R.playerPos || pos; this._tagMulti = multi;
     // standings (5 Hz)
     this.lastStand -= dt;
     if (this.lastStand <= 0 && this.rows.length) { this.lastStand = 0.2;
       const lead = rank[0];
-      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; li.className = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : '') + (i === 0 ? ' lead' : ''); li.children[1].textContent = r.isPlayer ? 'You' : r.short;
+      rank.forEach((r, i) => { const li = this.rows[i]; if (!li) return; { const lc = (r.isPlayer ? 'me' : '') + (r.eliminated ? ' out' : '') + (r.crashed ? ' down' : '') + (i === 0 ? ' lead' : ''); if (li.className !== lc) li.className = lc; } setText(li.children[1], r.isPlayer ? 'You' : r.short);
         const gap = i === 0 ? '' : r.finished && lead.finished ? '+' + (r.finishT - lead.finishT).toFixed(2) + 's' : r.eliminated ? 'OUT' : '+' + Math.min(99.99, (lead.dist - r.dist) / Math.max(6, (lead.v + r.v) / 2)).toFixed(2) + 's';
-        li.children[2].innerHTML = i === 0 ? CROWN_SVG : gap; }); }
+        { const gh = i === 0 ? CROWN_SVG : gap, c2 = li.children[2]; if (c2._h !== gh) { c2._h = gh; c2.innerHTML = gh; } } }); }
     // minimap dots
-    R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); dot.setAttribute('cx', mx.toFixed(1)); dot.setAttribute('cy', my.toFixed(1)); dot.style.display = r.eliminated ? 'none' : ''; });
+    R.riders.forEach((r, i) => { const dot = this.mmDots[i]; if (!dot) return; const T = R.track; const [ii, jj, ff] = T.idx(r.s); const x = lerp(T.px[ii], T.px[jj], ff), z = lerp(T.pz[ii], T.pz[jj], ff); const [mx, my] = this.mmMap(x, z); setAttr(dot, 'cx', mx.toFixed(1)); setAttr(dot, 'cy', my.toFixed(1)); setStyle(dot, 'display', r.eliminated ? 'none' : ''); });
     // weapons
     const w = P.weapons; const key = (w.melee ? w.melee.kind + w.melee.uses : '-') + (w.throw ? w.throw.kind + w.throw.uses : '-');
     if (key !== this.wKey) { this.wKey = key; let h = '';

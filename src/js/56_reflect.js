@@ -41,20 +41,35 @@ vec3 rRipple(vec2 p, float t){ vec3 acc = vec3(0.0);
     mat.customProgramCacheKey = () => key() + '|refl'; mat.needsUpdate = true;
   },
 };
+// What the mirror draws. It used to redraw the whole scene; most of those draw calls were rider parts nobody can see in a
+// smeared wet-road reflection (ink outlines, eyes, buckles). Now it only sees layer 1: the world, every light (the
+// shaders must match the main pass or they recompile), and the big solid parts of bikes, riders and traffic.
+const REFL_LAYER = 1;
+function reflKeep(o, worldGroup) {
+  const u = o.userData; if (o.isLight || u.reflKeep) return true;
+  if (!o.isMesh || u.outline || u.noRefl) return false;                                 // particles, lines, sprites, ink shells
+  for (let p = o.parent; p; p = p.parent) if (p === worldGroup) return true;            // the world is already batched into a few big meshes
+  const ms = Array.isArray(o.material) ? o.material : [o.material];
+  if (ms.every(m => !m || m.transparent)) return false;                                  // glows, blur discs, shadow blobs, guide line
+  if (o.isInstancedMesh) return true;
+  return partRadius(o) >= 0.2;                                                           // ~20 cm: drops eyes, brows, bolts and badges
+}
 class WetReflect {
   constructor(renderer, scale) {
     this.r = renderer; this.scale = scale; this.h = 0; this.ok = !!renderer.capabilities.isWebGL2;
     if (!this.ok) return;
     this.rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, depthBuffer: true }); this.rt.texture.generateMipmaps = false;
-    REFL.U.tRefl.value = this.rt.texture; this.cam = new THREE.PerspectiveCamera();
+    REFL.U.tRefl.value = this.rt.texture; this.cam = new THREE.PerspectiveCamera(); this.cam.layers.set(REFL_LAYER);
     this.blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); this.blank.needsUpdate = true;
     this._n = new THREE.Vector3(0, 1, 0); this._p = new THREE.Vector3(); this._c = new THREE.Vector3(); this._v = new THREE.Vector3(); this._t = new THREE.Vector3(); this._la = new THREE.Vector3();
     this._rm = new THREE.Matrix4(); this._pl = new THREE.Plane(); this._cp = new THREE.Vector4(); this._q = new THREE.Vector4(); this.resize();
   }
   resize() { if (!this.ok) return; const sz = this.r.getDrawingBufferSize(new THREE.Vector2()); const w = Math.max(64, Math.round(sz.x * this.scale)), h = Math.max(36, Math.round(sz.y * this.scale)); this.rt.setSize(w, h); REFL.U.uRTexel.value.set(1 / w, 1 / h); }
   // mirror `camera` in the horizontal plane y = h and render the scene (minus `hide`) into the target
-  render(scene, camera, h, hide) {
-    if (!this.ok) return; const r = this.r, cam = this.cam, n = this._n;
+  // sort anything new into the mirror layer (each object is judged once; the walk itself is cheap)
+  mark(scene, worldGroup) { scene.traverse(o => { const u = o.userData; if (u.rf !== undefined) return; u.rf = reflKeep(o, worldGroup) ? 1 : 0; if (u.rf) o.layers.enable(REFL_LAYER); }); }
+  render(scene, camera, h, hide, worldGroup) {
+    if (!this.ok) return; const r = this.r, cam = this.cam, n = this._n; this.mark(scene, worldGroup);
     camera.updateMatrixWorld(); this._c.setFromMatrixPosition(camera.matrixWorld); if (this._c.y < h + 0.05) { REFL.U.uReflOn.value = 0; return; }
     this._p.set(this._c.x, h, this._c.z);
     this._v.subVectors(this._p, this._c).reflect(n).negate().add(this._p);                  // mirrored eye

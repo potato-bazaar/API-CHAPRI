@@ -203,6 +203,13 @@ function blobShadowTex() {
   g.addColorStop(0, 'rgba(0,0,0,0.82)'); g.addColorStop(0.45, 'rgba(0,0,0,0.6)'); g.addColorStop(0.8, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   x.fillStyle = g; x.fillRect(0, 0, 64, 64); return TEX.blobShadow = new THREE.CanvasTexture(c);
 }
+// a part's real size in metres (rider meshes are quantised: their raw bounds are in packed units)
+function partRadius(o) {
+  const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingSphere) return 1;
+  let s; if (o.isSkinnedMesh) { const dq = RIDER_MODEL.deq && RIDER_MODEL.deq[o.name]; s = dq ? dq.x : o.bindMatrix.getMaxScaleOnAxis(); }
+  else { o.updateWorldMatrix(true, false); s = o.matrixWorld.getMaxScaleOnAxis(); }
+  return g.boundingSphere.radius * s;
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -278,17 +285,59 @@ class BikeRig {
   }
   // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
   // outline shells for every solid, opaque part (skips glows, blur discs, eyes and anything transparent)
-  addOutlines() {
+  // minR: smallest part (real size, metres) that gets a shell — rivals skip brows, buckles and bolts nobody sees at speed
+  addOutlines(minR = 0.025) {
     if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
-      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
+      if (partRadius(m) < minR) return; list.push(m); });
     for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
       const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, om) : new THREE.Mesh(m.geometry, om);
       if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
     this.outlineOn = true;
   }
   setOutline(on) { if (!this.outlines || on === this.outlineOn) return; this.outlineOn = on; for (const o of this.outlines) o.visible = on; }
+  // Fewer draw calls for racing rigs: sibling parts that share a material and are never moved, hidden or recoloured on
+  // their own get welded into one mesh (in their parent's space, so wheels, fork and bones still carry them). Anything the
+  // rig keeps a handle on (weapons, props, lights, jets) is left alone. Call before addOutlines.
+  mergeParts() {
+    if (this.merged) return; this.merged = true;
+    const keep = new Set(), seen = new Set();
+    const grab = (v, d) => { if (!v || typeof v !== 'object' || seen.has(v)) return; seen.add(v); if (v.isObject3D) { keep.add(v); return; } if (v.isMaterial || v.isBufferGeometry || v.isTexture || d > 2) return; for (const x of Array.isArray(v) ? v : Object.values(v)) grab(x, d + 1); };
+    for (const v of Object.values(this)) grab(v, 0);   // e.g. this.mods.flames / siren, this.jets, this.wRod …
+    const groups = new Map(), noop = THREE.Object3D.prototype.onBeforeRender;
+    this.root.traverse(o => {
+      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || keep.has(o) || !o.visible || !o.parent || o.children.length || Array.isArray(o.material) || o.onBeforeRender !== noop || o.userData.outline) return;
+      const g = o.geometry; if (!g || g.groups.length > 1 || g.morphAttributes.position || g.attributes.tangent || !g.attributes.position) return;
+      for (let p = o.parent; p && p !== this.root; p = p.parent) if (!p.visible || p === this.cig || p === this.can) return;   // props shown later (cig.children[0] is read by index)
+      const key =o.material.id + '|' + o.renderOrder + '|' + o.castShadow + o.receiveShadow + o.frustumCulled + '|' + Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',');
+      let pm = groups.get(o.parent); if (!pm) groups.set(o.parent, pm = new Map()); const a = pm.get(key); if (a) a.push(o); else pm.set(key, [o]);
+    });
+    let saved = 0; const v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    for (const [parent, pm] of groups) for (const list of pm.values()) {
+      if (list.length < 2) continue;
+      const names = Object.keys(list[0].geometry.attributes); let nv = 0, ni = 0;
+      for (const m of list) { const g = m.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+      const out = {}; for (const k of names) out[k] = new Float32Array(nv * list[0].geometry.attributes[k].itemSize);
+      const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni); let vo = 0, io = 0;
+      for (const m of list) {
+        const g = m.geometry, n = g.attributes.position.count; m.updateMatrix(); nm.getNormalMatrix(m.matrix);
+        for (const k of names) { const A = g.attributes[k], s = A.itemSize, dst = out[k];
+          for (let i = 0; i < n; i++) {
+            if (k === 'position') { v.fromBufferAttribute(A, i).applyMatrix4(m.matrix); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+            else if (k === 'normal') { v.fromBufferAttribute(A, i).applyMatrix3(nm).normalize(); dst[(vo + i) * 3] = v.x; dst[(vo + i) * 3 + 1] = v.y; dst[(vo + i) * 3 + 2] = v.z; }
+            else { dst[(vo + i) * s] = A.getX(i); if (s > 1) dst[(vo + i) * s + 1] = A.getY(i); if (s > 2) dst[(vo + i) * s + 2] = A.getZ(i); if (s > 3) dst[(vo + i) * s + 3] = A.getW(i); }
+          } }
+        if (g.index) { const ix = g.index; for (let i = 0; i < ix.count; i++) idx[io++] = ix.getX(i) + vo; } else for (let i = 0; i < n; i++) idx[io++] = vo + i;
+        vo += n;
+      }
+      const geo = new THREE.BufferGeometry(); for (const k of names) geo.setAttribute(k, new THREE.BufferAttribute(out[k], list[0].geometry.attributes[k].itemSize));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeBoundingSphere(); geo.computeBoundingBox(); this.geoms.push(geo);
+      const f = list[0], mesh = new THREE.Mesh(geo, f.material); mesh.renderOrder = f.renderOrder; mesh.castShadow = f.castShadow; mesh.receiveShadow = f.receiveShadow; mesh.frustumCulled = f.frustumCulled; mesh.name = 'merged';
+      for (const m of list) parent.remove(m); parent.add(mesh); saved += list.length - 1;
+    }
+    return saved;
+  }
   // a parked bike (menu, garage) gets its contact shadow as a child; racing bikes get theirs from the race (they lean)
   addBlob() { if (this.blob) return; this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     this.blob.position.y = 0.025; this.blob.renderOrder = 2; this.root.add(this.blob); }

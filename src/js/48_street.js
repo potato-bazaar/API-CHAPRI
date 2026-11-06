@@ -35,7 +35,7 @@ class StreetOps {
       g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
       if (!TEX.boltGlow) { const [c, x] = mkCanvas(64, 4); const gr = x.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.42, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.5, 'rgba(255,255,255,1)'); gr.addColorStop(0.58, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 4); TEX.boltGlow = new THREE.CanvasTexture(c); }
       this.bolts = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: TEX.boltGlow, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false }));
-      this.bolts.frustumCulled = false; this.bolts.visible = false; this.bolts.renderOrder = 6; race.group.add(this.bolts); this.boltT = 0; this.boltPaths = []; this.zapK = 0; this._a = this._a || new THREE.Vector3(); this._b = this._b || new THREE.Vector3(); }
+      this.bolts.frustumCulled = false; this.bolts.userData.reflKeep = true; this.bolts.visible = false; this.bolts.renderOrder = 6; race.group.add(this.bolts); this.boltT = 0; this.boltPaths = []; this.zapK = 0; this._a = this._a || new THREE.Vector3(); this._b = this._b || new THREE.Vector3(); }
     this.hemiBase = W.hemi.color.clone(); this.fogBase = W.fog ? W.fog.color.clone() : null;
     // ── boost ring (Auto Rush style): a segmented ring on the road round your bike. It fills from the back, both sides
     // at once, so from the chase cam it reads like a gauge; full ring = it pulses; while you burn it the lit arc drains.
