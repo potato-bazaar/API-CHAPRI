@@ -144,7 +144,11 @@ class RiderModel {
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;
-    if (acc.head) holder('Head').add(acc.head); if (acc.neck) holder('neck_01').add(acc.neck); if (acc.chest) holder('spine_03').add(acc.chest); if (acc.wrist) holder('lowerarm_l').add(acc.wrist);
+    // face markers (head-bone space, +y up, +z forward, +x the rider's left): gestures aim the hands at these
+    const hh = holder('Head'); if (acc.head) hh.add(acc.head); this.shades = acc.shades || null; this.headH = hh;
+    this.marks = {}; for (const [k, x, y, z] of [['mouth', 0, 0.03, 0.112], ['crown', 0, 0.215, -0.01], ['tL', 0.072, 0.105, 0.07], ['tR', -0.072, 0.105, 0.07], ['lipR', -0.034, 0.036, 0.1], ['brow', 0, 0.15, 0.115]]) { const m = new THREE.Object3D(); m.position.set(x, y, z); hh.add(m); this.marks[k] = m; }
+    this.face = {}; for (const k in this.marks) this.face[k] = new THREE.Vector3();
+    if (acc.neck) holder('neck_01').add(acc.neck); if (acc.chest) holder('spine_03').add(acc.chest); if (acc.wrist) holder('lowerarm_l').add(acc.wrist);
     for (const k of ['head', 'chest', 'wrist']) if (acc[k]) acc[k].traverse(m => { if (m.isMesh) m.castShadow = cast; });
     this.hands = { l: new THREE.Vector3(), r: new THREE.Vector3() }; this.elbows = { l: new THREE.Vector3(), r: new THREE.Vector3() };
   }
@@ -193,6 +197,7 @@ class RiderModel {
       const curl = crashed ? 0.3 : 1.15; for (const f of this.fingers) f.bone.quaternion.copy(f.q0).multiply(q.setFromAxisAngle(f.axis, f.amt * curl));
       for (const s of SIDES) { const h = wpos(B['hand_' + s], this.hands[s]), e = wpos(B['lowerarm_' + s], this.elbows[s]);
         h.multiplyScalar(sc).add(_rv[9].set(px, py, pz)); e.multiplyScalar(sc).add(_rv[9]); }
+      upd(this.headH); for (const k in this.marks) wpos(this.marks[k], this.face[k]).multiplyScalar(sc).add(_rv[9]);   // face points, bike-body space
       this.cloth.capture(B, this.invBind, sc, px, py, pz);
     } finally { R.parent = parent; R.position.set(px, py, pz); R.scale.setScalar(sc); }
   }
@@ -254,7 +259,7 @@ function riderAccessories(o) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.13, 5).rotateX(Math.PI / 2), fr); arm.position.set(sx * 0.071, 0.009, -0.06); arm.rotation.y = -sx * 0.13; g.add(arm); out.geoms.push(arm.geometry); }
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.03, 5).rotateZ(Math.PI / 2), fr); bar.position.set(0, 0.0125, 0.003); g.add(bar);
     const nose = new THREE.Mesh(new THREE.TorusGeometry(0.008, 0.0016, 4, 10, Math.PI), fr); nose.position.set(0, 0.003, 0.004); g.add(nose); out.geoms.push(bar.geometry, nose.geometry);
-    if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g;
+    if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g; out.shades = g; g.userData.y0 = g.position.y; g.userData.z0 = g.position.z;
   }
   if (o.goldChain) { // a heavy curb chain on the collarbones with a thin one and a pendant below it (chest holder: spine_03 at y 1.311)
     const A = accMats(), cy = 1.311, cz = 0.007, path = (dy, dz, w) => new THREE.CatmullRomCurve3([[0, 1.535 - dy * 0.3, -0.098], [w * 0.62, 1.525 - dy * 0.4, -0.07], [w, 1.49 - dy * 0.6, 0.01], [w * 0.78, 1.45 - dy, 0.075 + dz], [w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [0, 1.4 - dy * 1.25, 0.117 + dz], [-w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [-w * 0.78, 1.45 - dy, 0.075 + dz], [-w, 1.49 - dy * 0.6, 0.01], [-w * 0.62, 1.525 - dy * 0.4, -0.07]].map(([x, y, z]) => new THREE.Vector3(x, y - cy, z - cz)), true);

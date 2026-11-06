@@ -39,6 +39,11 @@ class Race {
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
     this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
     this.combat = new Combat(this); this.group.add(this.combat.group);
+    // swagger: each rider does a style move now and then on a calm stretch; smoke from the cigarette drifts back off the bike
+    const pv = new THREE.Vector3();
+    this.riders.forEach(r => { r.swagT = (r.isPlayer ? 5 : 9) + RNG() * 8; r.rig.onPuff = (mark, k) => { if (!r.isPlayer && this.distToPlayer(r) < 0.2) return; mark.getWorldPosition(pv); const yaw = r.rig.root.rotation.y;
+      const out = k >= 1 ? 1.1 + Math.random() * 0.6 : 0.1, rx = -Math.cos(yaw), rz = Math.sin(yaw), keep = k >= 1 ? 0.9 : 0.85;   // exhale: blown out to his right, then it streams back
+      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.14 : 0.05, k >= 1 ? 0.95 + Math.random() * 0.4 : 0.35, C_SMOKE, k >= 1 ? 0.5 : 0.3, 1.6, -0.12); }; });
     // time trial ghost
     this.ghostRec = []; this.ghostRecLap = []; this.ghost = null;
     if (this.mode === 'timetrial' && SAVE.ghosts[this.def.id]) { this.ghost = { data: SAVE.ghosts[this.def.id], rig: new BikeRig({ ...look, ghost: true, lod: true }) }; makeGhost(this.ghost.rig); this.group.add(this.ghost.rig.root); }
@@ -134,6 +139,7 @@ class Race {
           if (this.track.wAt(P.s) < 7.2) { pts += this.award('squeeze', PTS.squeeze); this.hud.callout('EKDUM TIGHT!', `+${pts}`, 'good'); }
           else this.hud.callout(chained ? 'DOUBLE OVERTAKE' : 'OVERTAKE', `+${pts}`, 'good');
           this.game.comicPop(chained ? 'ZOOOM ZOOOM!' : 'ZOOOM!', r, 0.85, '#7df9ff');
+          if (Math.random() < 0.45) { P.rig.gesture(Math.random() < 0.6 ? 'lookback' : 'wave', r.d > P.d ? 1 : -1); P.swagT = Math.max(P.swagT, 4); }
         }
       } else if (!this.aheadSet.has(r) && ahead) this.aheadSet.add(r);
       // near misses
@@ -203,7 +209,7 @@ class Race {
     if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
   }
-  onRespawn(r) { if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); }
+  onRespawn(r) { if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
   onPothole(r, h) {
     this.combat.splash(r, h.big ? 1 : 0.5, this.wet);
     if (!r.isPlayer) return;
@@ -227,7 +233,7 @@ class Race {
   onSlip(r) { if (!r.isPlayer) return; AUDIO.squeal(0.9); this.hud.callout('PHISAL GAYA!', null, 'bad'); this.game.comicPop('SKRRRT!', r, 0.9, '#9cc2ff'); }
   onLand(r, impact) { if (r.isPlayer && impact > 3.5) { this.game.shake(clamp(impact / 14, 0.15, 0.5)); this.game.comicPop && this.game.comicPop('DHAMM!', r, 0.8); } }
   onWall(r, into) { this.combat.wallSparks && this.combat.wallSparks(r, into); if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
-  onAir(r, t) { if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
+  onAir(r, t) { if (t > 0.8 && Math.random() < 0.6) { r.rig.gesture('hair', 1); r.swagT = Math.max(r.swagT || 0, 4); } if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
   onWheelie(r, dist) { if (r.isPlayer) { const pts = this.award('stunts', Math.min(150, dist)); this.score.wheelies = (this.score.wheelies || 0) + 1; this.hud.callout(`WHEELIE ${Math.round(dist)} m`, `+${pts}`, 'stunt'); if (dist > 10) dailyProgress('wheelies', 1); } }
   onStoppie(r, t) { if (r.isPlayer && this.raceT - (this._stoppieT || -9) > 5) { this._stoppieT = this.raceT; const pts = this.award('stunts', clamp(20 + 60 * (t - 0.5) / 0.9, 20, 80)); this.score.stoppies = (this.score.stoppies || 0) + 1; this.hud.callout('STOPPIE', `+${pts}`, 'stunt'); } }
   onHit(t, a, kind) {
@@ -264,10 +270,20 @@ class Race {
       const wob = r.wobble > 30 && !r.crashed ? Math.sin(this.raceT * 28 + r.idx) * (r.wobble - 30) / 70 * 0.12 : 0;
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
+      this.swagger(r, dt);
       r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }
+  }
+  // style moves on calm stretches: not mid-corner, not in the air, not mid-fight, not on a bad surface
+  swagger(r, dt) {
+    if (this.state !== 'racing' || r.crashed || r.finished) return; r.swagT -= dt; if (r.swagT > 0) return;
+    const T = this.track, calm = !r.air && r.v > 7 && Math.abs(r.lean) < 0.2 && Math.abs(T.kAt(r.s)) < 1 / 90 && !r.wheelie && !r.stoppie && r.surf === 0 && r.wobble < 25 && (!r.isPlayer || Math.abs(r.input.steer) < 0.35);
+    if (!calm) { r.swagT = 0.5; return; }
+    const pool = SAVE.settings.smoking !== false ? ['smoke', 'smoke', 'hair', 'hair', 'mustache', 'shades', 'scratch', 'wave'] : ['hair', 'hair', 'mustache', 'shades', 'scratch', 'wave'];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
   dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); }
 }

@@ -354,6 +354,9 @@ class Game {
   menuFrame(dt, inp) {
     const rig = this.menuRig; if (!rig || !this.track) return; this.heroLights(this.state === 'menu' || this.state === 'garage' || this.state === 'store');
     if (this.avatarDue > 0 && --this.avatarDue === 0) { try { this.shootAvatar(); } catch (e) { /* keep the drawn avatar */ } }
+    // home screen: the rider shows off now and then (hair, shades, moustache, a smoke)
+    if (this.state === 'menu') { this.menuSwagT = (this.menuSwagT ?? 4) - dt; if (this.menuSwagT < 0) { const pool = SAVE.settings.smoking !== false ? ['smoke', 'hair', 'shades', 'mustache', 'smoke', 'hair'] : ['hair', 'shades', 'mustache', 'scratch']; rig.gesture(pool[Math.floor(Math.random() * pool.length)], 1); this.menuSwagT = 6 + Math.random() * 5; } }
+    if (!rig.onPuff && this.menuSmoke) { const pv = new THREE.Vector3(); rig.onPuff = (mark, k) => { mark.getWorldPosition(pv); this.menuSmoke.emit(pv.x, pv.y, pv.z, (Math.random() - 0.5) * 0.25, 0.2 + Math.random() * 0.15, (Math.random() - 0.5) * 0.25, 2.2, 0.04, 0.45, C_SMOKE, 0.4 * k, 0.8, -0.05); }; }
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);

@@ -171,6 +171,8 @@ class UI {
       <div class="set-row"><label>Camera</label><div class="seg" id="setCam">${['Chase', 'Far', 'Helmet'].map((n, i) => `<button type="button" data-cam="${i}" class="${S.camera === i ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Graphics quality<br><small class="muted">Auto picks a tier from a short benchmark${S.detected ? ` (picked ${S.detected})` : ''}</small></label><div class="seg" id="setQ">${['auto', 'low', 'medium', 'high'].map(q => `<button type="button" data-q="${q}" class="${S.quality === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('')}</div></div>
       ${tog('setComic', 'Comic-book style', S.comic, 'Ink outlines, halftone shading and DHISHOOM pop-ups. Off on Low graphics')}
+      ${tog('setSA', 'Steering assist', S.steerAssist !== false, 'Left/right points the bike off the road and it follows the curve when you let go. Off: classic lean steering')}
+      ${tog('setSmoke', 'Rider smokes', S.smoking !== false, 'The rider lights up now and then as one of his style moves')}
       ${tog('setWA', 'Wheelie assist', S.wheelieAssist, 'Holds the balance point for you')}
       ${tog('setMG', 'Manual gears', S.manualGears, 'Shift with X / Z')}
       ${IS_TOUCH ? tog('setTilt', 'Tilt to lean', S.tilt, 'Steer by tilting your phone') : ''}
@@ -183,7 +185,7 @@ class UI {
     $('#setMusic').addEventListener('input', (e) => { S.music = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $$('[data-cam]').forEach(b => b.addEventListener('click', () => { S.camera = +b.dataset.cam; persist(); this.renderSettings(); }));
     $$('[data-q]').forEach(b => b.addEventListener('click', () => { S.quality = b.dataset.q; persist(); this.renderSettings(); this.game.applyQuality(true); }));
-    const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration' };
+    const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration', setSA: 'steerAssist', setSmoke: 'smoking' };
     $$('[data-tog]').forEach(b => b.addEventListener('click', async () => { const k = map[b.dataset.tog]; S[k] = true; if (k === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) { try { await DeviceOrientationEvent.requestPermission(); } catch (_) {} } persist(); this.renderSettings(); }));
     $$('[data-tog-off]').forEach(b => b.addEventListener('click', () => { S[map[b.dataset.togOff]] = false; persist(); this.renderSettings(); }));
     $$('[data-key]').forEach(b => b.addEventListener('click', () => { b.classList.add('listen'); b.textContent = 'press…'; INPUT.listenCb = (code) => { const a = b.dataset.key; S.keys = Object.assign({}, S.keys || {}, { [a]: [code] }); persist(); this.renderSettings(); }; }));

@@ -134,6 +134,19 @@ const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.37
 const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   new THREE.MeshBasicMaterial({ color: '#e8fbff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })];
 
+// ── swagger: style moves while riding (one hand off the bar) and reactions to being hit ──
+// durations in seconds; 'smoke' is skipped when the player turns smoking off in Settings
+const GESTURES = { smoke: 3.0, scratch: 1.7, hair: 1.4, mustache: 1.6, shades: 1.7, lookback: 1.4, shout: 1.3, glance: 0.7, wave: 1.5 };
+let CIG = null;
+function cigAssets() {
+  if (CIG) return CIG; const b = new Batch(), M = new THREE.Matrix4();
+  // a touch oversized (stylised) so it reads from the chase camera: white paper, tan filter, a glowing tip that blooms
+  b.add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.07, 8).translate(0, 0.015, 0), M, new THREE.Color('#f7f4ee'));
+  b.add(new THREE.CylinderGeometry(0.0068, 0.0068, 0.025, 8).translate(0, -0.032, 0), M, new THREE.Color('#d08a35'));
+  CIG = { g: b.build(), ember: new THREE.SphereGeometry(0.0075, 10, 8), emberMat: new THREE.MeshBasicMaterial({ color: '#ff6a1a' }) };
+  return CIG;
+}
+const _gv = Array.from({ length: 6 }, () => new THREE.Vector3()), _ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // spinning spokes alias into a frozen or backwards wheel at speed (each frame turns them ~80°). Over the spokes sits a
 // motion-blur disc: a blurred spoke sheet with bright streak arcs that turns at a readable rate, fading in with speed.
 let WHEEL_BLUR = null;
@@ -212,6 +225,7 @@ class BikeRig {
     if (this.rm) this.body.add(this.weapon); else { this.weapon.position.set(0, 0, 0.58); this.armR.add(this.weapon); }
     this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT); this.wLathi = new THREE.Mesh(LATHI_G, BIKE_MAT);
     this.weapon.add(this.wChain, this.wBelt, this.wBottle, this.wLathi); this.showWeapon(null);
+    if (this.rm && !o.ghost) { const C = cigAssets(); this.cig = new THREE.Mesh(C.g, BIKE_MAT); const em = new THREE.Mesh(C.ember, C.emberMat); em.position.y = 0.05; em.scale.y = 0.6; this.cig.add(em); this.cig.visible = false; this.body.add(this.cig); }
     // blob shadow
     this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.blob, transparent: true, depthWrite: false, opacity: 0.8 }));
     this.blob.position.y = 0.03; this.blob.renderOrder = 1; this.root.add(this.blob);
@@ -221,6 +235,14 @@ class BikeRig {
   }
   showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.wLathi.visible = kind === 'lathi'; this.heldKind = kind; }
   play(name, side = 1, dur = 0.4) { this.anim = { name, side, t: 0, dur }; }
+  // a style move, if the hands are free; false when something else is playing (or there's no skinned rider)
+  gesture(name, side = 1) { if (this.anim || !this.rm || !GESTURES[name]) return false; this.play(name, side, GESTURES[name]); return true; }
+  // reactions: a hit snaps the body, then (often) he turns and shouts at whoever did it; a bump is a quick glance
+  react(kind, side) {
+    if (!this.rm) return;
+    if (kind === 'hit') { this.play('hit', side, 0.35); this.queued = Math.random() < 0.65 ? ['shout', side] : null; }
+    else if (kind === 'bump' && !this.anim) this.play('glance', side, GESTURES.glance);
+  }
   setPitch(p) { // p>0 wheelie (pivot rear contact), p<0 stoppie (pivot front contact)
     const pivotZ = p >= 0 ? REAR_Z : FRONT_Z; const a = -p;
     this.pitchG.rotation.x = a;
@@ -267,7 +289,9 @@ class BikeRig {
       } else if (A.name === 'throw') { const tgt = ph < 0.4 ? new THREE.Vector3(-0.35, 1.6, -0.4) : new THREE.Vector3(-0.3, 1.25, 0.9); armRTarget = tgt; }
       else if (A.name === 'spit') { this.headG.rotation.x += 0.35 * pulse; this.headG.rotation.y = s * 1.1 * pulse; }
       else if (A.name === 'hit') { this.torsoG.rotation.z += s * 0.45 * pulse; this.headG.rotation.z += s * 0.5 * pulse; }
-      if (A.t >= A.dur) this.anim = null;
+      else if (this.rm && GESTURES[A.name]) { const T = this.gestureTargets(A, ph, armLTarget, armRTarget); armLTarget = T[0]; armRTarget = T[1]; }
+      if (A.t >= A.dur) { this.anim = null; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
+        if (this.queued) { const [n, sd] = this.queued; this.queued = null; this.play(n, sd, GESTURES[n]); } }
     }
     if (st.celebrate) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
     if (st.crashed) { this.torsoG.rotation.x = -0.6; armLTarget = new THREE.Vector3(0.6, 1.4, 0.1); armRTarget = new THREE.Vector3(-0.6, 1.4, 0.1); }
@@ -276,7 +300,7 @@ class BikeRig {
       // far-away riders re-pose less often (the bike's lean and pitch still move every frame)
       const cam = typeof GAME !== 'undefined' && GAME && GAME.camera; const far = cam ? cam.position.distanceToSquared(this.root.position) : 0;
       this._poseN = (this._poseN || 0) + 1; const every = far > 3600 ? 4 : far > 625 ? 2 : 1;
-      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); }
+      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); }
       if (far < 4900) this.rm.cloth.step(dt, st.speed || 0, far > 900);
       return;
     }
@@ -292,6 +316,58 @@ class BikeRig {
     const side = this.anim && this.anim.name === 'swing' && this.anim.side > 0 ? 'l' : 'r';   // left-hand swings carry the weapon in the left fist
     const h = this.rm.hand(side), dir = _wv[2].subVectors(h, this.rm.elbow(side)).normalize();
     this.weapon.position.copy(h).addScaledVector(dir, 0.06); this.weapon.quaternion.setFromUnitVectors(Z_AXIS, dir).multiply(_wq.setFromAxisAngle(_wv[3].set(1, 0, 0), this.wPitch * 0.6));
+  }
+  // hand targets (bike-body space) and head/torso offsets for one frame of a style move. ph: 0..1 through the move
+  gestureTargets(A, ph, aL, aR) {
+    const F = this.rm.face, H = this.headG.rotation, t = A.t, s = A.side, G = this.fit.grip;
+    const gR = _gv[0].set(-G[0], G[1], G[2]), gL = _gv[1].set(G[0], G[1], G[2]); let L = aL, R = aR;
+    const env = (a, b, c, d) => _ss(a, b, ph) * (1 - _ss(c, d, ph));
+    if (A.name === 'smoke') {   // drag, head back, blow it out to the side, flick the ash, back to the bar
+      const reach = env(0, 0.12, 0.86, 1), out = env(0.38, 0.5, 0.8, 0.88);
+      const mouth = _gv[2].copy(F.mouth).add(_gv[3].set(-0.035, -0.055, 0.03));
+      const hold = _gv[3].set(-0.44, F.mouth.y - 0.44, F.mouth.z - 0.1);   // hand dropped out by the side, the cigarette pointing out if (ph > 0.6 && ph < 0.7) hold.y += Math.sin((ph - 0.6) * 60) * 0.025;
+      R = _gv[4].copy(gR).lerp(mouth.lerp(hold, out), reach);
+      H.x -= 0.2 * env(0.14, 0.24, 0.34, 0.42); H.y -= 0.4 * env(0.38, 0.46, 0.62, 0.74); H.x -= 0.1 * env(0.38, 0.46, 0.62, 0.74);
+      if (this.cig) { this.cig.visible = ph > 0.04 && ph < 0.92; this.cig.children[0].material.color.setRGB(1, 0.32 + 0.3 * env(0.15, 0.2, 0.34, 0.4), 0.08); }
+      if (this.onPuff && ((ph > 0.42 && ph < 0.64) || (ph > 0.25 && ph < 0.34 && Math.random() < 0.3))) this.onPuff(this.rm.marks.mouth, ph > 0.42 ? 1 : 0.4);
+      else if (this.onPuff && this.cig && this.cig.visible && Math.random() < 0.35) this.onPuff(this.cig.children[0], 0.3);   // a thin wisp off the tip
+    } else if (A.name === 'scratch') {   // left hand into the back of the hair, a few scratches, head tipped
+      const reach = env(0, 0.2, 0.8, 1), osc = env(0.25, 0.3, 0.72, 0.78);
+      L = _gv[4].copy(gL).lerp(_gv[2].copy(F.crown).add(_gv[3].set(0.05 + Math.sin(t * 24) * 0.02 * osc, -0.08, -0.07 + Math.cos(t * 24) * 0.014 * osc)), reach);
+      H.z += 0.16 * reach; H.x += 0.12 * reach;
+    } else if (A.name === 'hair') {   // comb the pompadour back with the right hand, chin up
+      const reach = env(0, 0.15, 0.75, 1), u = _ss(0.15, 0.68, ph);
+      const front = _gv[2].copy(F.brow).add(_gv[3].set(-0.03, -0.04, 0.09)), back = _gv[5].copy(F.crown).add(_gv[3].set(-0.03, -0.02, -0.1));
+      R = _gv[4].copy(gR).lerp(front.lerp(back, u), reach); H.x -= 0.18 * reach * (0.4 + u * 0.6); H.y -= 0.12 * reach;
+    } else if (A.name === 'mustache') {   // twirl the right end of the moustache, smug look to the side
+      const reach = env(0, 0.18, 0.78, 1), osc = env(0.2, 0.26, 0.7, 0.76), a = t * 18;
+      R = _gv[4].copy(gR).lerp(_gv[2].copy(F.lipR).add(_gv[3].set(-0.03 + Math.cos(a) * 0.012 * osc, -0.06 + Math.sin(a) * 0.012 * osc, 0.035)), reach);
+      H.y -= 0.32 * reach; H.x -= 0.1 * reach; H.z -= 0.08 * reach;
+    } else if (A.name === 'shades') {   // left hand to the frame, dip the shades and look over them
+      const reach = env(0, 0.18, 0.8, 1), dip = env(0.22, 0.36, 0.66, 0.8);
+      L = _gv[4].copy(gL).lerp(_gv[2].copy(F.tL).add(_gv[3].set(0.03, -0.075, -0.005)), reach);
+      H.x += 0.2 * dip; H.y += 0.15 * reach;
+      if (this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0 - 0.016 * dip; this.rm.shades.rotation.x = 0.22 * dip; }
+    } else if (A.name === 'lookback') {   // over the shoulder at the riders behind, chin up
+      const k = env(0, 0.25, 0.7, 1); H.y += s * 1.1 * k; H.x -= 0.1 * k; this.torsoG.rotation.y += s * 0.3 * k;
+    } else if (A.name === 'shout') {   // turn on the guy who hit you and shake a fist at him
+      const reach = env(0, 0.18, 0.78, 1), shake = env(0.2, 0.26, 0.7, 0.76);
+      const fist = _gv[2].set(s * 0.62, this.fit.hipY + 0.62 + Math.sin(t * 26) * 0.045 * shake, 0.22);
+      if (s > 0) L = _gv[4].copy(gL).lerp(fist, reach); else R = _gv[4].copy(gR).lerp(fist, reach);
+      H.y += s * 0.85 * reach; this.torsoG.rotation.y += s * 0.2 * reach; this.torsoG.rotation.z -= s * 0.1 * reach;
+    } else if (A.name === 'glance') { H.y += s * 0.75 * Math.sin(ph * Math.PI); }
+    else if (A.name === 'wave') {   // a lazy two-finger salute off the brow
+      const reach = env(0, 0.2, 0.7, 1), flick = _ss(0.35, 0.55, ph);
+      R = _gv[4].copy(gR).lerp(_gv[2].copy(F.brow).add(_gv[3].set(-0.06 - flick * 0.25, -0.03 + flick * 0.05, 0.05 + flick * 0.15)), reach); H.y -= 0.25 * reach; H.z -= 0.1 * reach;
+    }
+    return [L, R];
+  }
+  // the cigarette sits between the right fingers, across the forearm
+  placeCig() {
+    if (!this.cig || !this.cig.visible) return; const h = this.rm.hand('r'), dir = _gv[0].subVectors(h, this.rm.elbow('r')).normalize();
+    this.cig.position.copy(h).addScaledVector(dir, 0.075); const side = _gv[1].crossVectors(dir, _gv[2].set(0, 1, 0)); if (side.lengthSq() < 1e-4) side.set(1, 0, 0); side.normalize();
+    const ax = side.multiplyScalar(-1).addScaledVector(dir, 0.35).normalize(); this.cig.quaternion.setFromUnitVectors(_gv[2].set(0, 1, 0), ax);
+    this.cig.position.addScaledVector(ax, 0.035);   // most of it sticks out past the knuckles
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
   dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }

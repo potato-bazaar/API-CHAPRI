@@ -821,7 +821,7 @@ function defaultSave() {
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
-    settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true },
+    settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true },
     setup: { mode: 'quick', track: 'mumbai-central', laps: 3, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },
@@ -2839,7 +2839,11 @@ class RiderModel {
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;
-    if (acc.head) holder('Head').add(acc.head); if (acc.neck) holder('neck_01').add(acc.neck); if (acc.chest) holder('spine_03').add(acc.chest); if (acc.wrist) holder('lowerarm_l').add(acc.wrist);
+    // face markers (head-bone space, +y up, +z forward, +x the rider's left): gestures aim the hands at these
+    const hh = holder('Head'); if (acc.head) hh.add(acc.head); this.shades = acc.shades || null; this.headH = hh;
+    this.marks = {}; for (const [k, x, y, z] of [['mouth', 0, 0.03, 0.112], ['crown', 0, 0.215, -0.01], ['tL', 0.072, 0.105, 0.07], ['tR', -0.072, 0.105, 0.07], ['lipR', -0.034, 0.036, 0.1], ['brow', 0, 0.15, 0.115]]) { const m = new THREE.Object3D(); m.position.set(x, y, z); hh.add(m); this.marks[k] = m; }
+    this.face = {}; for (const k in this.marks) this.face[k] = new THREE.Vector3();
+    if (acc.neck) holder('neck_01').add(acc.neck); if (acc.chest) holder('spine_03').add(acc.chest); if (acc.wrist) holder('lowerarm_l').add(acc.wrist);
     for (const k of ['head', 'chest', 'wrist']) if (acc[k]) acc[k].traverse(m => { if (m.isMesh) m.castShadow = cast; });
     this.hands = { l: new THREE.Vector3(), r: new THREE.Vector3() }; this.elbows = { l: new THREE.Vector3(), r: new THREE.Vector3() };
   }
@@ -2888,6 +2892,7 @@ class RiderModel {
       const curl = crashed ? 0.3 : 1.15; for (const f of this.fingers) f.bone.quaternion.copy(f.q0).multiply(q.setFromAxisAngle(f.axis, f.amt * curl));
       for (const s of SIDES) { const h = wpos(B['hand_' + s], this.hands[s]), e = wpos(B['lowerarm_' + s], this.elbows[s]);
         h.multiplyScalar(sc).add(_rv[9].set(px, py, pz)); e.multiplyScalar(sc).add(_rv[9]); }
+      upd(this.headH); for (const k in this.marks) wpos(this.marks[k], this.face[k]).multiplyScalar(sc).add(_rv[9]);   // face points, bike-body space
       this.cloth.capture(B, this.invBind, sc, px, py, pz);
     } finally { R.parent = parent; R.position.set(px, py, pz); R.scale.setScalar(sc); }
   }
@@ -2949,7 +2954,7 @@ function riderAccessories(o) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.13, 5).rotateX(Math.PI / 2), fr); arm.position.set(sx * 0.071, 0.009, -0.06); arm.rotation.y = -sx * 0.13; g.add(arm); out.geoms.push(arm.geometry); }
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.03, 5).rotateZ(Math.PI / 2), fr); bar.position.set(0, 0.0125, 0.003); g.add(bar);
     const nose = new THREE.Mesh(new THREE.TorusGeometry(0.008, 0.0016, 4, 10, Math.PI), fr); nose.position.set(0, 0.003, 0.004); g.add(nose); out.geoms.push(bar.geometry, nose.geometry);
-    if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g;
+    if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g; out.shades = g; g.userData.y0 = g.position.y; g.userData.z0 = g.position.z;
   }
   if (o.goldChain) { // a heavy curb chain on the collarbones with a thin one and a pendant below it (chest holder: spine_03 at y 1.311)
     const A = accMats(), cy = 1.311, cz = 0.007, path = (dy, dz, w) => new THREE.CatmullRomCurve3([[0, 1.535 - dy * 0.3, -0.098], [w * 0.62, 1.525 - dy * 0.4, -0.07], [w, 1.49 - dy * 0.6, 0.01], [w * 0.78, 1.45 - dy, 0.075 + dz], [w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [0, 1.4 - dy * 1.25, 0.117 + dz], [-w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [-w * 0.78, 1.45 - dy, 0.075 + dz], [-w, 1.49 - dy * 0.6, 0.01], [-w * 0.62, 1.525 - dy * 0.4, -0.07]].map(([x, y, z]) => new THREE.Vector3(x, y - cy, z - cz)), true);
@@ -3105,6 +3110,19 @@ const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.37
 const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   new THREE.MeshBasicMaterial({ color: '#e8fbff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })];
 
+// ── swagger: style moves while riding (one hand off the bar) and reactions to being hit ──
+// durations in seconds; 'smoke' is skipped when the player turns smoking off in Settings
+const GESTURES = { smoke: 3.0, scratch: 1.7, hair: 1.4, mustache: 1.6, shades: 1.7, lookback: 1.4, shout: 1.3, glance: 0.7, wave: 1.5 };
+let CIG = null;
+function cigAssets() {
+  if (CIG) return CIG; const b = new Batch(), M = new THREE.Matrix4();
+  // a touch oversized (stylised) so it reads from the chase camera: white paper, tan filter, a glowing tip that blooms
+  b.add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.07, 8).translate(0, 0.015, 0), M, new THREE.Color('#f7f4ee'));
+  b.add(new THREE.CylinderGeometry(0.0068, 0.0068, 0.025, 8).translate(0, -0.032, 0), M, new THREE.Color('#d08a35'));
+  CIG = { g: b.build(), ember: new THREE.SphereGeometry(0.0075, 10, 8), emberMat: new THREE.MeshBasicMaterial({ color: '#ff6a1a' }) };
+  return CIG;
+}
+const _gv = Array.from({ length: 6 }, () => new THREE.Vector3()), _ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // spinning spokes alias into a frozen or backwards wheel at speed (each frame turns them ~80°). Over the spokes sits a
 // motion-blur disc: a blurred spoke sheet with bright streak arcs that turns at a readable rate, fading in with speed.
 let WHEEL_BLUR = null;
@@ -3183,6 +3201,7 @@ class BikeRig {
     if (this.rm) this.body.add(this.weapon); else { this.weapon.position.set(0, 0, 0.58); this.armR.add(this.weapon); }
     this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT); this.wLathi = new THREE.Mesh(LATHI_G, BIKE_MAT);
     this.weapon.add(this.wChain, this.wBelt, this.wBottle, this.wLathi); this.showWeapon(null);
+    if (this.rm && !o.ghost) { const C = cigAssets(); this.cig = new THREE.Mesh(C.g, BIKE_MAT); const em = new THREE.Mesh(C.ember, C.emberMat); em.position.y = 0.05; em.scale.y = 0.6; this.cig.add(em); this.cig.visible = false; this.body.add(this.cig); }
     // blob shadow
     this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.blob, transparent: true, depthWrite: false, opacity: 0.8 }));
     this.blob.position.y = 0.03; this.blob.renderOrder = 1; this.root.add(this.blob);
@@ -3192,6 +3211,14 @@ class BikeRig {
   }
   showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.wLathi.visible = kind === 'lathi'; this.heldKind = kind; }
   play(name, side = 1, dur = 0.4) { this.anim = { name, side, t: 0, dur }; }
+  // a style move, if the hands are free; false when something else is playing (or there's no skinned rider)
+  gesture(name, side = 1) { if (this.anim || !this.rm || !GESTURES[name]) return false; this.play(name, side, GESTURES[name]); return true; }
+  // reactions: a hit snaps the body, then (often) he turns and shouts at whoever did it; a bump is a quick glance
+  react(kind, side) {
+    if (!this.rm) return;
+    if (kind === 'hit') { this.play('hit', side, 0.35); this.queued = Math.random() < 0.65 ? ['shout', side] : null; }
+    else if (kind === 'bump' && !this.anim) this.play('glance', side, GESTURES.glance);
+  }
   setPitch(p) { // p>0 wheelie (pivot rear contact), p<0 stoppie (pivot front contact)
     const pivotZ = p >= 0 ? REAR_Z : FRONT_Z; const a = -p;
     this.pitchG.rotation.x = a;
@@ -3238,7 +3265,9 @@ class BikeRig {
       } else if (A.name === 'throw') { const tgt = ph < 0.4 ? new THREE.Vector3(-0.35, 1.6, -0.4) : new THREE.Vector3(-0.3, 1.25, 0.9); armRTarget = tgt; }
       else if (A.name === 'spit') { this.headG.rotation.x += 0.35 * pulse; this.headG.rotation.y = s * 1.1 * pulse; }
       else if (A.name === 'hit') { this.torsoG.rotation.z += s * 0.45 * pulse; this.headG.rotation.z += s * 0.5 * pulse; }
-      if (A.t >= A.dur) this.anim = null;
+      else if (this.rm && GESTURES[A.name]) { const T = this.gestureTargets(A, ph, armLTarget, armRTarget); armLTarget = T[0]; armRTarget = T[1]; }
+      if (A.t >= A.dur) { this.anim = null; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
+        if (this.queued) { const [n, sd] = this.queued; this.queued = null; this.play(n, sd, GESTURES[n]); } }
     }
     if (st.celebrate) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
     if (st.crashed) { this.torsoG.rotation.x = -0.6; armLTarget = new THREE.Vector3(0.6, 1.4, 0.1); armRTarget = new THREE.Vector3(-0.6, 1.4, 0.1); }
@@ -3247,7 +3276,7 @@ class BikeRig {
       // far-away riders re-pose less often (the bike's lean and pitch still move every frame)
       const cam = typeof GAME !== 'undefined' && GAME && GAME.camera; const far = cam ? cam.position.distanceToSquared(this.root.position) : 0;
       this._poseN = (this._poseN || 0) + 1; const every = far > 3600 ? 4 : far > 625 ? 2 : 1;
-      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); }
+      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); }
       if (far < 4900) this.rm.cloth.step(dt, st.speed || 0, far > 900);
       return;
     }
@@ -3263,6 +3292,58 @@ class BikeRig {
     const side = this.anim && this.anim.name === 'swing' && this.anim.side > 0 ? 'l' : 'r';   // left-hand swings carry the weapon in the left fist
     const h = this.rm.hand(side), dir = _wv[2].subVectors(h, this.rm.elbow(side)).normalize();
     this.weapon.position.copy(h).addScaledVector(dir, 0.06); this.weapon.quaternion.setFromUnitVectors(Z_AXIS, dir).multiply(_wq.setFromAxisAngle(_wv[3].set(1, 0, 0), this.wPitch * 0.6));
+  }
+  // hand targets (bike-body space) and head/torso offsets for one frame of a style move. ph: 0..1 through the move
+  gestureTargets(A, ph, aL, aR) {
+    const F = this.rm.face, H = this.headG.rotation, t = A.t, s = A.side, G = this.fit.grip;
+    const gR = _gv[0].set(-G[0], G[1], G[2]), gL = _gv[1].set(G[0], G[1], G[2]); let L = aL, R = aR;
+    const env = (a, b, c, d) => _ss(a, b, ph) * (1 - _ss(c, d, ph));
+    if (A.name === 'smoke') {   // drag, head back, blow it out to the side, flick the ash, back to the bar
+      const reach = env(0, 0.12, 0.86, 1), out = env(0.38, 0.5, 0.8, 0.88);
+      const mouth = _gv[2].copy(F.mouth).add(_gv[3].set(-0.035, -0.055, 0.03));
+      const hold = _gv[3].set(-0.44, F.mouth.y - 0.44, F.mouth.z - 0.1);   // hand dropped out by the side, the cigarette pointing out if (ph > 0.6 && ph < 0.7) hold.y += Math.sin((ph - 0.6) * 60) * 0.025;
+      R = _gv[4].copy(gR).lerp(mouth.lerp(hold, out), reach);
+      H.x -= 0.2 * env(0.14, 0.24, 0.34, 0.42); H.y -= 0.4 * env(0.38, 0.46, 0.62, 0.74); H.x -= 0.1 * env(0.38, 0.46, 0.62, 0.74);
+      if (this.cig) { this.cig.visible = ph > 0.04 && ph < 0.92; this.cig.children[0].material.color.setRGB(1, 0.32 + 0.3 * env(0.15, 0.2, 0.34, 0.4), 0.08); }
+      if (this.onPuff && ((ph > 0.42 && ph < 0.64) || (ph > 0.25 && ph < 0.34 && Math.random() < 0.3))) this.onPuff(this.rm.marks.mouth, ph > 0.42 ? 1 : 0.4);
+      else if (this.onPuff && this.cig && this.cig.visible && Math.random() < 0.35) this.onPuff(this.cig.children[0], 0.3);   // a thin wisp off the tip
+    } else if (A.name === 'scratch') {   // left hand into the back of the hair, a few scratches, head tipped
+      const reach = env(0, 0.2, 0.8, 1), osc = env(0.25, 0.3, 0.72, 0.78);
+      L = _gv[4].copy(gL).lerp(_gv[2].copy(F.crown).add(_gv[3].set(0.05 + Math.sin(t * 24) * 0.02 * osc, -0.08, -0.07 + Math.cos(t * 24) * 0.014 * osc)), reach);
+      H.z += 0.16 * reach; H.x += 0.12 * reach;
+    } else if (A.name === 'hair') {   // comb the pompadour back with the right hand, chin up
+      const reach = env(0, 0.15, 0.75, 1), u = _ss(0.15, 0.68, ph);
+      const front = _gv[2].copy(F.brow).add(_gv[3].set(-0.03, -0.04, 0.09)), back = _gv[5].copy(F.crown).add(_gv[3].set(-0.03, -0.02, -0.1));
+      R = _gv[4].copy(gR).lerp(front.lerp(back, u), reach); H.x -= 0.18 * reach * (0.4 + u * 0.6); H.y -= 0.12 * reach;
+    } else if (A.name === 'mustache') {   // twirl the right end of the moustache, smug look to the side
+      const reach = env(0, 0.18, 0.78, 1), osc = env(0.2, 0.26, 0.7, 0.76), a = t * 18;
+      R = _gv[4].copy(gR).lerp(_gv[2].copy(F.lipR).add(_gv[3].set(-0.03 + Math.cos(a) * 0.012 * osc, -0.06 + Math.sin(a) * 0.012 * osc, 0.035)), reach);
+      H.y -= 0.32 * reach; H.x -= 0.1 * reach; H.z -= 0.08 * reach;
+    } else if (A.name === 'shades') {   // left hand to the frame, dip the shades and look over them
+      const reach = env(0, 0.18, 0.8, 1), dip = env(0.22, 0.36, 0.66, 0.8);
+      L = _gv[4].copy(gL).lerp(_gv[2].copy(F.tL).add(_gv[3].set(0.03, -0.075, -0.005)), reach);
+      H.x += 0.2 * dip; H.y += 0.15 * reach;
+      if (this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0 - 0.016 * dip; this.rm.shades.rotation.x = 0.22 * dip; }
+    } else if (A.name === 'lookback') {   // over the shoulder at the riders behind, chin up
+      const k = env(0, 0.25, 0.7, 1); H.y += s * 1.1 * k; H.x -= 0.1 * k; this.torsoG.rotation.y += s * 0.3 * k;
+    } else if (A.name === 'shout') {   // turn on the guy who hit you and shake a fist at him
+      const reach = env(0, 0.18, 0.78, 1), shake = env(0.2, 0.26, 0.7, 0.76);
+      const fist = _gv[2].set(s * 0.62, this.fit.hipY + 0.62 + Math.sin(t * 26) * 0.045 * shake, 0.22);
+      if (s > 0) L = _gv[4].copy(gL).lerp(fist, reach); else R = _gv[4].copy(gR).lerp(fist, reach);
+      H.y += s * 0.85 * reach; this.torsoG.rotation.y += s * 0.2 * reach; this.torsoG.rotation.z -= s * 0.1 * reach;
+    } else if (A.name === 'glance') { H.y += s * 0.75 * Math.sin(ph * Math.PI); }
+    else if (A.name === 'wave') {   // a lazy two-finger salute off the brow
+      const reach = env(0, 0.2, 0.7, 1), flick = _ss(0.35, 0.55, ph);
+      R = _gv[4].copy(gR).lerp(_gv[2].copy(F.brow).add(_gv[3].set(-0.06 - flick * 0.25, -0.03 + flick * 0.05, 0.05 + flick * 0.15)), reach); H.y -= 0.25 * reach; H.z -= 0.1 * reach;
+    }
+    return [L, R];
+  }
+  // the cigarette sits between the right fingers, across the forearm
+  placeCig() {
+    if (!this.cig || !this.cig.visible) return; const h = this.rm.hand('r'), dir = _gv[0].subVectors(h, this.rm.elbow('r')).normalize();
+    this.cig.position.copy(h).addScaledVector(dir, 0.075); const side = _gv[1].crossVectors(dir, _gv[2].set(0, 1, 0)); if (side.lengthSq() < 1e-4) side.set(1, 0, 0); side.normalize();
+    const ax = side.multiplyScalar(-1).addScaledVector(dir, 0.35).normalize(); this.cig.quaternion.setFromUnitVectors(_gv[2].set(0, 1, 0), ax);
+    this.cig.position.addScaledVector(ax, 0.035);   // most of it sticks out past the knuckles
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
   dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
@@ -3771,6 +3852,11 @@ class Race {
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
     this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
     this.combat = new Combat(this); this.group.add(this.combat.group);
+    // swagger: each rider does a style move now and then on a calm stretch; smoke from the cigarette drifts back off the bike
+    const pv = new THREE.Vector3();
+    this.riders.forEach(r => { r.swagT = (r.isPlayer ? 5 : 9) + RNG() * 8; r.rig.onPuff = (mark, k) => { if (!r.isPlayer && this.distToPlayer(r) < 0.2) return; mark.getWorldPosition(pv); const yaw = r.rig.root.rotation.y;
+      const out = k >= 1 ? 1.1 + Math.random() * 0.6 : 0.1, rx = -Math.cos(yaw), rz = Math.sin(yaw), keep = k >= 1 ? 0.9 : 0.85;   // exhale: blown out to his right, then it streams back
+      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.14 : 0.05, k >= 1 ? 0.95 + Math.random() * 0.4 : 0.35, C_SMOKE, k >= 1 ? 0.5 : 0.3, 1.6, -0.12); }; });
     // time trial ghost
     this.ghostRec = []; this.ghostRecLap = []; this.ghost = null;
     if (this.mode === 'timetrial' && SAVE.ghosts[this.def.id]) { this.ghost = { data: SAVE.ghosts[this.def.id], rig: new BikeRig({ ...look, ghost: true, lod: true }) }; makeGhost(this.ghost.rig); this.group.add(this.ghost.rig.root); }
@@ -3866,6 +3952,7 @@ class Race {
           if (this.track.wAt(P.s) < 7.2) { pts += this.award('squeeze', PTS.squeeze); this.hud.callout('EKDUM TIGHT!', `+${pts}`, 'good'); }
           else this.hud.callout(chained ? 'DOUBLE OVERTAKE' : 'OVERTAKE', `+${pts}`, 'good');
           this.game.comicPop(chained ? 'ZOOOM ZOOOM!' : 'ZOOOM!', r, 0.85, '#7df9ff');
+          if (Math.random() < 0.45) { P.rig.gesture(Math.random() < 0.6 ? 'lookback' : 'wave', r.d > P.d ? 1 : -1); P.swagT = Math.max(P.swagT, 4); }
         }
       } else if (!this.aheadSet.has(r) && ahead) this.aheadSet.add(r);
       // near misses
@@ -3935,7 +4022,7 @@ class Race {
     if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
   }
-  onRespawn(r) { if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); }
+  onRespawn(r) { if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
   onPothole(r, h) {
     this.combat.splash(r, h.big ? 1 : 0.5, this.wet);
     if (!r.isPlayer) return;
@@ -3959,7 +4046,7 @@ class Race {
   onSlip(r) { if (!r.isPlayer) return; AUDIO.squeal(0.9); this.hud.callout('PHISAL GAYA!', null, 'bad'); this.game.comicPop('SKRRRT!', r, 0.9, '#9cc2ff'); }
   onLand(r, impact) { if (r.isPlayer && impact > 3.5) { this.game.shake(clamp(impact / 14, 0.15, 0.5)); this.game.comicPop && this.game.comicPop('DHAMM!', r, 0.8); } }
   onWall(r, into) { this.combat.wallSparks && this.combat.wallSparks(r, into); if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
-  onAir(r, t) { if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
+  onAir(r, t) { if (t > 0.8 && Math.random() < 0.6) { r.rig.gesture('hair', 1); r.swagT = Math.max(r.swagT || 0, 4); } if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
   onWheelie(r, dist) { if (r.isPlayer) { const pts = this.award('stunts', Math.min(150, dist)); this.score.wheelies = (this.score.wheelies || 0) + 1; this.hud.callout(`WHEELIE ${Math.round(dist)} m`, `+${pts}`, 'stunt'); if (dist > 10) dailyProgress('wheelies', 1); } }
   onStoppie(r, t) { if (r.isPlayer && this.raceT - (this._stoppieT || -9) > 5) { this._stoppieT = this.raceT; const pts = this.award('stunts', clamp(20 + 60 * (t - 0.5) / 0.9, 20, 80)); this.score.stoppies = (this.score.stoppies || 0) + 1; this.hud.callout('STOPPIE', `+${pts}`, 'stunt'); } }
   onHit(t, a, kind) {
@@ -3996,10 +4083,20 @@ class Race {
       const wob = r.wobble > 30 && !r.crashed ? Math.sin(this.raceT * 28 + r.idx) * (r.wobble - 30) / 70 * 0.12 : 0;
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
+      this.swagger(r, dt);
       r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }
+  }
+  // style moves on calm stretches: not mid-corner, not in the air, not mid-fight, not on a bad surface
+  swagger(r, dt) {
+    if (this.state !== 'racing' || r.crashed || r.finished) return; r.swagT -= dt; if (r.swagT > 0) return;
+    const T = this.track, calm = !r.air && r.v > 7 && Math.abs(r.lean) < 0.2 && Math.abs(T.kAt(r.s)) < 1 / 90 && !r.wheelie && !r.stoppie && r.surf === 0 && r.wobble < 25 && (!r.isPlayer || Math.abs(r.input.steer) < 0.35);
+    if (!calm) { r.swagT = 0.5; return; }
+    const pool = SAVE.settings.smoking !== false ? ['smoke', 'smoke', 'hair', 'hair', 'mustache', 'shades', 'scratch', 'wave'] : ['hair', 'hair', 'mustache', 'shades', 'scratch', 'wave'];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
   dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); }
 }
@@ -4258,7 +4355,7 @@ class Combat {
     if (kind === 'belt') { t.beltHits = (R.raceT - (t.beltT || -9) < 2.5) ? (t.beltHits || 0) + 1 : 1; t.beltT = R.raceT; if (t.beltHits >= 3) { wob += 30; t.beltHits = 0; } if (t.input.back) wob *= 0.3; }
     t.addWobble(wob / t.st.wobbleRes); t.shoveV += side * (kind === 'chain' ? 3.5 : 2.6); t.v *= 0.97;
     if (a.cfg.cop && t.isPlayer && R.police) { R.police.addHeat(6); a.v *= 0.86; }
-    t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
+    t.rig.react ? t.rig.react('hit', side) : t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
     const p = this.riderPos(t, 1.2); for (let i = 0; i < 10; i++) this.stars.emit(p.x, p.y, p.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0.45, 0.6, 1.4, C_STAR, 1, 3, 2);
     AUDIO.dhishoom(a.isPlayer || t.isPlayer ? 1 : this.race.distToPlayer(t));
     if (a.isPlayer || t.isPlayer) R.game.comicPop(({ kick: 'DHAPP!', chain: 'CHHANNN!', belt: 'SATAAK!' })[kind] || 'DHISHOOM!', t, t.isPlayer ? 0.9 : 1.1, t.isPlayer ? '#ff6a3d' : null);
@@ -5215,6 +5312,8 @@ class UI {
       <div class="set-row"><label>Camera</label><div class="seg" id="setCam">${['Chase', 'Far', 'Helmet'].map((n, i) => `<button type="button" data-cam="${i}" class="${S.camera === i ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Graphics quality<br><small class="muted">Auto picks a tier from a short benchmark${S.detected ? ` (picked ${S.detected})` : ''}</small></label><div class="seg" id="setQ">${['auto', 'low', 'medium', 'high'].map(q => `<button type="button" data-q="${q}" class="${S.quality === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('')}</div></div>
       ${tog('setComic', 'Comic-book style', S.comic, 'Ink outlines, halftone shading and DHISHOOM pop-ups. Off on Low graphics')}
+      ${tog('setSA', 'Steering assist', S.steerAssist !== false, 'Left/right points the bike off the road and it follows the curve when you let go. Off: classic lean steering')}
+      ${tog('setSmoke', 'Rider smokes', S.smoking !== false, 'The rider lights up now and then as one of his style moves')}
       ${tog('setWA', 'Wheelie assist', S.wheelieAssist, 'Holds the balance point for you')}
       ${tog('setMG', 'Manual gears', S.manualGears, 'Shift with X / Z')}
       ${IS_TOUCH ? tog('setTilt', 'Tilt to lean', S.tilt, 'Steer by tilting your phone') : ''}
@@ -5227,7 +5326,7 @@ class UI {
     $('#setMusic').addEventListener('input', (e) => { S.music = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $$('[data-cam]').forEach(b => b.addEventListener('click', () => { S.camera = +b.dataset.cam; persist(); this.renderSettings(); }));
     $$('[data-q]').forEach(b => b.addEventListener('click', () => { S.quality = b.dataset.q; persist(); this.renderSettings(); this.game.applyQuality(true); }));
-    const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration' };
+    const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration', setSA: 'steerAssist', setSmoke: 'smoking' };
     $$('[data-tog]').forEach(b => b.addEventListener('click', async () => { const k = map[b.dataset.tog]; S[k] = true; if (k === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) { try { await DeviceOrientationEvent.requestPermission(); } catch (_) {} } persist(); this.renderSettings(); }));
     $$('[data-tog-off]').forEach(b => b.addEventListener('click', () => { S[map[b.dataset.togOff]] = false; persist(); this.renderSettings(); }));
     $$('[data-key]').forEach(b => b.addEventListener('click', () => { b.classList.add('listen'); b.textContent = 'press…'; INPUT.listenCb = (code) => { const a = b.dataset.key; S.keys = Object.assign({}, S.keys || {}, { [a]: [code] }); persist(); this.renderSettings(); }; }));
@@ -5692,6 +5791,9 @@ class Game {
   menuFrame(dt, inp) {
     const rig = this.menuRig; if (!rig || !this.track) return; this.heroLights(this.state === 'menu' || this.state === 'garage' || this.state === 'store');
     if (this.avatarDue > 0 && --this.avatarDue === 0) { try { this.shootAvatar(); } catch (e) { /* keep the drawn avatar */ } }
+    // home screen: the rider shows off now and then (hair, shades, moustache, a smoke)
+    if (this.state === 'menu') { this.menuSwagT = (this.menuSwagT ?? 4) - dt; if (this.menuSwagT < 0) { const pool = SAVE.settings.smoking !== false ? ['smoke', 'hair', 'shades', 'mustache', 'smoke', 'hair'] : ['hair', 'shades', 'mustache', 'scratch']; rig.gesture(pool[Math.floor(Math.random() * pool.length)], 1); this.menuSwagT = 6 + Math.random() * 5; } }
+    if (!rig.onPuff && this.menuSmoke) { const pv = new THREE.Vector3(); rig.onPuff = (mark, k) => { mark.getWorldPosition(pv); this.menuSmoke.emit(pv.x, pv.y, pv.z, (Math.random() - 0.5) * 0.25, 0.2 + Math.random() * 0.15, (Math.random() - 0.5) * 0.25, 2.2, 0.04, 0.45, C_SMOKE, 0.4 * k, 0.8, -0.05); }; }
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);

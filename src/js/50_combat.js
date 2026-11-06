@@ -116,7 +116,7 @@ class Combat {
     if (kind === 'belt') { t.beltHits = (R.raceT - (t.beltT || -9) < 2.5) ? (t.beltHits || 0) + 1 : 1; t.beltT = R.raceT; if (t.beltHits >= 3) { wob += 30; t.beltHits = 0; } if (t.input.back) wob *= 0.3; }
     t.addWobble(wob / t.st.wobbleRes); t.shoveV += side * (kind === 'chain' ? 3.5 : 2.6); t.v *= 0.97;
     if (a.cfg.cop && t.isPlayer && R.police) { R.police.addHeat(6); a.v *= 0.86; }
-    t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
+    t.rig.react ? t.rig.react('hit', side) : t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
     const p = this.riderPos(t, 1.2); for (let i = 0; i < 10; i++) this.stars.emit(p.x, p.y, p.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0.45, 0.6, 1.4, C_STAR, 1, 3, 2);
     AUDIO.dhishoom(a.isPlayer || t.isPlayer ? 1 : this.race.distToPlayer(t));
     if (a.isPlayer || t.isPlayer) R.game.comicPop(({ kick: 'DHAPP!', chain: 'CHHANNN!', belt: 'SATAAK!' })[kind] || 'DHISHOOM!', t, t.isPlayer ? 0.9 : 1.1, t.isPlayer ? '#ff6a3d' : null);
