@@ -3,7 +3,7 @@ const CROWN_SVG = '<svg class="crown-i" viewBox="0 0 64 40" aria-hidden="true"><
 class HUD {
   constructor(game) {
     this.game = game; this.root = $('#hud');
-    this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]'), tag: $('#spdTag'), bring: $('#boostRing'), tagPos: $('#tagPos'), tagSpd: $('#tagSpd') };
+    this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]'), tag: $('#spdTag'), bring: $('#boostRing'), bbFill: $('#bbFill'), tagPos: $('#tagPos'), tagSpd: $('#tagSpd') };
     this.iconURL = {}; for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil', 'rod', 'katta']) this.iconURL[k] = TEX['icon_' + k].image.toDataURL();
     this.el.throwIco.style.backgroundImage = `url(${this.iconURL.bottle})`;
     // powerband arc on the dial (5,500–7,500 rpm of 10,500)
@@ -72,7 +72,7 @@ class HUD {
     this.el.needle.setAttribute('transform', `rotate(${(-90 + f * 180).toFixed(1)} 150 150)`);
     const inBand = P.rpm >= 5500 && P.rpm <= 7500; this.el.arcBand.setAttribute('stroke-width', inBand ? 8 : 4); this.el.arcBand.setAttribute('opacity', inBand ? 1 : 0.55);
     this.el.kick.style.width = P.boost.toFixed(1) + '%'; this.el.kick.parentElement.classList.toggle('burn', P.boosting); this.el.boostBtn.classList.toggle('ready', P.boost > 30); this.el.boostBtn.classList.toggle('full', P.boost >= 99 && !P.boosting);
-    { const rk = Math.round(P.boost); if (rk !== this._rk) { this._rk = rk; this.el.bring.style.strokeDashoffset = 100 - rk; } }
+    { const rk = Math.round(P.boost); if (rk !== this._rk) { this._rk = rk; this.el.bring.style.strokeDashoffset = 100 - rk; this.el.bbFill.style.width = rk + '%'; } }
     this.el.wob.className = 'wob' + (P.wobble > 65 ? ' warn2' : P.wobble > 30 ? ' warn1' : '');
     this.el.wrong.hidden = !(P.wrongT > 1);
     this._tagPos = R.playerPos || pos; this._tagMulti = multi;

@@ -267,7 +267,7 @@ class BikeRig {
     if (this.jets) { const on = !!st.boost && !st.crashed; for (const j of this.jets) { j.visible = on; if (on) { const k = 0.8 + Math.random() * 0.45; j.scale.set(k, k, 0.75 + Math.random() * 0.7); } } }
     if (this.mods && this.mods.siren) { const ph = Math.floor((this.t + this.mods.sirenPh) * 7) % 4; this.mods.siren[0].visible = ph < 2 && ph !== 1 || ph === 1; this.mods.siren[1].visible = ph >= 2; }
     if (this.mods && this.mods.flames.length) { const on = !!st.boost && !st.crashed; for (const f of this.mods.flames) { f.visible = on; if (on) { const k = 0.75 + Math.random() * 0.5; f.scale.set(k, k, 0.6 + Math.random() * 0.9); } } }
-    if (this.glow) { this.glow.visible = !st.crashed; this.glowMat.opacity = st.boost ? 1 : 0.6; }
+    if (this.glow) { this.glow.visible = !st.crashed; this.glowMat.opacity = st.boost ? 0.25 : 0.6; }
     this.lean.rotation.z = -st.lean * 1.12; this.lean.rotation.y = st.slide || 0; this.leanNow = st.lean || 0;
     this.setPitch(st.pitch || 0);
     // suspension: the frame bounces on the wheels; the rider's weight lags behind it

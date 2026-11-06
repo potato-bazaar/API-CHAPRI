@@ -610,3 +610,9 @@ kbd { font-family: var(--f-num); }
 .bring-fill { fill: none; stroke: #3fe8ff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; filter: drop-shadow(0 0 4px #3fe8ff); transition: stroke-dashoffset .15s linear; }
 .side-btn.ready .bring-fill { stroke: #7ff6ff; } .side-btn.full .bring-fill { animation: ringPulse .8s ease-in-out infinite alternate; }
 @keyframes ringPulse { from { stroke: #3fe8ff; } to { stroke: #ff5fb0; } }
+
+/* boost banner: how much electricity is left, draining as you burn it */
+.boost-banner { overflow: visible; }
+.bb-bar { position: absolute; left: 14%; right: 14%; top: calc(100% + .45rem); height: .62rem; border-radius: 99px; background: rgba(8, 14, 44, .88); box-shadow: 0 0 0 2px #5ff2ff, 0 0 12px rgba(63, 200, 255, .75); overflow: hidden; }
+.bb-bar i { display: block; height: 100%; width: 100%; background: repeating-linear-gradient(90deg, #8ff8ff 0 calc(12.5% - 3px), transparent calc(12.5% - 3px) 12.5%); box-shadow: 0 0 10px #3fe8ff; transition: width .12s linear; }
+@media (orientation: portrait) { .boost-banner { top: 34vh; } .zone-card { top: 22vh; } }

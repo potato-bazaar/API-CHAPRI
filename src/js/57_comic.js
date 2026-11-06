@@ -28,7 +28,7 @@ class ComicFX {
             acc += texture2D(tColor, vUv + rr * vec2(1.0, 0.0)).rgb + texture2D(tColor, vUv + rr * vec2(-1.0, 0.0)).rgb + texture2D(tColor, vUv + rr * vec2(0.0, 1.0)).rgb + texture2D(tColor, vUv + rr * vec2(0.0, -1.0)).rgb;
             acc += texture2D(tColor, vUv + rr * vec2(0.7, 0.7)).rgb + texture2D(tColor, vUv + rr * vec2(-0.7, 0.7)).rgb + texture2D(tColor, vUv + rr * vec2(0.7, -0.7)).rgb + texture2D(tColor, vUv + rr * vec2(-0.7, -0.7)).rgb;
             col = acc / 9.0; }
-          if (uBoost > 0.02) { float rb = uBoost * smoothstep(0.015, 0.2, e2) * 0.016; vec3 acc = col; for (int i = 1; i <= 6; i++) acc += texture2D(tColor, vUv - c * rb * float(i)).rgb; col = acc / 7.0; }   // boost: radial blur toward the edges
+          if (uBoost > 0.02) { float rb = uBoost * smoothstep(0.03, 0.22, e2) * 0.01; vec3 acc = col; for (int i = 1; i <= 6; i++) acc += texture2D(tColor, vUv - c * rb * float(i)).rgb; col = acc / 7.0; }   // boost: radial blur toward the edges
           vec3 o = col;
           if (uComic > 0.5) {
             float d0 = lin(texture2D(tDepth, vUv).x);
@@ -58,7 +58,7 @@ class ComicFX {
           o *= mix(1.0, smoothstep(1.2, 0.3, sqrt(e2) * 1.6), uVig);
           // boost: the whole frame floods neon, cyan on the left, pink on the right, glowing at the edges
           if (uNeon > 0.01) { vec3 neon = mix(vec3(0.2, 0.85, 1.3), vec3(1.3, 0.25, 0.9), smoothstep(-0.35, 0.35, c.x + c.y * 0.4));
-            o = mix(o, o * (0.7 + 0.5 * neon) + neon * 0.05 * (1.0 - lg2), uNeon * 0.42); o += neon * smoothstep(0.08, 0.32, e2) * uNeon * 0.22; }
+            o = mix(o, o * (0.85 + 0.25 * neon), uNeon * 0.18); o += vec3(0.15, 0.55, 1.0) * smoothstep(0.12, 0.36, e2) * uNeon * 0.1; }
           vec3 bl = texture2D(tBloom, vUv).rgb; o += bl * uBloom * (1.0 - 0.5 * o);
           gl_FragColor = vec4(o, 1.0);
         }`,

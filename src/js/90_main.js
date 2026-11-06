@@ -478,8 +478,10 @@ class Game {
     const P = R.player, T = R.track, rp = P.rig.root.position, yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
     const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 0.45 + night * 0.85 + (this.wet ? 0.25 : 0), b = this.fx ? this.fx.boostAmt : 0;
     H.key.position.set(rp.x + fx * 1.6 + lx * 0.9, rp.y + 2.3, rp.z + fz * 1.6 + lz * 0.9); H.key.intensity = 4 * k;
-    H.pink.position.set(rp.x - fx * 1.2 - lx * 1.0, rp.y + 1.5, rp.z - fz * 1.2 - lz * 1.0); H.pink.intensity = (5 + b * 14) * k;
-    H.cyan.position.set(rp.x - fx * 1.0 + lx * 1.1, rp.y + 1.3, rp.z - fz * 1.0 + lz * 1.1); H.cyan.intensity = (4 + b * 14) * k;
+    // boost no longer floods the road with pink/cyan light: the bolts flash a short electric-blue strobe instead
+    const zap = R.street ? R.street.zapK : 0;
+    H.pink.position.set(rp.x - fx * 1.2 - lx * 1.0, rp.y + 1.5, rp.z - fz * 1.2 - lz * 1.0); H.pink.intensity = 5 * k * (1 - b * 0.4);
+    H.cyan.position.set(rp.x - fx * 1.0 + lx * 1.1, rp.y + 1.3, rp.z - fz * 1.0 + lz * 1.1); H.cyan.intensity = (4 + b * zap * 7) * k;
   }
   menuFrame(dt, inp) {
     const rig = this.menuRig; if (!rig || !this.track) return; this.heroLights(this.state === 'menu' || this.state === 'garage' || this.state === 'store');

@@ -26,14 +26,16 @@ class StreetOps {
       this.gMat = new THREE.MeshBasicMaterial({ map: TEX.guideLine, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, fog: false });
       this.guide = new THREE.Mesh(g, this.gMat); this.guide.frustumCulled = false; this.guide.renderOrder = 3; race.group.add(this.guide); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); }
     this.guideEl = $('#guide'); this.guideT = 0; this.guideKey = '';
-    // ── boost look: two neon ribbons off the tail, electric arcs at the silencer ──
-    const NT = 46; this.trail = []; this.trailN = NT;
-    for (const col of ['#ff2e88', '#3fe8ff']) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NT * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NT * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
-      const idx = []; for (let i = 0; i < NT - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } g.setIndex(idx);
-      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.frustumCulled = false; m.renderOrder = 4; m.visible = false; race.group.add(m);
-      this.trail.push({ g, m, col: new THREE.Color(col), pts: [], lat: col === '#ff2e88' ? 0.22 : -0.22 }); }
-    { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 7 * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * 7 * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
-      this.arcs = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); this.arcs.frustumCulled = false; this.arcs.visible = false; this.arcs.renderOrder = 5; race.group.add(this.arcs); this.arcT = 0; }
+    // ── boost look = electricity (Sting power): forked lightning bolts crackle off the silencer, round the rear wheel,
+    // along the bike and down into the road. Camera-facing strips with a white-hot core and a blue glow, re-struck every
+    // few frames. No neon wash on the road: the bolts carry the whole effect, so nothing drowns them out.
+    { const NB = 7, NS = 9, nq = NB * NS * 2; this.boltNB = NB; this.boltNS = NS;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nq * 4 * 3), 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nq * 4 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      const uv = new Float32Array(nq * 4 * 2), idx = new Uint16Array(nq * 6); for (let q = 0; q < nq; q++) { uv.set([0, 0, 1, 0, 1, 1, 0, 1], q * 8); idx.set([q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3], q * 6); }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+      if (!TEX.boltGlow) { const [c, x] = mkCanvas(64, 4); const gr = x.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.42, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.5, 'rgba(255,255,255,1)'); gr.addColorStop(0.58, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 4); TEX.boltGlow = new THREE.CanvasTexture(c); }
+      this.bolts = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: TEX.boltGlow, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false }));
+      this.bolts.frustumCulled = false; this.bolts.visible = false; this.bolts.renderOrder = 6; race.group.add(this.bolts); this.boltT = 0; this.boltPaths = []; this.zapK = 0; this._a = this._a || new THREE.Vector3(); this._b = this._b || new THREE.Vector3(); }
     this.hemiBase = W.hemi.color.clone(); this.fogBase = W.fog ? W.fog.color.clone() : null;
     // ── boost ring (Auto Rush style): a segmented ring on the road round your bike. It fills from the back, both sides
     // at once, so from the chase cam it reads like a gauge; full ring = it pulses; while you burn it the lit arc drains.
@@ -49,10 +51,10 @@ class StreetOps {
             float gap = smoothstep(0.03, 0.12, fs) * (1.0 - smoothstep(0.88, 0.97, fs));
             float lit = clamp(uFill * N - idx, 0.0, 1.0); lit = lit >= 0.999 ? 1.0 : lit * 0.55;
             vec3 cOn = mix(vec3(0.25, 0.95, 1.0), vec3(1.0, 0.2, 0.62), smoothstep(0.1, 0.95, f));
-            float pulse = 1.0 + uFull * 0.35 * (0.5 + 0.5 * sin(uT * 9.0)) + uBurn * 0.4;
+            float pulse = 1.0 + uFull * 0.35 * (0.5 + 0.5 * sin(uT * 9.0));
             vec3 col = mix(vec3(0.82, 0.84, 0.95), cOn * pulse, lit);   // empty segments: pale glass, so the ring is always readable
-            float a = band * gap * mix(0.26, 1.0, lit) + halo * lit * (0.08 + 0.14 * uFull + 0.2 * uBurn);
-            gl_FragColor = vec4(col, a * uOn); }` });
+            float a = band * gap * mix(0.26, 1.0, lit) + halo * lit * (0.08 + 0.14 * uFull) * (1.0 - uBurn);
+            gl_FragColor = vec4(col, a * uOn * (1.0 - uBurn * 0.85)); }` });   // while you burn it the ring steps aside: the electricity is the show
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.0), m); mesh.rotation.x = -Math.PI / 2;
       this.ring = new THREE.Group(); this.ring.rotation.order = 'YXZ'; this.ring.add(mesh); mesh.renderOrder = 3; mesh.frustumCulled = false; race.group.add(this.ring); this.ringMat = m; this.ringFill = 0; }
   }
@@ -121,27 +123,39 @@ class StreetOps {
   }
   updateBoostFX(dt) {
     const R = this.race, T = R.track, W = R.world, P = R.player, G = R.game, b = G.fx ? G.fx.boostAmt : 0;
-    // the world shifts violet while you're on it
-    W.hemi.color.copy(this.hemiBase).lerp(C_NEON_SKY, b * 0.45); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase).lerp(C_NEON_FOG, b * 0.35);
-    // neon ribbons off the tail light
+    // a faint electric-blue cast while you're on it (just a hint: the bolts are the show)
+    W.hemi.color.copy(this.hemiBase).lerp(C_NEON_SKY, b * 0.12); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase).lerp(C_NEON_FOG, b * 0.08);
+    const on = b > 0.04 && !P.crashed && !P.finished; this.bolts.visible = on; if (!on) { this.zapK = 0; return; }
     const yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw), base = T.pos(P.s, P.d, this._q, P.y - T.yAt(P.s));
-    const on = b > 0.04 && !P.crashed;
-    for (const tr of this.trail) {
-      if (on) { tr.pts.unshift({ x: base.x - fx * 1.05 + lx * tr.lat, y: base.y + 0.62 + P.pitch * 0.8, z: base.z - fz * 1.05 + lz * tr.lat, t: 0 }); if (tr.pts.length > this.trailN) tr.pts.pop(); }
-      for (const q of tr.pts) q.t += dt; while (tr.pts.length && tr.pts[tr.pts.length - 1].t > 0.55) tr.pts.pop();
-      tr.m.visible = tr.pts.length > 1; if (!tr.m.visible) continue;
-      const pos = tr.g.attributes.position.array, col = tr.g.attributes.color.array, n = tr.pts.length;
-      for (let i = 0; i < this.trailN; i++) { const q = tr.pts[Math.min(i, n - 1)], k = i < n ? (1 - q.t / 0.55) * (1 - i / n) * Math.max(0.25, b) : 0, h = 0.06 + 0.16 * (1 - i / this.trailN);   // flat ribbons: read from the chase cam as two streaks of light
-        pos.set([q.x - lx * h, q.y, q.z - lz * h, q.x + lx * h, q.y, q.z + lz * h], i * 6); col.set([tr.col.r * k, tr.col.g * k, tr.col.b * k, tr.col.r * k * 1.3, tr.col.g * k * 1.3, tr.col.b * k * 1.3], i * 6); }
-      tr.g.attributes.position.needsUpdate = true; tr.g.attributes.color.needsUpdate = true; tr.g.setDrawRange(0, Math.max(0, n - 1) * 6); }
-    // electric arcs crackling round the silencer
-    this.arcs.visible = on; if (on) { this.arcT -= dt; if (this.arcT <= 0) { this.arcT = 0.045; const pos = this.arcs.geometry.attributes.position.array, col = this.arcs.geometry.attributes.color.array; let k = 0;
-      const ex = base.x - fx * 0.95 - lx * 0.2, ey = base.y + 0.42, ez = base.z - fz * 0.95 - lz * 0.2;
-      for (let a = 0; a < 3; a++) { const c = a % 2 ? [1.0, 0.25, 0.65] : [0.3, 0.95, 1.0]; let px = ex, py = ey, pz = ez; const tx = ex - fx * (0.6 + Math.random() * 0.9) + lx * (Math.random() - 0.5) * 1.2, ty = ey + (Math.random() - 0.3) * 0.9, tz = ez - fz * (0.6 + Math.random() * 0.9) + lz * (Math.random() - 0.5) * 1.2;
-        for (let j = 1; j <= 7; j++) { const u = j / 7, nx = ex + (tx - ex) * u + (Math.random() - 0.5) * 0.22, ny = ey + (ty - ey) * u + (Math.random() - 0.5) * 0.22, nz = ez + (tz - ez) * u + (Math.random() - 0.5) * 0.22;
-          pos.set([px, py, pz, nx, ny, nz], k * 6); col.set([...c, ...c], k * 6); k++; px = nx; py = ny; pz = nz; } }
-      this.arcs.geometry.attributes.position.needsUpdate = true; this.arcs.geometry.attributes.color.needsUpdate = true; } }
+    const L = (f, l, u, o) => { o.x = base.x + fx * f + lx * l; o.y = base.y + u; o.z = base.z + fz * f + lz * l; return o; };
+    this.boltT -= dt; this.zapK = Math.max(0, this.zapK - dt * 9);
+    if (this.boltT <= 0) { this.boltT = 0.035 + Math.random() * 0.04; this.zapK = 1;
+      // each bolt: [from (fwd, lat, up), to (fwd, lat, up), jaggedness]. Lean and pitch follow the bike.
+      const lean = Math.tan((P.lean || 0) * 1.12), sx = Math.random() < 0.5 ? -1 : 1, rnd = (a, b) => a + Math.random() * (b - a);
+      const defs = [
+        [[-1.0, -0.2, 0.42], [rnd(-2.6, -1.6), rnd(-0.9, 0.3), rnd(0.02, 0.4)], 0.2],      // silencer → behind, discharging into the road
+        [[-1.0, -0.2, 0.42], [rnd(-2.2, -1.4), rnd(-0.2, 0.9), rnd(0.3, 0.9)], 0.22],      // silencer → back and up
+        [[-0.95, -0.15, 0.45], [-0.7, sx * 0.05, 0.02], 0.12],                               // silencer → rear wheel contact
+        [[-0.75, 0, 0.7], [rnd(-0.2, 0.1), 0, rnd(1.15, 1.45)], 0.12],                       // up the frame to the rider's back
+        [[0.75, sx * 0.12, 0.55], [rnd(1.2, 1.8), sx * rnd(0.3, 0.7), 0.02], 0.16],          // front fork → strike the road ahead
+        [[0.1, sx * 0.25, 0.6], [rnd(-0.6, 0.4), sx * rnd(0.8, 1.3), 0.02], 0.16],           // tank → side strike
+        [[-0.9, 0.2, 0.5], [rnd(-1.8, -1.2), rnd(0.4, 1.1), rnd(0.05, 0.5)], 0.2] ];        // left side of the tail
+      this.boltPaths.length = 0;
+      for (const [a, z, j] of defs) { if (Math.random() < 0.22) continue; const pts = [];
+        for (let i = 0; i <= this.boltNS; i++) { const u = i / this.boltNS, w = Math.sin(u * Math.PI); pts.push([a[0] + (z[0] - a[0]) * u + (Math.random() - 0.5) * j * w * 1.4, a[1] + (z[1] - a[1]) * u + (Math.random() - 0.5) * j * w * 2 + lean * (a[2] + (z[2] - a[2]) * u), Math.max(0.02, a[2] + (z[2] - a[2]) * u + (Math.random() - 0.5) * j * w)]); }
+        this.boltPaths.push({ pts, hue: Math.random() < 0.2 ? 1 : 0, k: 0.75 + Math.random() * 0.25, w: this.boltPaths.length === 0 ? 1.5 : 0.8 + Math.random() * 0.5 }); } }
+    // build camera-facing strips: a wide blue glow and a thin white-hot core per segment
+    const pos = this.bolts.geometry.attributes.position.array, col = this.bolts.geometry.attributes.color.array, cam = G.camera.position;
+    const p0 = this._a, p1 = this._b, flick = 0.55 + 0.45 * this.zapK; let q = 0;
+    for (const B of this.boltPaths) { const glowC = B.hue ? [0.55, 0.3, 1.0] : [0.2, 0.62, 1.0], coreC = [0.85, 0.97, 1.0];
+      for (let i = 0; i < B.pts.length - 1; i++) { L(B.pts[i][0], B.pts[i][1], B.pts[i][2], p0); L(B.pts[i + 1][0], B.pts[i + 1][1], B.pts[i + 1][2], p1);
+        const dx = p1.x - p0.x, dy = p1.y - p0.y, dz = p1.z - p0.z, mx = (p0.x + p1.x) / 2 - cam.x, my = (p0.y + p1.y) / 2 - cam.y, mz = (p0.z + p1.z) / 2 - cam.z;
+        let sx = dy * mz - dz * my, sy = dz * mx - dx * mz, sz = dx * my - dy * mx; const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
+        for (const [w0, c, a] of [[0.2, glowC, 0.65], [0.045, coreC, 1.0]]) { const w = w0 * B.w, kk = a * B.k * flick * Math.min(1, b * 1.6);
+          pos.set([p0.x - sx * w, p0.y - sy * w, p0.z - sz * w, p0.x + sx * w, p0.y + sy * w, p0.z + sz * w, p1.x + sx * w, p1.y + sy * w, p1.z + sz * w, p1.x - sx * w, p1.y - sy * w, p1.z - sz * w], q * 12);
+          for (let v = 0; v < 4; v++) col.set([c[0] * kk, c[1] * kk, c[2] * kk], q * 12 + v * 3); q++; } } }
+    this.bolts.geometry.setDrawRange(0, q * 6); this.bolts.geometry.attributes.position.needsUpdate = true; this.bolts.geometry.attributes.color.needsUpdate = true;
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
-    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } for (const t of this.trail) { t.g.dispose(); t.m.material.dispose(); } this.arcs.geometry.dispose(); this.arcs.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
+    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
 }
