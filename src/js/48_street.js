@@ -26,10 +26,10 @@ class StreetOps {
       this.gMat = new THREE.MeshBasicMaterial({ map: TEX.guideLine, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, fog: false });
       this.guide = new THREE.Mesh(g, this.gMat); this.guide.frustumCulled = false; this.guide.renderOrder = 3; race.group.add(this.guide); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); }
     this.guideEl = $('#guide'); this.guideT = 0; this.guideKey = '';
-    // ── boost look = electricity (Sting power): forked lightning bolts crackle off the silencer, round the rear wheel,
-    // along the bike and down into the road. Camera-facing strips with a white-hot core and a blue glow, re-struck every
-    // few frames. No neon wash on the road: the bolts carry the whole effect, so nothing drowns them out.
-    { const NB = 7, NS = 9, nq = NB * NS * 2; this.boltNB = NB; this.boltNS = NS;
+    // ── boost look = speed-force electricity (the Flash running): neon lightning hugs the rider and bike, and long crackling
+    // bolts stream out behind along the exact path you rode, waving and re-striking every few frames, spitting sparks.
+    // Camera-facing strips with a hot core and a neon glow. No neon wash on the road, so nothing drowns them out.
+    { const nq = 320; this.boltQ = nq; this.hist = []; this.trailJ = []; this.bodyBolts = []; this.wavePh = 0; this.fadeK = 0;
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nq * 4 * 3), 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nq * 4 * 3), 3).setUsage(THREE.DynamicDrawUsage));
       const uv = new Float32Array(nq * 4 * 2), idx = new Uint16Array(nq * 6); for (let q = 0; q < nq; q++) { uv.set([0, 0, 1, 0, 1, 1, 0, 1], q * 8); idx.set([q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3], q * 6); }
       g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
@@ -123,37 +123,51 @@ class StreetOps {
   }
   updateBoostFX(dt) {
     const R = this.race, T = R.track, W = R.world, P = R.player, G = R.game, b = G.fx ? G.fx.boostAmt : 0;
-    // a faint electric-blue cast while you're on it (just a hint: the bolts are the show)
     W.hemi.color.copy(this.hemiBase).lerp(C_NEON_SKY, b * 0.12); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase).lerp(C_NEON_FOG, b * 0.08);
-    const on = b > 0.04 && !P.crashed && !P.finished; this.bolts.visible = on; if (!on) { this.zapK = 0; return; }
+    const live = P.boosting && !P.crashed && !P.finished, now = R.raceT;
+    this.fadeK = smooth(this.fadeK, live ? 1 : 0, live ? 14 : 5, dt);
     const yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw), base = T.pos(P.s, P.d, this._q, P.y - T.yAt(P.s));
-    const L = (f, l, u, o) => { o.x = base.x + fx * f + lx * l; o.y = base.y + u; o.z = base.z + fz * f + lz * l; return o; };
-    this.boltT -= dt; this.zapK = Math.max(0, this.zapK - dt * 9);
-    if (this.boltT <= 0) { this.boltT = 0.035 + Math.random() * 0.04; this.zapK = 1;
-      // each bolt: [from (fwd, lat, up), to (fwd, lat, up), jaggedness]. Lean and pitch follow the bike.
-      const lean = Math.tan((P.lean || 0) * 1.12), sx = Math.random() < 0.5 ? -1 : 1, rnd = (a, b) => a + Math.random() * (b - a);
-      const defs = [
-        [[-1.0, -0.2, 0.42], [rnd(-2.6, -1.6), rnd(-0.9, 0.3), rnd(0.02, 0.4)], 0.2],      // silencer → behind, discharging into the road
-        [[-1.0, -0.2, 0.42], [rnd(-2.2, -1.4), rnd(-0.2, 0.9), rnd(0.3, 0.9)], 0.22],      // silencer → back and up
-        [[-0.95, -0.15, 0.45], [-0.7, sx * 0.05, 0.02], 0.12],                               // silencer → rear wheel contact
-        [[-0.75, 0, 0.7], [rnd(-0.2, 0.1), 0, rnd(1.15, 1.45)], 0.12],                       // up the frame to the rider's back
-        [[0.75, sx * 0.12, 0.55], [rnd(1.2, 1.8), sx * rnd(0.3, 0.7), 0.02], 0.16],          // front fork → strike the road ahead
-        [[0.1, sx * 0.25, 0.6], [rnd(-0.6, 0.4), sx * rnd(0.8, 1.3), 0.02], 0.16],           // tank → side strike
-        [[-0.9, 0.2, 0.5], [rnd(-1.8, -1.2), rnd(0.4, 1.1), rnd(0.05, 0.5)], 0.2] ];        // left side of the tail
-      this.boltPaths.length = 0;
-      for (const [a, z, j] of defs) { if (Math.random() < 0.22) continue; const pts = [];
-        for (let i = 0; i <= this.boltNS; i++) { const u = i / this.boltNS, w = Math.sin(u * Math.PI); pts.push([a[0] + (z[0] - a[0]) * u + (Math.random() - 0.5) * j * w * 1.4, a[1] + (z[1] - a[1]) * u + (Math.random() - 0.5) * j * w * 2 + lean * (a[2] + (z[2] - a[2]) * u), Math.max(0.02, a[2] + (z[2] - a[2]) * u + (Math.random() - 0.5) * j * w)]); }
-        this.boltPaths.push({ pts, hue: Math.random() < 0.2 ? 1 : 0, k: 0.75 + Math.random() * 0.25, w: this.boltPaths.length === 0 ? 1.5 : 0.8 + Math.random() * 0.5 }); } }
-    // build camera-facing strips: a wide blue glow and a thin white-hot core per segment
-    const pos = this.bolts.geometry.attributes.position.array, col = this.bolts.geometry.attributes.color.array, cam = G.camera.position;
-    const p0 = this._a, p1 = this._b, flick = 0.55 + 0.45 * this.zapK; let q = 0;
-    for (const B of this.boltPaths) { const glowC = B.hue ? [0.55, 0.3, 1.0] : [0.2, 0.62, 1.0], coreC = [0.85, 0.97, 1.0];
-      for (let i = 0; i < B.pts.length - 1; i++) { L(B.pts[i][0], B.pts[i][1], B.pts[i][2], p0); L(B.pts[i + 1][0], B.pts[i + 1][1], B.pts[i + 1][2], p1);
-        const dx = p1.x - p0.x, dy = p1.y - p0.y, dz = p1.z - p0.z, mx = (p0.x + p1.x) / 2 - cam.x, my = (p0.y + p1.y) / 2 - cam.y, mz = (p0.z + p1.z) / 2 - cam.z;
-        let sx = dy * mz - dz * my, sy = dz * mx - dx * mz, sz = dx * my - dy * mx; const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
-        for (const [w0, c, a] of [[0.2, glowC, 0.65], [0.045, coreC, 1.0]]) { const w = w0 * B.w, kk = a * B.k * flick * Math.min(1, b * 1.6);
-          pos.set([p0.x - sx * w, p0.y - sy * w, p0.z - sz * w, p0.x + sx * w, p0.y + sy * w, p0.z + sz * w, p1.x + sx * w, p1.y + sy * w, p1.z + sz * w, p1.x - sx * w, p1.y - sy * w, p1.z - sz * w], q * 12);
-          for (let v = 0; v < 4; v++) col.set([c[0] * kk, c[1] * kk, c[2] * kk], q * 12 + v * 3); q++; } } }
+    // the path you rode: the speed-force tail follows it exactly
+    if (live) this.hist.unshift({ x: base.x, y: base.y, z: base.z, lx, lz, t: now }); else if (P.crashed) this.hist.length = 0;
+    while (this.hist.length && (now - this.hist[this.hist.length - 1].t > 0.22 || this.hist.length > 60)) this.hist.pop();
+    if (this.fadeK < 0.02 || P.crashed) { this.bolts.visible = false; this.zapK = 0; return; }
+    this.bolts.visible = true; this.wavePh += dt * 26; this.boltT -= dt; this.zapK = Math.max(0, this.zapK - dt * 9);
+    const lean = Math.tan((P.lean || 0) * 1.12), rnd = (a, c) => a + Math.random() * (c - a);
+    const L = (f, l, u, o) => { o.x = base.x + fx * f + lx * (l + lean * u); o.y = base.y + u; o.z = base.z + fz * f + lz * (l + lean * u); return o; };
+    if (this.boltT <= 0 && live) { this.boltT = 0.03 + Math.random() * 0.035; this.zapK = 1;
+      // body lightning: short bolts jumping between points on the rider and the bike, plus a few lashing outwards
+      const A = [[-0.05, 0, 1.66], [-0.1, 0, 1.36], [-0.3, 0, 1.18], [-0.36, 0, 0.95], [0.45, 0.33, 1.1], [0.45, -0.33, 1.1], [0.05, 0.3, 0.76], [0.05, -0.3, 0.76], [-0.2, 0.28, 0.36], [-0.2, -0.28, 0.36], [0.72, 0, 0.36], [-0.72, 0, 0.36], [0.22, 0, 0.86], [-0.95, -0.2, 0.42]];
+      this.bodyBolts.length = 0;
+      for (let n = 0; n < 6; n++) { const a = A[Math.floor(Math.random() * A.length)]; let z;
+        if (n < 4) { let best = null, bd = 9; for (let k = 0; k < 6; k++) { const c = A[Math.floor(Math.random() * A.length)], d = Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]); if (c !== a && d < bd && d > 0.25) { bd = d; best = c; } } z = best || A[0]; }
+        else z = [a[0] + rnd(-0.8, -0.2), a[1] + rnd(-0.7, 0.7), Math.max(0.05, a[2] + rnd(-0.4, 0.5))];
+        const pts = []; for (let i = 0; i <= 7; i++) { const u = i / 7, w = Math.sin(u * Math.PI) * 0.12 * (i % 2 ? 1 : -1); pts.push([a[0] + (z[0] - a[0]) * u + w * rnd(0.3, 1), a[1] + (z[1] - a[1]) * u + w * rnd(-1, 1), a[2] + (z[2] - a[2]) * u - w * rnd(0.3, 1)]); }
+        this.bodyBolts.push({ pts, hue: Math.random() < 0.35 ? 1 : 0 }); }
+      // re-strike the tail's jaggies; throw sparks off the body and the tail
+      for (let k = 0; k < 4; k++) { const j = this.trailJ[k] || (this.trailJ[k] = new Float32Array(26 * 2)); for (let i = 0; i < 26; i++) { const sg = i % 2 ? 1 : -1; j[i * 2] = sg * (0.35 + Math.random() * 0.65); j[i * 2 + 1] = -sg * (0.2 + Math.random() * 0.8); } }   // zig-zag: lightning kinks, not wobble
+      const SP = R.combat && R.combat.sparks; if (SP) for (let i = 0; i < 9; i++) { const B = this.bodyBolts[Math.floor(Math.random() * this.bodyBolts.length)], q = B.pts[Math.floor(Math.random() * B.pts.length)]; L(q[0], q[1], q[2], this._a);
+        SP.emit(this._a.x, this._a.y, this._a.z, -fx * rnd(3, 8) + lx * rnd(-2.5, 2.5), rnd(-0.5, 2.5), -fz * rnd(3, 8) + lz * rnd(-2.5, 2.5), rnd(0.2, 0.4), 0.2, 0.02, Math.random() < 0.6 ? C_NEON_C : C_NEON_P, 1, 1.6, 5); } }
+    const pos = this.bolts.geometry.attributes.position.array, col = this.bolts.geometry.attributes.color.array, cam = G.camera.position, Q = this.boltQ, k0 = this.fadeK * Math.min(1, 0.4 + b);
+    let q = 0; const p0 = this._a, p1 = this._b;
+    const strip = (gw, cw, glowC, coreC, a) => {   // one segment p0→p1: neon glow + hot core, both facing the camera
+      const dx = p1.x - p0.x, dy = p1.y - p0.y, dz = p1.z - p0.z, mx = (p0.x + p1.x) / 2 - cam.x, my = (p0.y + p1.y) / 2 - cam.y, mz = (p0.z + p1.z) / 2 - cam.z;
+      let sx = dy * mz - dz * my, sy = dz * mx - dx * mz, sz = dx * my - dy * mx; const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
+      const near = clamp((Math.hypot(mx, my, mz) - 1.6) / 2.2, 0, 1); if (near <= 0) return;   // nothing blooms up in the lens
+      for (const [w, c, m] of [[gw, glowC, 0.42], [cw, coreC, 0.95]]) { if (q >= Q) return; const kk = a * m * near;
+        pos.set([p0.x - sx * w, p0.y - sy * w, p0.z - sz * w, p0.x + sx * w, p0.y + sy * w, p0.z + sz * w, p1.x + sx * w, p1.y + sy * w, p1.z + sz * w, p1.x - sx * w, p1.y - sy * w, p1.z - sz * w], q * 12);
+        for (let v = 0; v < 4; v++) col.set([c[0] * kk, c[1] * kk, c[2] * kk], q * 12 + v * 3); q++; } };
+    const CY = [0.04, 0.55, 1.0], PK = [0.72, 0.1, 1.0], COREC = [0.55, 0.92, 1.0], COREP = [0.95, 0.62, 1.0];   // saturated neon, never white-out
+    // the tail: four bolts at body height streaming back along your path, waving and crackling, fading with distance
+    const H = this.hist; if (H.length > 2) { const lanes = [[-0.45, 0.6, 0], [0.45, 0.95, 1], [-0.05, 1.4, 0]], NSEG = 24;
+      for (let k = 0; k < lanes.length; k++) { const [lt, up, hue] = lanes[k], j = this.trailJ[k] || new Float32Array(52);
+        const at = (u, o) => { const fi = u * (H.length - 1), i0 = Math.floor(fi), i1 = Math.min(H.length - 1, i0 + 1), f = fi - i0, A0 = H[i0], A1 = H[i1], amp = 0.05 + 0.22 * u, wv = Math.sin(this.wavePh + u * 11 + k * 1.7) * 0.14 * u, ji = Math.min(24, Math.round(u * 24));
+          const x = A0.x + (A1.x - A0.x) * f, y = A0.y + (A1.y - A0.y) * f, z = A0.z + (A1.z - A0.z) * f, llx = A0.lx, llz = A0.lz, lat = lt + j[ji * 2] * amp + Math.cos(this.wavePh * 0.7 + u * 9 + k) * 0.1 * u;
+          o.x = x + llx * lat - (u < 0.02 ? fx * 0.6 : 0); o.y = y + up + j[ji * 2 + 1] * amp * 0.8 + wv; o.z = z + llz * lat - (u < 0.02 ? fz * 0.6 : 0); return o; };
+        at(0, p0); for (let i = 1; i <= NSEG; i++) { const u = i / NSEG; at(u, p1); const a = k0 * Math.pow(1 - u, 0.9) * (0.75 + 0.25 * this.zapK);
+          strip(0.075 * (1 - u * 0.4), 0.022 * (1 - u * 0.5), hue ? PK : CY, hue ? COREP : COREC, a); p0.copy(p1); } } }
+    // lightning on the body
+    for (const B of this.bodyBolts) { L(B.pts[0][0], B.pts[0][1], B.pts[0][2], p0);
+      for (let i = 1; i < B.pts.length; i++) { L(B.pts[i][0], B.pts[i][1], B.pts[i][2], p1); strip(0.05, 0.016, B.hue ? PK : CY, B.hue ? COREP : COREC, k0 * (0.45 + 0.35 * this.zapK)); p0.copy(p1); } }
     this.bolts.geometry.setDrawRange(0, q * 6); this.bolts.geometry.attributes.position.needsUpdate = true; this.bolts.geometry.attributes.color.needsUpdate = true;
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
