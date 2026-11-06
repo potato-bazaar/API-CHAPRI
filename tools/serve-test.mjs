@@ -10,9 +10,9 @@ const fontCss = () => {
   for (const w of [500, 600, 700]) css += `@font-face{font-family:'Teko';font-weight:${w};font-style:normal;src:url(https://fonts.gstatic.com/local/teko/teko-latin-${w}-normal.woff2) format('woff2');}\n`;
   return css;
 };
-export async function openGame({ query = '', width = 1280, height = 720, mobile = false } = {}) {
+export async function openGame({ query = '', width = 1280, height = 720, mobile = false, dpr = 1 } = {}) {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, hasTouch: mobile, isMobile: mobile });
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, hasTouch: mobile, isMobile: mobile });
   const page = await ctx.newPage();
   const logs = [];
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });

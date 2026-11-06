@@ -38,7 +38,7 @@ class Race {
     order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
     if (!M.rivals) this.player.place(-4, 0);
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
-    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
+    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; r.rig.addOutlines(); });   // ink outline shells (shown near the camera)
     this.combat = new Combat(this); this.group.add(this.combat.group);
     // swagger: each rider does a style move now and then on a calm stretch; smoke from the cigarette drifts back off the bike
     const pv = new THREE.Vector3();

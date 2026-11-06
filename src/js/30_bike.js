@@ -167,6 +167,34 @@ function wheelBlurAssets() {
   for (const k of ['gF', 'gR']) { const uv = WHEEL_BLUR[k].attributes.uv, p = WHEEL_BLUR[k].attributes.position, R = k === 'gF' ? 0.2 : 0.188; for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getZ(i) / R * 0.5 + 0.5, p.getY(i) / R * 0.5 + 0.5); }
   return WHEEL_BLUR;
 }
+// ── ink outline (Auto Rush lesson): every solid part of the rider and bike gets a back-face shell pushed out along its
+// normals, drawn in near-black. The push is sized by distance so the line stays ~3 px thick on screen at any range, and
+// skinned meshes keep their skeleton, so the outline bends with the rider. Crisper than the screen-space ink alone.
+let OUTLINE_MAT = null;
+function outlineMat() {
+  if (OUTLINE_MAT) return OUTLINE_MAT;
+  const m = new THREE.MeshBasicMaterial({ color: 0x140a1a, side: THREE.BackSide });
+  m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `
+      #if !defined( USE_ENVMAP ) && !defined( USE_SKINNING )
+        vec3 objectNormal = vec3( normal );
+      #endif
+      vec4 mvPosition = vec4( transformed, 1.0 );
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      mvPosition = modelViewMatrix * mvPosition;
+      mvPosition.xyz += normalize( normalMatrix * objectNormal ) * clamp( -mvPosition.z * 0.0052, 0.011, 0.07 );
+      gl_Position = projectionMatrix * mvPosition;`); };
+  m.customProgramCacheKey = () => 'chapri-outline';
+  return OUTLINE_MAT = m;
+}
+// soft contact shadow under a bike: always there, day or night, so the bike sits on the road instead of floating
+function blobShadowTex() {
+  if (TEX.blobShadow) return TEX.blobShadow;
+  const [c, x] = mkCanvas(64, 64), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(0,0,0,0.82)'); g.addColorStop(0.45, 'rgba(0,0,0,0.6)'); g.addColorStop(0.8, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return TEX.blobShadow = new THREE.CanvasTexture(c);
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -241,6 +269,20 @@ class BikeRig {
     this._shL = new THREE.Vector3(); this._shR = new THREE.Vector3(); this._dir = new THREE.Vector3(); this._gL = new THREE.Vector3(); this._gR = new THREE.Vector3();
   }
   // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
+  // outline shells for every solid, opaque part (skips glows, blur discs, eyes and anything transparent)
+  addOutlines() {
+    if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
+    this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
+      if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
+    for (const m of list) { const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, mat) : new THREE.Mesh(m.geometry, mat);
+      if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
+    this.outlineOn = true;
+  }
+  setOutline(on) { if (!this.outlines || on === this.outlineOn) return; this.outlineOn = on; for (const o of this.outlines) o.visible = on; }
+  // a parked bike (menu, garage) gets its contact shadow as a child; racing bikes get theirs from the race (they lean)
+  addBlob() { if (this.blob) return; this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    this.blob.position.y = 0.025; this.blob.renderOrder = 2; this.root.add(this.blob); }
   addUnderglow() { if (this.glow) return; const [c, x] = mkCanvas(64, 128); const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(63,232,255,0)'); g.addColorStop(0.25, 'rgba(63,232,255,0.9)'); g.addColorStop(0.75, 'rgba(255,46,136,0.9)'); g.addColorStop(1, 'rgba(255,46,136,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 128);
     const r = x.createRadialGradient(32, 64, 4, 32, 64, 46); x.globalCompositeOperation = 'destination-in'; r.addColorStop(0, 'rgba(0,0,0,1)'); r.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = r; x.fillRect(0, 0, 64, 128);
     this.glowTex = new THREE.CanvasTexture(c); this.glowMat = new THREE.MeshBasicMaterial({ map: this.glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.75, polygonOffset: true, polygonOffsetFactor: -2 });

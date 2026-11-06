@@ -57,6 +57,10 @@ class StreetOps {
             gl_FragColor = vec4(col, a * uOn * (1.0 - uBurn * 0.85)); }` });   // while you burn it the ring steps aside: the electricity is the show
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.0), m); mesh.rotation.x = -Math.PI / 2;
       this.ring = new THREE.Group(); this.ring.rotation.order = 'YXZ'; this.ring.add(mesh); mesh.renderOrder = 3; mesh.frustumCulled = false; race.group.add(this.ring); this.ringMat = m; this.ringFill = 0; }
+    // contact shadows for every bike (instanced): flat on the road, stretched along the bike, shrinking when it's airborne
+    { const n = race.riders.length;   // cops are in the riders list too
+      this.blobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.62, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), n);
+      this.blobs.frustumCulled = false; this.blobs.renderOrder = 2; race.group.add(this.blobs); this._bm = new THREE.Matrix4(); this._bq = new THREE.Quaternion(); this._bs = new THREE.Vector3(); this._bp = new THREE.Vector3(); this._by = new THREE.Vector3(0, 1, 0); }
   }
   // ── traffic helpers ──
   spread(zi) { const zn = this.zones[zi], cs = this.cars.filter(c => c.zi === zi), len = zn.b - zn.a;
@@ -88,7 +92,16 @@ class StreetOps {
       for (const n of T.nitros || []) { const a = T.wrapD(last - n.s), b = T.wrapD(r.s - n.s); if (a < n.len * 0.5 && b >= n.len * 0.5 && b < n.len + 6 && Math.abs(r.d - n.d) < n.hw + 0.4) {
         r.v = Math.min(r.v + 4.5, r.vTop * 1.3);
         if (r.isPlayer) { P.boost = Math.min(100, P.boost + 30); G.comicPop('NITRO!', P, 1.05, '#3fe8ff'); G.fx.fovPunch = Math.max(G.fx.fovPunch, 10); G.shake(0.22); R.rumble(0.5, 0.18); AUDIO.boostKick(); R.combat.zap && R.combat.zap(P, 1); } } } }
-    this.updateGuide(dt); this.updateBoostFX(dt); this.updateRing(dt);
+    this.updateGuide(dt); this.updateBoostFX(dt); this.updateRing(dt); this.updateBlobs();
+  }
+  updateBlobs() {
+    const R = this.race, T = R.track, all = R.riders; let i = 0;
+    for (const r of all) { if (i >= this.blobs.count) break; const vis = r.rig && r.rig.root.visible && r.rig.root.parent && !r.eliminated && !r.wreck;
+      if (!vis) { this._bm.makeScale(0, 0, 0); this.blobs.setMatrixAt(i++, this._bm); continue; }
+      const gy = r.air && T.gy ? T.gy(r.s, r.d) : Math.min(r.y, T.yAt(r.s) + 0.02), h = Math.max(0, r.y - gy), k = clamp(1 - h / 4, 0.35, 1);
+      T.pos(r.s, r.d, this._bp, gy - T.yAt(r.s) + 0.025); this._bq.setFromAxisAngle(this._by, T.yawAt(r.s) + (r.psi || 0)); this._bs.set(1.0 * k, 1, 2.4 * k);
+      this._bm.compose(this._bp, this._bq, this._bs); this.blobs.setMatrixAt(i++, this._bm); }
+    this.blobs.instanceMatrix.needsUpdate = true;
   }
   updateRing(dt) {
     const R = this.race, T = R.track, P = R.player, G = R.game, U = this.ringMat.uniforms;
@@ -171,5 +184,5 @@ class StreetOps {
     this.bolts.geometry.setDrawRange(0, q * 6); this.bolts.geometry.attributes.position.needsUpdate = true; this.bolts.geometry.attributes.color.needsUpdate = true;
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
-    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
+    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.blobs.geometry.dispose(); this.blobs.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
 }

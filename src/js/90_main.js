@@ -1,6 +1,6 @@
 // ───────────────────────── GAME: renderer, state machine, camera, loop ─────────────────────────
 let GAME = null;
-const QUALITY = { low: { pr: 1, shadows: false }, medium: { pr: 1.35, shadows: true }, high: { pr: 2, shadows: true } };
+const QUALITY = { low: { pr: 1.25, shadows: false }, medium: { pr: 2, shadows: true }, high: { pr: 2.5, shadows: true } };   // phones render near their native sharpness; the governor steps down if frames run long
 function resolveQuality() { if (URLP.get('q')) return URLP.get('q'); const q = SAVE.settings.quality; if (q !== 'auto') return q; return SAVE.settings.detected || (IS_TOUCH ? 'medium' : 'high'); }
 function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
@@ -170,7 +170,7 @@ class Game {
   }
   refreshMenuRig(buildId) {
     if (this.menuRig) { this.scene.remove(this.menuRig.root); this.menuRig.dispose(); }
-    this.menuRig = new BikeRig(lookFromSave(buildId)); this.menuRig.showWeapon(null);
+    this.menuRig = new BikeRig(lookFromSave(buildId)); this.menuRig.showWeapon(null); this.menuRig.addOutlines(); this.menuRig.addBlob();
     const T = this.track; const s = 24, d = T.wAt(s) * 0.12; T.pos(s, d, this.menuRig.root.position); this.menuRig.root.rotation.y = T.yawAt(s) + 0.25; this.menuS = s; this.menuD = d;
     if (this.state !== 'race' && this.state !== 'results' && this.state !== 'paused') this.scene.add(this.menuRig.root);
     this.avatarDue = 3;   // re-shoot the profile portrait once the new rig has posed
@@ -252,7 +252,7 @@ class Game {
     if (this.state !== 'race' || raw > 0.25 || URLP.get('q') || !QUALITY[this.quality]) { if (this.gov) this.gov.t = 0; return; }
     const G = this.gov || (this.gov = { sm: 1 / 60, t: 0 }); G.sm += (raw - G.sm) * 0.05; G.t += raw; if (G.t < 2.5) return;
     let k = this.govK || 1; const base = Math.min(devicePixelRatio || 1, QUALITY[this.quality].pr);
-    if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
+    if (G.sm > 1 / 42 && k > 0.6) k = Math.max(0.6, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
@@ -378,7 +378,7 @@ class Game {
     if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
     this.hud.updateTag(dt, this.camera);
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
-    const cp = this.camera.position, hideR = 1.6 + this.portraitK() * 1.9; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < hideR) r.rig.root.visible = false; }
+    const cp = this.camera.position, hideR = 1.6 + this.portraitK() * 1.9; for (const r of R.riders) { if (r.rig.outlines) { const q = r.rig.root.position; r.rig.setOutline(r.isPlayer || (q.x - cp.x) ** 2 + (q.z - cp.z) ** 2 < 26 * 26); } if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < hideR) r.rig.root.visible = false; }
   }
   // takedown cam (Burnout style): cut to a low angle ahead of the wreck, slow motion while the bike rolls and the rider
   // tumbles down the road, then cut straight back to the chase cam. Also used when you go down yourself.

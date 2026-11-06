@@ -4101,6 +4101,34 @@ function wheelBlurAssets() {
   for (const k of ['gF', 'gR']) { const uv = WHEEL_BLUR[k].attributes.uv, p = WHEEL_BLUR[k].attributes.position, R = k === 'gF' ? 0.2 : 0.188; for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getZ(i) / R * 0.5 + 0.5, p.getY(i) / R * 0.5 + 0.5); }
   return WHEEL_BLUR;
 }
+// ── ink outline (Auto Rush lesson): every solid part of the rider and bike gets a back-face shell pushed out along its
+// normals, drawn in near-black. The push is sized by distance so the line stays ~3 px thick on screen at any range, and
+// skinned meshes keep their skeleton, so the outline bends with the rider. Crisper than the screen-space ink alone.
+let OUTLINE_MAT = null;
+function outlineMat() {
+  if (OUTLINE_MAT) return OUTLINE_MAT;
+  const m = new THREE.MeshBasicMaterial({ color: 0x140a1a, side: THREE.BackSide });
+  m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `
+      #if !defined( USE_ENVMAP ) && !defined( USE_SKINNING )
+        vec3 objectNormal = vec3( normal );
+      #endif
+      vec4 mvPosition = vec4( transformed, 1.0 );
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      mvPosition = modelViewMatrix * mvPosition;
+      mvPosition.xyz += normalize( normalMatrix * objectNormal ) * clamp( -mvPosition.z * 0.0052, 0.011, 0.07 );
+      gl_Position = projectionMatrix * mvPosition;`); };
+  m.customProgramCacheKey = () => 'chapri-outline';
+  return OUTLINE_MAT = m;
+}
+// soft contact shadow under a bike: always there, day or night, so the bike sits on the road instead of floating
+function blobShadowTex() {
+  if (TEX.blobShadow) return TEX.blobShadow;
+  const [c, x] = mkCanvas(64, 64), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(0,0,0,0.82)'); g.addColorStop(0.45, 'rgba(0,0,0,0.6)'); g.addColorStop(0.8, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return TEX.blobShadow = new THREE.CanvasTexture(c);
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -4175,6 +4203,20 @@ class BikeRig {
     this._shL = new THREE.Vector3(); this._shR = new THREE.Vector3(); this._dir = new THREE.Vector3(); this._gL = new THREE.Vector3(); this._gR = new THREE.Vector3();
   }
   // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
+  // outline shells for every solid, opaque part (skips glows, blur discs, eyes and anything transparent)
+  addOutlines() {
+    if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
+    this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal) return; const M = m.material;
+      if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); if (m.geometry.boundingSphere.radius < 0.025) return; list.push(m); });
+    for (const m of list) { const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, mat) : new THREE.Mesh(m.geometry, mat);
+      if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
+    this.outlineOn = true;
+  }
+  setOutline(on) { if (!this.outlines || on === this.outlineOn) return; this.outlineOn = on; for (const o of this.outlines) o.visible = on; }
+  // a parked bike (menu, garage) gets its contact shadow as a child; racing bikes get theirs from the race (they lean)
+  addBlob() { if (this.blob) return; this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    this.blob.position.y = 0.025; this.blob.renderOrder = 2; this.root.add(this.blob); }
   addUnderglow() { if (this.glow) return; const [c, x] = mkCanvas(64, 128); const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(63,232,255,0)'); g.addColorStop(0.25, 'rgba(63,232,255,0.9)'); g.addColorStop(0.75, 'rgba(255,46,136,0.9)'); g.addColorStop(1, 'rgba(255,46,136,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 128);
     const r = x.createRadialGradient(32, 64, 4, 32, 64, 46); x.globalCompositeOperation = 'destination-in'; r.addColorStop(0, 'rgba(0,0,0,1)'); r.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = r; x.fillRect(0, 0, 64, 128);
     this.glowTex = new THREE.CanvasTexture(c); this.glowMat = new THREE.MeshBasicMaterial({ map: this.glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.75, polygonOffset: true, polygonOffsetFactor: -2 });
@@ -4849,7 +4891,7 @@ class Race {
     order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
     if (!M.rivals) this.player.place(-4, 0);
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
-    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
+    this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; r.rig.addOutlines(); });   // ink outline shells (shown near the camera)
     this.combat = new Combat(this); this.group.add(this.combat.group);
     // swagger: each rider does a style move now and then on a calm stretch; smoke from the cigarette drifts back off the bike
     const pv = new THREE.Vector3();
@@ -5397,6 +5439,10 @@ class StreetOps {
             gl_FragColor = vec4(col, a * uOn * (1.0 - uBurn * 0.85)); }` });   // while you burn it the ring steps aside: the electricity is the show
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 3.0), m); mesh.rotation.x = -Math.PI / 2;
       this.ring = new THREE.Group(); this.ring.rotation.order = 'YXZ'; this.ring.add(mesh); mesh.renderOrder = 3; mesh.frustumCulled = false; race.group.add(this.ring); this.ringMat = m; this.ringFill = 0; }
+    // contact shadows for every bike (instanced): flat on the road, stretched along the bike, shrinking when it's airborne
+    { const n = race.riders.length;   // cops are in the riders list too
+      this.blobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobShadowTex(), color: 0x000000, transparent: true, opacity: 0.62, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), n);
+      this.blobs.frustumCulled = false; this.blobs.renderOrder = 2; race.group.add(this.blobs); this._bm = new THREE.Matrix4(); this._bq = new THREE.Quaternion(); this._bs = new THREE.Vector3(); this._bp = new THREE.Vector3(); this._by = new THREE.Vector3(0, 1, 0); }
   }
   // ── traffic helpers ──
   spread(zi) { const zn = this.zones[zi], cs = this.cars.filter(c => c.zi === zi), len = zn.b - zn.a;
@@ -5428,7 +5474,16 @@ class StreetOps {
       for (const n of T.nitros || []) { const a = T.wrapD(last - n.s), b = T.wrapD(r.s - n.s); if (a < n.len * 0.5 && b >= n.len * 0.5 && b < n.len + 6 && Math.abs(r.d - n.d) < n.hw + 0.4) {
         r.v = Math.min(r.v + 4.5, r.vTop * 1.3);
         if (r.isPlayer) { P.boost = Math.min(100, P.boost + 30); G.comicPop('NITRO!', P, 1.05, '#3fe8ff'); G.fx.fovPunch = Math.max(G.fx.fovPunch, 10); G.shake(0.22); R.rumble(0.5, 0.18); AUDIO.boostKick(); R.combat.zap && R.combat.zap(P, 1); } } } }
-    this.updateGuide(dt); this.updateBoostFX(dt); this.updateRing(dt);
+    this.updateGuide(dt); this.updateBoostFX(dt); this.updateRing(dt); this.updateBlobs();
+  }
+  updateBlobs() {
+    const R = this.race, T = R.track, all = R.riders; let i = 0;
+    for (const r of all) { if (i >= this.blobs.count) break; const vis = r.rig && r.rig.root.visible && r.rig.root.parent && !r.eliminated && !r.wreck;
+      if (!vis) { this._bm.makeScale(0, 0, 0); this.blobs.setMatrixAt(i++, this._bm); continue; }
+      const gy = r.air && T.gy ? T.gy(r.s, r.d) : Math.min(r.y, T.yAt(r.s) + 0.02), h = Math.max(0, r.y - gy), k = clamp(1 - h / 4, 0.35, 1);
+      T.pos(r.s, r.d, this._bp, gy - T.yAt(r.s) + 0.025); this._bq.setFromAxisAngle(this._by, T.yawAt(r.s) + (r.psi || 0)); this._bs.set(1.0 * k, 1, 2.4 * k);
+      this._bm.compose(this._bp, this._bq, this._bs); this.blobs.setMatrixAt(i++, this._bm); }
+    this.blobs.instanceMatrix.needsUpdate = true;
   }
   updateRing(dt) {
     const R = this.race, T = R.track, P = R.player, G = R.game, U = this.ringMat.uniforms;
@@ -5511,7 +5566,7 @@ class StreetOps {
     this.bolts.geometry.setDrawRange(0, q * 6); this.bolts.geometry.attributes.position.needsUpdate = true; this.bolts.geometry.attributes.color.needsUpdate = true;
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
-    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
+    if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.blobs.geometry.dispose(); this.blobs.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
 }
 
 // ===== 50_combat.js =====
@@ -7206,7 +7261,7 @@ const INPUT = {
 // ===== 90_main.js =====
 // ───────────────────────── GAME: renderer, state machine, camera, loop ─────────────────────────
 let GAME = null;
-const QUALITY = { low: { pr: 1, shadows: false }, medium: { pr: 1.35, shadows: true }, high: { pr: 2, shadows: true } };
+const QUALITY = { low: { pr: 1.25, shadows: false }, medium: { pr: 2, shadows: true }, high: { pr: 2.5, shadows: true } };   // phones render near their native sharpness; the governor steps down if frames run long
 function resolveQuality() { if (URLP.get('q')) return URLP.get('q'); const q = SAVE.settings.quality; if (q !== 'auto') return q; return SAVE.settings.detected || (IS_TOUCH ? 'medium' : 'high'); }
 function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
@@ -7376,7 +7431,7 @@ class Game {
   }
   refreshMenuRig(buildId) {
     if (this.menuRig) { this.scene.remove(this.menuRig.root); this.menuRig.dispose(); }
-    this.menuRig = new BikeRig(lookFromSave(buildId)); this.menuRig.showWeapon(null);
+    this.menuRig = new BikeRig(lookFromSave(buildId)); this.menuRig.showWeapon(null); this.menuRig.addOutlines(); this.menuRig.addBlob();
     const T = this.track; const s = 24, d = T.wAt(s) * 0.12; T.pos(s, d, this.menuRig.root.position); this.menuRig.root.rotation.y = T.yawAt(s) + 0.25; this.menuS = s; this.menuD = d;
     if (this.state !== 'race' && this.state !== 'results' && this.state !== 'paused') this.scene.add(this.menuRig.root);
     this.avatarDue = 3;   // re-shoot the profile portrait once the new rig has posed
@@ -7458,7 +7513,7 @@ class Game {
     if (this.state !== 'race' || raw > 0.25 || URLP.get('q') || !QUALITY[this.quality]) { if (this.gov) this.gov.t = 0; return; }
     const G = this.gov || (this.gov = { sm: 1 / 60, t: 0 }); G.sm += (raw - G.sm) * 0.05; G.t += raw; if (G.t < 2.5) return;
     let k = this.govK || 1; const base = Math.min(devicePixelRatio || 1, QUALITY[this.quality].pr);
-    if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
+    if (G.sm > 1 / 42 && k > 0.6) k = Math.max(0.6, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
@@ -7584,7 +7639,7 @@ class Game {
     if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
     this.hud.updateTag(dt, this.camera);
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
-    const cp = this.camera.position, hideR = 1.6 + this.portraitK() * 1.9; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < hideR) r.rig.root.visible = false; }
+    const cp = this.camera.position, hideR = 1.6 + this.portraitK() * 1.9; for (const r of R.riders) { if (r.rig.outlines) { const q = r.rig.root.position; r.rig.setOutline(r.isPlayer || (q.x - cp.x) ** 2 + (q.z - cp.z) ** 2 < 26 * 26); } if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < hideR) r.rig.root.visible = false; }
   }
   // takedown cam (Burnout style): cut to a low angle ahead of the wreck, slow motion while the bike rolls and the rider
   // tumbles down the road, then cut straight back to the chase cam. Also used when you go down yourself.
