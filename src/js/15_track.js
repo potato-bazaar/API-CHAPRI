@@ -58,6 +58,7 @@ class Track {
     this.isElevated = (s) => this.yAt(s) > 1.5;
     this.computeSpeedProfile(1.0);
     this.placeHazards(def);
+    this.planCorners(); this.planTraffic(def);
   }
   // Shortcuts: the sharpest corners get a wide apron; a divider island splits off a kachha lane that cuts the inside.
   planShortcuts(n) {
@@ -119,6 +120,29 @@ class Track {
     if (def.rail && def.elev) { let bh = 0; for (let i = 0; i < N; i++) bh = Math.max(bh, cyclicKey(def.elev, i / N, false));
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
+    // nitro strips on every track (the Underground authors its own): on straights, spread round the lap, a coin line after each
+    if (!def.underground) { this.nitros = []; const n = Math.max(3, Math.round(L / 480));
+      for (let k = 0; k < n; k++) { const s0 = take(34, 2); if (s0 === null) break; const s = s0 + 8, f = [0.3, -0.3, 0, 0.25, -0.2][k % 5], d = f * this.get(this.w0, s);
+        this.nitros.push({ s, d, len: 8, hw: 1.0 }); this.pieceZones.push([s0, s0 + 34]); for (let i = 0; i < 4; i++) this.coins.push({ s: s + 11 + i * 3, d, h: 0.95 }); } }
+  }
+  // corners for the direction guide: runs of real curvature, merged, with their tightest radius and which way they go
+  planCorners() {
+    const N = this.N, out = []; let cur = null;
+    for (let i = 0; i <= N; i++) { const k = i < N ? this.k[i] : 0, on = Math.abs(k) > 1 / 75, sg = Math.sign(k);
+      if (on && cur && cur.dir === sg && i * STEP - cur.e < 14) { cur.e = i * STEP; cur.r = Math.min(cur.r, 1 / Math.abs(k)); }
+      else if (on) { if (cur) out.push(cur); cur = { s: i * STEP, e: i * STEP, dir: sg, r: 1 / Math.abs(k) }; } }
+    if (cur) out.push(cur);
+    this.corners = out.filter(c => c.e - c.s > 6 && c.r < 70).map(c => ({ ...c, kind: c.r < 26 ? 'hairpin' : c.r < 44 ? 'sharp' : 'bend' }));
+  }
+  // traffic lanes: the Underground's tunnel and cut; elsewhere the longest calm stretches away from set pieces
+  planTraffic(def) {
+    const L = this.L; this.trafficZones = [];
+    if (this.ug) { const Z = this.ug; this.trafficZones.push({ a: Z.tunnel[0] - 4, b: Z.tunnel[1] }, { a: Z.cut[0] + 6, b: Z.chevron[0] - 12 }); return; }
+    const bad = (s) => s < 70 || s > L - 40 || Math.abs(this.kAt(s)) > 1 / 48 || this.yAt(s) > 0.6 || this.hallAt(s) || this.pieceZones.some(([a, b]) => s > a - 8 && s < b + 8) || this.kickers.some(k => Math.abs(this.wrapD(s - k.s)) < 30)
+      || this.shortcuts.some(sc => Math.abs(this.wrapD(s - sc.s)) < sc.half + 8) || (this.roof && this.roofRaw(s) > 0) || (this.stairs && this.stairsZone(s)) || this.nakas.some(n => Math.abs(this.wrapD(s - n.s)) < 50);
+    const runs = []; let st = null; for (let s = 0; s <= L; s += 4) { if (s < L && !bad(s)) { if (st === null) st = s; } else if (st !== null) { runs.push([st, s]); st = null; } }
+    runs.sort((x, y) => (y[1] - y[0]) - (x[1] - x[0]));
+    for (const [a, b] of runs.slice(0, 3)) if (b - a >= 90) this.trafficZones.push({ a: a + 4, b: Math.min(b - 4, a + 300) });
   }
   // ── Mumbai Underground: authored sections (metres), the tunnel as a hall, the broken metro bridge as a roof run with
   // one big gap and a tin-sheet launch lip, nitro strips, a burst pipe, a kicker over cable reels in the docks ──

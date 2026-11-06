@@ -13,10 +13,10 @@ class ComicFX {
     this.rt = new THREE.WebGLRenderTarget(sz.x, sz.y, { samples: 4 }); this.rt.texture.colorSpace = THREE.SRGBColorSpace; this.rt.texture.internalFormat = 'RGBA8'; this.rt.isXRRenderTarget = true;
     this.rt.depthTexture = new THREE.DepthTexture(sz.x, sz.y); this.rt.depthTexture.type = THREE.UnsignedIntType;
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 } },
+      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 }, uLift: { value: 0.03 }, uGamma: { value: 0.95 }, uSat: { value: 1.12 }, uNeon: { value: 0 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uBloom, uComic; varying vec2 vUv;
+        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uBloom, uComic, uLift, uGamma, uSat, uNeon; varying vec2 vUv;
         float lin(float d){ float z = d * 2.0 - 1.0; return (2.0 * cNear * cFar) / (cFar + cNear - z * (cFar - cNear)); }
         void main(){
           vec2 px = uPx / res; vec2 c = vUv - 0.5; float e2 = dot(c, c);
@@ -35,13 +35,21 @@ class ComicFX {
             vec2 q = gl_FragCoord.xy / uDot; q = vec2(q.x + q.y, q.y - q.x) * 0.7071; vec2 cell = fract(q) - 0.5;
             float dark = smoothstep(0.34, 0.04, lum); float rad = 0.55 * sqrt(dark);
             float dotm = 1.0 - smoothstep(rad - 0.07, rad + 0.07, length(cell));
-            o *= 1.0 - dotm * 0.24 * dark;
+            o *= 1.0 - dotm * 0.13 * dark;
             // Ben-Day sparkle on bright, saturated colour
             float sat = max(o.r, max(o.g, o.b)) - min(o.r, min(o.g, o.b)); vec2 cell2 = fract(gl_FragCoord.xy / (uDot * 1.4)) - 0.5;
             o += (1.0 - smoothstep(0.16, 0.24, length(cell2))) * smoothstep(0.35, 0.7, sat) * smoothstep(0.45, 0.8, lum) * 0.05;
-            o = mix(o, floor(o * 7.0 + 0.5) / 7.0, 0.16);
+            o = mix(o, floor(o * 7.0 + 0.5) / 7.0, 0.07);
             o = mix(o, vec3(0.07, 0.04, 0.1), ink * 0.85);
           }
+          // grade: lift the shadows into a cool violet so night detail survives, open up the mids, push the colour
+          float lg = dot(o, vec3(0.299, 0.587, 0.114));
+          o += uLift * vec3(0.62, 0.66, 1.0) * (1.0 - smoothstep(0.0, 0.55, lg));
+          o = pow(max(o, vec3(0.0)), vec3(uGamma));
+          float lg2 = dot(o, vec3(0.299, 0.587, 0.114)); o = mix(vec3(lg2), o, uSat);
+          // boost: the whole frame floods neon, cyan on the left, pink on the right, glowing at the edges
+          if (uNeon > 0.01) { vec3 neon = mix(vec3(0.2, 0.85, 1.3), vec3(1.3, 0.25, 0.9), smoothstep(-0.35, 0.35, c.x + c.y * 0.4));
+            o = mix(o, o * (0.7 + 0.5 * neon) + neon * 0.05 * (1.0 - lg2), uNeon * 0.42); o += neon * smoothstep(0.08, 0.32, e2) * uNeon * 0.22; }
           vec3 bl = texture2D(tBloom, vUv).rgb; o += bl * uBloom * (1.0 - 0.5 * o);
           gl_FragColor = vec4(o, 1.0);
         }`,
@@ -76,6 +84,7 @@ class ComicFX {
     this.r.setRenderTarget(null); this.r.render(this.qScene, this.qCam);
   }
   // glow amount + threshold (display-referred brightness), comic print look on/off
+  setGrade(lift, gamma, sat, neon) { if (!this.ok) return; const U = this.mat.uniforms; U.uLift.value = lift; U.uGamma.value = gamma; U.uSat.value = sat; U.uNeon.value = neon; }
   setLook(bloom, thr, comic) { if (!this.ok) return; this.mat.uniforms.uBloom.value = bloom; this.thr = thr; this.mat.uniforms.uComic.value = comic ? 1 : 0; }
   dispose() { if (!this.ok) return; this.rt.dispose(); this.bA.dispose(); this.bB.dispose(); this.mat.dispose(); this.brightMat.dispose(); this.blurMat.dispose(); this.quad.geometry.dispose(); }
 }

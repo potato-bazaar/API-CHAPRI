@@ -2,7 +2,7 @@
 const MOODS = {
   morning: { sky: ['#6fa3d8', '#bcd6ee', '#f7e3c2'], fog: '#e8d9c3', fogNear: 90, fogFar: 620, sun: '#fff1d6', sunI: 3.4, sunDir: [0.55, 0.62, 0.35], hemiSky: '#cfe0f2', hemiGround: '#8d7a62', hemiI: 2.1, night: 0, exposure: 1.0, sunDisc: '#fff6e0' },
   golden: { sky: ['#6a3494', '#e85f9e', '#ffb36b'], fog: '#f2a682', fogNear: 80, fogFar: 560, sun: '#ffbe85', sunI: 3.4, sunDir: [-0.7, 0.32, 0.5], hemiSky: '#ffb0d0', hemiGround: '#8a6250', hemiI: 2.1, night: 0.15, exposure: 1.15, sunDisc: '#ffd59a' },
-  night: { sky: ['#07061a', '#1d1640', '#4a2a5a'], fog: '#221838', fogNear: 30, fogFar: 330, sun: '#9fb2ff', sunI: 0.6, sunDir: [0.3, 0.7, -0.4], hemiSky: '#4a3a8a', hemiGround: '#2a1c22', hemiI: 1.3, night: 1, exposure: 1.15, sunDisc: '#dfe6ff' },
+  night: { sky: ['#0a0a22', '#26205a', '#5e3a6e'], fog: '#2e2448', fogNear: 40, fogFar: 380, sun: '#b4c4ff', sunI: 1.15, sunDir: [0.3, 0.7, -0.4], hemiSky: '#6a5cb0', hemiGround: '#3a2a30', hemiI: 2.15, night: 1, exposure: 1.32, sunDisc: '#dfe6ff' },
 };
 const WALL_COLS = { city: ['#efe3cf', '#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#f5e6cc', '#7fb3a8', '#e6c9a8'], basti: ['#3e8e8a', '#c96f4a', '#e8b4b8', '#9fd3c7', '#d9c27a', '#b5a58f', '#8fb6d9', '#e09a6a', '#c9c2b5'], market: ['#e6c9a8', '#d98a6a', '#f2c46d', '#c96f4a', '#efe3cf', '#9fd3c7'] };
 const SIDEWALK = { city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
@@ -52,6 +52,7 @@ class World {
     this.buildShortcuts(B);
     this.buildSetPieces(B);
     if (this.def.underground) this.buildUnderground(B);
+    this.buildStreet(B);
     this.buildSpeedClutter(B);
     this.buildMarkings(B);
     this.whoosh.sort((a, b) => a.s - b.s);
@@ -205,7 +206,7 @@ class World {
   buildRoadside(B) {
     const T = this.track, th = this.theme, sw = SIDEWALK[th];
     const p = new THREE.Vector3();
-    const lampEvery = th === 'basti' ? 26 : 32;
+    const lampEvery = th === 'basti' ? 22 : 26;
     let side = 1;
     for (let s = 12; s < T.L - 6; s += lampEvery) {
       if (T.hallAt(s) || (this.ugSkip && this.ugSkip(s, 'lamp'))) continue;
@@ -251,7 +252,7 @@ class World {
     if (th !== 'sea') for (let s = 70; s < T.L - 40; s += 140 + RNG() * 80) { const sd = RNG() < 0.5 ? -1 : 1; if (T.yAt(s) > 1 || sw < 2 || (this.ugSkip && this.ugSkip(s, 'auto'))) continue; T.pos(s, sd * (T.wAt(s) / 2 + 1.6), p); this.auto(B, p.x, p.y + 0.18, p.z, T.yawAt(s) + (RNG() < 0.5 ? 0 : Math.PI), RNG() < 0.5 ? 'kaali' : 'cng'); }
   }
   isSea(x) { return this.def.sea && x < this.def.sea.x; }
-  tree(B, x, y, z, h) { B.props.box(x, y, z, 0.35, h * 0.55, 0.35, RNG() * 3, '#5a3e2a'); const g = ['#3f6b2f', '#4f7d35', '#2f5a28']; for (let i = 0; i < 4; i++) B.props.geom(BLOB, x + (RNG() - 0.5) * 2, y + h * (0.6 + RNG() * 0.3), z + (RNG() - 0.5) * 2, RNG() * 6, 1.6 + RNG(), 1.3 + RNG() * 0.6, 1.6 + RNG(), pick(g)); }
+  tree(B, x, y, z, h) { const ry = RNG() * 3; B.props.box(x, y, z, 0.35, h * 0.55, 0.35, ry, '#5a3e2a'); B.props.box(x, y, z, 0.38, 0.85, 0.38, ry, '#f2eee4'); B.props.box(x, y + 0.85, z, 0.39, 0.16, 0.39, ry, '#c8201e'); /* trunks painted white and red, Indian roadside style */ const g = ['#3f6b2f', '#4f7d35', '#2f5a28']; for (let i = 0; i < 4; i++) B.props.geom(BLOB, x + (RNG() - 0.5) * 2, y + h * (0.6 + RNG() * 0.3), z + (RNG() - 0.5) * 2, RNG() * 6, 1.6 + RNG(), 1.3 + RNG() * 0.6, 1.6 + RNG(), pick(g)); }
   palm(B, x, y, z, h) {
     const lean = (RNG() - 0.5) * 0.3, dir = RNG() * 6; let px = x, pz = z, py = y;
     for (let i = 0; i < 6; i++) { const nx = px + Math.cos(dir) * lean * h / 6, nz = pz + Math.sin(dir) * lean * h / 6, ny = py + h / 6; this.beam(B.props, new THREE.Vector3(px, py, pz), new THREE.Vector3(nx, ny, nz), 0.32 - i * 0.025, i % 2 ? '#7a5a3a' : '#8a6a46'); px = nx; py = ny; pz = nz; }
@@ -771,14 +772,14 @@ class World {
   }
   placeTrain(x) { this.train.position.copy(this.railC).addScaledVector(this.railA, x).addScaledVector(new THREE.Vector3(Math.sin(this.track.yawAt(this.track.rail.s)), 0, Math.cos(this.track.yawAt(this.track.rail.s))), this.trainDir > 0 ? -2.6 : 2.6); this.train.rotation.y = this.railYaw; }
   placePickups() {
-    const T = this.track; const types = ['oil', 'chain', 'oil', 'bottle', 'oil', 'gutka', 'oil', 'belt'];
+    const T = this.track; const types = ['sting', 'rod', 'sting', 'bottle', 'sting', 'gutka', 'sting', 'katta', 'sting', 'chain', 'sting', 'belt'];
     let i = 0;
     for (let s = 140; s < T.L - 40; s += 105) {
       const type = types[i++ % types.length]; const w = T.w0At(s) / 2;
-      let d = type === 'oil' ? T.rlAt(s) * 0.6 : (i % 2 ? 1 : -1) * Math.max(0, w - 1.1);
+      let d = type === 'sting' ? T.rlAt(s) * 0.6 : (i % 2 ? 1 : -1) * Math.max(0, w - 1.1);
       if (this.obstacles.some(o => Math.abs(o.s - s) < 6 && Math.abs(o.d - d) < 1.5)) d = -d;
       this.pickupSpots.push({ s, d, type });
-      if (type === 'oil' && w > 3.5) this.pickupSpots.push({ s: s + 4, d: d + (d > 0 ? -1.6 : 1.6), type: 'oil' });
+      if (type === 'sting' && w > 3.5) this.pickupSpots.push({ s: s + 4, d: d + (d > 0 ? -1.6 : 1.6), type: 'sting' });
     }
   }
   // ── sky dome, sea, lights ──
@@ -845,16 +846,16 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt && !wet ? 1 : 0;
     this.sun.color.set(M.sun); if (wet) this.sun.color.lerp(new THREE.Color('#dfe6f2'), 0.7); this.sun.intensity = M.sunI * (wet ? (nt ? 0.5 : 0.42) : 1);
     this.hemi.color.set(M.hemiSky); this.hemi.groundColor.set(M.hemiGround);
-    if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#45506e' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#1c1c26' : '#5a5862'), 0.6); }
+    if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#5a6688' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#262634' : '#5a5862'), 0.6); }
     this.hemi.intensity = M.hemiI * (wet ? (nt ? 1.0 : 1.1) : 1); this.hemiBase = this.hemi.intensity;
-    const fogC = new THREE.Color(M.fog); if (wet) fogC.lerp(new THREE.Color(nt ? '#20242f' : '#9ba2b0'), 0.75);
+    const fogC = new THREE.Color(M.fog); if (wet) fogC.lerp(new THREE.Color(nt ? '#2a2f3e' : '#9ba2b0'), 0.75);
     this.fog = new THREE.Fog(fogC, M.fogNear * (wet ? 0.55 : 1), M.fogFar * (wet ? 0.72 : 1));
     const n = M.night;
     const lit = Math.max(n, wet ? 0.45 : 0);   // dark monsoon afternoons: windows, shops and signs switch on
     this.mats.facade.emissive.set('#ffb347').multiplyScalar(lit * 0.9 + 0.05);
     this.mats.shops.emissive.set('#ffffff').multiplyScalar(0.08 + lit * 0.55);
     this.mats.signs.emissive.set('#ffffff').multiplyScalar(0.12 + lit * 0.7);
-    this.mats.pool.opacity = lit * 0.55; if (this.glowMat) this.glowMat.opacity = 0.25 + lit * 0.75;
+    this.mats.pool.opacity = lit * 0.7; if (this.glowMat) this.glowMat.opacity = 0.25 + lit * 0.75;
     this.mats.glowBasic.color.set('#ffffff').multiplyScalar(n > 0.5 ? 1.0 : 0.85);
     this.mats.road.roughness = wet ? 0.62 : 0.92; this.mats.road.color.set(wet ? '#7c7886' : '#ffffff'); this.mats.road.metalness = wet ? 0.1 : 0; REFL.U.uWet.value = wet ? 1 : 0;
     this.headlight.intensity = n > 0.5 ? 220 : 0;

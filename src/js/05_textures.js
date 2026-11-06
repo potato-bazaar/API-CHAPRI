@@ -118,7 +118,11 @@ function buildTextures() {
     const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(0.6, 'rgba(0,0,0,0.25)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     x.fillStyle = g; x.fillRect(0, 0, 128, 128); TEX.blob = toTex(c, { srgb: false });
   }
-  for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil']) TEX['icon_' + k] = toTex(drawPickupIcon(k));
+  for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil', 'rod', 'katta']) TEX['icon_' + k] = toTex(drawPickupIcon(k));
+  // a ring of light for weapon swings (bright outer edge, clear centre) and a gutka splat for the road
+  { const [c, x] = mkCanvas(128, 128); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.62, 'rgba(255,255,255,0)'); g.addColorStop(0.86, 'rgba(255,250,220,0.9)'); g.addColorStop(0.97, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); TEX.swoosh = toTex(c, { srgb: false }); }
+  { const [c, x] = mkCanvas(128, 128); for (let i = 0; i < 22; i++) { const r = 8 + Math.random() * 26, px = 64 + (Math.random() - 0.5) * 70, py = 64 + (Math.random() - 0.5) * 70; const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(150,20,14,0.95)'); g.addColorStop(0.7, 'rgba(110,14,10,0.85)'); g.addColorStop(1, 'rgba(90,10,8,0)'); x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); }
+    for (let i = 0; i < 14; i++) { x.fillStyle = 'rgba(255,190,170,0.5)'; x.beginPath(); x.ellipse(30 + Math.random() * 68, 30 + Math.random() * 68, 2 + Math.random() * 4, 1 + Math.random() * 2, Math.random() * 3, 0, 7); x.fill(); } TEX.gutkaSplat = toTex(c, { srgb: true }); }
   // Asphalt-ish ground
   {
     const [c, x] = mkCanvas(256, 256);
@@ -336,6 +340,8 @@ function drawPickupIcon(kind) {
   if (kind === 'belt') { x.strokeStyle = '#8a4a22'; x.lineWidth = 14; x.beginPath(); x.moveTo(28, 92); x.quadraticCurveTo(64, 20, 100, 60); x.stroke(); x.fillStyle = '#d4a62a'; x.fillRect(84, 46, 26, 24); x.fillStyle = '#1b0d22'; x.fillRect(91, 53, 12, 10); }
   if (kind === 'bottle') { x.save(); x.translate(64, 66); x.rotate(0.5); x.fillStyle = '#6b4a14'; x.beginPath(); x.roundRect(-14, -18, 28, 52, 6); x.fill(); x.fillRect(-6, -40, 12, 24); x.fillStyle = '#ffd23f'; x.fillRect(-12, 0, 24, 16); x.fillStyle = '#d43c2c'; x.fillRect(-7, -44, 14, 6); x.restore(); }
   if (kind === 'gutka') { x.fillStyle = '#c8321e'; x.beginPath(); x.roundRect(36, 34, 56, 64, 6); x.fill(); x.fillStyle = '#ffd23f'; x.font = `800 22px ${FONT_DISPLAY}`; x.textAlign = 'center'; x.fillText('थुक', 64, 72); x.fillStyle = '#7a1022'; for (let i = 0; i < 5; i++) { x.beginPath(); x.arc(30 + i * 16, 104 + (i % 2) * 6, 4, 0, 7); x.fill(); } }
+  if (kind === 'rod') { x.strokeStyle = '#a0522d'; x.lineWidth = 11; x.beginPath(); x.moveTo(34, 98); x.lineTo(88, 36); x.lineTo(100, 42); x.stroke(); x.strokeStyle = '#d07a4a'; x.lineWidth = 3; x.beginPath(); x.moveTo(38, 92); x.lineTo(86, 38); x.stroke(); for (let i = 0; i < 6; i++) { x.fillStyle = '#5a2a14'; x.fillRect(44 + i * 8, 84 - i * 9, 4, 4); } }
+  if (kind === 'katta') { x.fillStyle = '#3a3c42'; x.fillRect(30, 46, 66, 16); x.fillRect(84, 42, 12, 8); x.save(); x.translate(44, 60); x.rotate(0.25); x.fillStyle = '#6b3e26'; x.fillRect(0, 0, 18, 36); x.restore(); x.strokeStyle = '#3a3c42'; x.lineWidth = 4; x.beginPath(); x.arc(64, 68, 8, 0, Math.PI); x.stroke(); x.fillStyle = '#ffd23f'; x.beginPath(); x.moveTo(100, 54); x.lineTo(118, 46); x.lineTo(112, 56); x.lineTo(118, 64); x.closePath(); x.fill(); }
   if (kind === 'oil') { x.fillStyle = '#ffc21a'; x.beginPath(); x.roundRect(40, 38, 44, 60, 8); x.fill(); x.fillRect(56, 24, 14, 18); x.fillStyle = '#1b0d22'; x.font = `800 28px ${FONT_NUM}`; x.textAlign = 'center'; x.fillText('2T', 62, 78); x.fillStyle = '#ff2e88'; x.beginPath(); x.moveTo(92, 40); x.lineTo(80, 64); x.lineTo(90, 64); x.lineTo(82, 88); x.lineTo(100, 58); x.lineTo(90, 58); x.closePath(); x.fill(); }
   return c;
 }

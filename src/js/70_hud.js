@@ -4,7 +4,7 @@ class HUD {
   constructor(game) {
     this.game = game; this.root = $('#hud');
     this.el = { pos: $('#hPos'), suf: $('#hPosSuf'), of: $('#hPosOf'), lap: $('#hLap'), time: $('#hTime'), best: $('#hBest'), speed: $('#hSpeed'), gear: $('#hGear'), kick: $('#hKick'), arcFill: $('#arcFill'), arcBand: $('#arcBand'), needle: $('#needle'), wob: $('#wobIco'), stand: $('#standings'), mm: $('#mmSvg'), mmName: $('#mmName'), big: $('#bigText'), wrong: $('#wrongWay'), warnL: $('#warnL'), warnR: $('#warnR'), splat: $('#splat'), pops: $('#pops'), callouts: $('#callouts'), toast: $('#toast'), toastTxt: $('#toastTxt'), toastPts: $('#toastPts'), slots: $('#wSlots'), throwIco: $('#throwIco'), throwUses: $('#throwUses'), maarUses: $('#maarUses'), boostBtn: $('[data-t="boost"]') };
-    this.iconURL = {}; for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil']) this.iconURL[k] = TEX['icon_' + k].image.toDataURL();
+    this.iconURL = {}; for (const k of ['chain', 'belt', 'bottle', 'gutka', 'oil', 'rod', 'katta']) this.iconURL[k] = TEX['icon_' + k].image.toDataURL();
     this.el.throwIco.style.backgroundImage = `url(${this.iconURL.bottle})`;
     // powerband arc on the dial (5,500–7,500 rpm of 10,500)
     const arcPt = (f, r) => { const a = Math.PI * (1 - f); return [150 + r * Math.cos(a), 150 - r * Math.sin(a)]; };
@@ -71,8 +71,9 @@ class HUD {
     // weapons
     const w = P.weapons; const key = (w.melee ? w.melee.kind + w.melee.uses : '-') + (w.throw ? w.throw.kind + w.throw.uses : '-');
     if (key !== this.wKey) { this.wKey = key; let h = '';
-      if (w.melee) h += `<span class="wslot"><img src="${this.iconURL[w.melee.kind]}" alt="">${w.melee.kind.toUpperCase()} ×${w.melee.uses}</span>`;
-      if (w.throw) h += `<span class="wslot"><img src="${this.iconURL[w.throw.kind]}" alt="">${w.throw.kind === 'gutka' ? 'GUTKA' : 'BOTTLE'} ×${w.throw.uses}</span>`;
+      const NM = { chain: 'CHAIN', belt: 'BELT', rod: 'SARIA', lathi: 'LATHI', bottle: 'BOTTLE', gutka: 'GUTKA', katta: 'KATTA' };
+      if (w.melee) h += `<span class="wslot"><img src="${this.iconURL[w.melee.kind]}" alt="">${NM[w.melee.kind] || w.melee.kind.toUpperCase()} ×${w.melee.uses}</span>`;
+      if (w.throw) h += `<span class="wslot"><img src="${this.iconURL[w.throw.kind]}" alt="">${NM[w.throw.kind] || 'BOTTLE'} ×${w.throw.uses}</span>`;
       this.el.slots.innerHTML = h; const tb = this.el.throwIco.parentElement; tb.classList.toggle('armed', !!w.throw); this.el.throwIco.style.backgroundImage = `url(${this.iconURL[w.throw ? w.throw.kind : 'bottle']})`; this.el.throwUses.textContent = w.throw ? w.throw.uses : ''; this.el.maarUses.textContent = w.melee ? w.melee.uses : '';
     }
     // world-anchored pops

@@ -15,6 +15,7 @@ class Rider {
     this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 1.06;   // arcade grip: a touch more than a real tyre
     // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
     this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
+    if (this.assist) this.gripLat *= 1.1;   // arcade handling for the human: tighter lines than the AI's tyres allow
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
     // state
@@ -25,7 +26,8 @@ class Rider {
     this.lap = -1; this.lapStart = 0; this.laps = []; this.bestLap = Infinity; this.finished = false; this.finishT = 0; this.eliminated = false;
     this.wrongT = 0; this.gripT = 0; this.splatT = 0; this.kickCD = 0; this.attack = null; this.lastHitBy = null; this.lastHitT = -99; this.downedBy = null;
     this.weapons = { melee: null, throw: null };
-    this.input = { throttle: 0, brake: 0, rear: 0, steer: 0, back: false, boost: false };
+    this.input = { throttle: 0, brake: 0, rear: 0, steer: 0, back: false, boost: false, hop: false };
+    this.strafe = 0; this.hopCD = 0; this.hopT = 9; this.flatT = 0; this.crashDur = 2.0;
     this.ai = { laneBias: (RNG() - 0.5) * 1.2, nextThink: 0, attackCD: 2 + RNG() * 3, mistakeT: 0, target: 0, wheelieT: 0 };
     this.wheelieDist = 0; this.slideDist = 0; this.wheeliesDone = 0;
     this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? DEBUG.autopilot : RNG() < 0.4; this.ai.jumper = this.isPlayer ? DEBUG.autopilot : RNG() < 0.55;
@@ -37,7 +39,8 @@ class Rider {
     const T = this.race.track, inp = this.input;
     this.invuln = Math.max(0, this.invuln - dt); this.kickCD = Math.max(0, this.kickCD - dt); this.gripT = Math.max(0, this.gripT - dt); this.splatT = Math.max(0, this.splatT - dt); this.wobbleT += dt;
     if (this.crashed) return this.stepCrash(dt);
-    const vTopEff = this.vTop * (this.boosting ? 1.17 : 1) * (this.drafting ? 1.06 : 1) * (this.tuck > 0.6 ? 1.02 : 1) * (this.race.wet ? 0.97 : 1);
+    const vTopEff = this.vTop * (this.boosting ? 1.17 : 1) * (this.drafting ? 1.06 : 1) * (this.tuck > 0.6 ? 1.02 : 1) * (this.race.wet ? 0.97 : 1) * (this.wheelie && this.pitch > 0.12 ? 1.07 : 1) * (this.flatT > 0 ? 0.72 : 1);
+    this.hopCD = Math.max(0, this.hopCD - dt); this.hopT += dt; this.flatT = Math.max(0, this.flatT - dt);
     // road surface under the wheels: 0 tarmac, 1 kichad (mud), 2 kachha lane
     this.surf = this.air ? 0 : this.surfaceHere(T);
     const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : this.surf === 5 ? 0.9 : 1);
@@ -61,7 +64,7 @@ class Rider {
     this.sliding = !this.air && inp.rear > 0.5 && this.v > 7 && Math.abs(inp.steer) > 0.15;
     a -= inp.rear * (this.sliding && thr > 0.3 ? 1.6 : this.brakeR);
     if (this.boosting) a += 3.3;
-    if (this.wheelie) a += 0.3;
+    if (this.wheelie && this.pitch > 0.12) a += 1.6;   // a wheelie is a stunt AND a speed trick: less drag, the rear tyre hooks up
     if (this.gripT > 0) a -= 0.8;
     if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4; else if (this.surf === 5) a -= 0.45;
       else if (this.surf === 4) a -= 1.2 + this.v * 0.11;      // water drag: wheels a quarter under
@@ -76,17 +79,21 @@ class Rider {
     // steering by lean: grip budget sets the yaw-rate ceiling
     const vv = Math.max(this.v, 2.5);
     let wMax = Math.min(2.4, this.gripLat * gripMul / vv);
-    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.15; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
+    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.4; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
     let steer = inp.steer; if (this.splatT > 0 && !this.isPlayer) steer += Math.sin(raceT * 9 + this.idx) * 0.8;
     const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
     if (this.assist) {
       // road-relative steering: input = heading off the road (narrower at speed, wider in a drift); the curve itself is fed forward,
       // so letting go straightens the bike along the road instead of carrying it into a wall. Still limited by grip.
       const psiMax = lerp(0.62, 0.29, clamp(this.v / 28, 0, 1)) * (this.sliding ? 1.5 : 1);
-      const ff = k * this.v * Math.cos(this.psi) / denom, req = ff + 6.5 * wrapAngle(-steer * psiMax - this.psi);
+      const ff = k * this.v * Math.cos(this.psi) / denom, req = ff + 10 * wrapAngle(-steer * psiMax - this.psi);
       steer = clamp(-req / Math.max(0.05, wMax), -1, 1);
     }
-    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : this.assist ? 11 : 9, dt);
+    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : this.assist ? 18 : 9, dt);
+    // arcade lane change: the bike starts moving toward the side you press at once, while the heading catches up
+    this.strafe = this.assist ? smooth(this.strafe, -inp.steer * Math.min(2.6, 0.6 + this.v * 0.09) * (this.air ? 0.4 : 1), 14, dt) : 0;
+    // a flat tyre (katta bullet): the rim drags and squirms
+    if (this.flatT > 0 && this.v > 4) { this.psi += Math.sin(raceT * 11 + this.idx) * 0.35 * dt; this.addWobble(7 * dt, true); }
     if (this.isPlayer && inp.brake > 0.6 && Math.abs(this.omega * this.v) > 0.8 * this.gripLat && this.v > 10) this.addWobble(38 * dt, true); // front-end wobble
     // rain: past ~3/4 of the grip budget (or braking hard) the rear steps out and scrubs speed
     if (this.race.wet && !this.air && this.v > 8) {
@@ -98,7 +105,7 @@ class Rider {
     } else this.wetSlip = 0;
     if (this.sliding) { this.slideDist += this.v * dt; this.boost = Math.min(100, this.boost + 10 * fill * dt); }
     // track-space integration
-    const ds = this.v * Math.cos(this.psi) / denom * dt; const dd = this.v * Math.sin(this.psi) * dt + this.shoveV * dt;
+    const ds = this.v * Math.cos(this.psi) / denom * dt; const dd = this.v * Math.sin(this.psi) * dt + (this.shoveV + this.strafe) * dt;
     this.psi = wrapAngle(this.psi + this.omega * dt - k * ds);
     this.shoveV *= Math.exp(-5 * dt);
     const oldLap = this.lap, oldS = this.s; this.dist += ds; this.s = ((this.dist % T.L) + T.L) % T.L; this.d += dd;
@@ -127,6 +134,8 @@ class Rider {
       const sg = this.d > kick.k.d ? 1 : -1; this.d = kick.k.d + sg * (kick.k.hw + 0.05); this.v *= 0.82; this.addWobble(18 / this.st.wobbleRes); if (this.isPlayer) this.race.onWall(this, 0.3);
     }
     this.onKick = !!T.kickerAt(this.s, this.d);
+    // bunny hop: tap weight-back. Clears gutka, glass, potholes; hold it and you land straight into a wheelie
+    if (inp.hop) { inp.hop = false; if (!this.air && this.hopCD <= 0 && this.v > 2 && !this.stoppie) { this.air = true; this.airT = 0; this.vy = 3.6 + Math.min(1.2, this.v * 0.03); this.hopCD = 0.55; this.hopT = 0; this.suspV -= 1.2; this.race.onHop && this.race.onHop(this); } }
     const gy = T.gy(this.s, this.d);
     if (!this.air) {
       const predicted = this.y + this.vy * dt - 0.5 * G * dt * dt;
@@ -144,11 +153,11 @@ class Rider {
     // suspension: a stiff spring-damper the hits feed into; the rig bounces the frame and the rider on it
     this.suspV += (-260 * this.susp - 15 * this.suspV) * dt; this.susp = clamp(this.susp + this.suspV * dt, -0.13, 0.09);
     // wheelie: weight back + throttle in the powerband in 1st/2nd
-    const canStart = inp.back && thr > 0.5 && !this.air && !this.sliding && this.gear <= 2 + this.st.wheelieEase && this.rpm > 5000 && this.v > 4 && Math.abs(this.lean) < 0.35;
+    const canStart = inp.back && thr > 0.5 && !this.air && !this.sliding && this.v > 4 && Math.abs(this.lean) < 0.5 && this.hopT > 0.25 && this.flatT <= 0;
     if (!this.wheelie && canStart) { this.wheelie = true; this.wheelieDist = 0; this.pitchV = 0.6; }
     if (this.wheelie) {
       const assist = !this.isPlayer || SAVE.settings.wheelieAssist;
-      if (assist) { this.pitch = smooth(this.pitch, inp.back && thr > 0.3 ? 0.42 : 0, inp.back ? 3.5 : 6, dt); }
+      if (assist) { this.pitch = smooth(this.pitch, inp.back && thr > 0.3 ? 0.5 : 0, inp.back ? 4.5 : 6, dt); }
       else { this.pitchV += ((thr - 0.55) * 2.6 + (this.pitch - 0.42) * 0.9 - (inp.back ? 0 : 1.4)) * dt; this.pitch += this.pitchV * dt; }
       if (this.pitch > 0.12) { this.wheelieDist += this.v * dt; this.boost = Math.min(100, this.boost + 8 * fill * dt); }
       if (this.pitch > 0.8) { this.crash('loop'); return; }
@@ -158,7 +167,7 @@ class Rider {
     if (!this.wheelie && !this.air && inp.brake > 0.85 && this.v > 13 && Math.abs(inp.steer) < 0.3) { this.stoppie = true; this.stoppieT += dt; if (this.stoppieT > 1.2) this.addWobble(40 * dt, true); }
     else if (this.stoppie) { if (this.stoppieT > 0.5) this.race.onStoppie(this, this.stoppieT); this.stoppie = false; this.stoppieT = 0; }
     if (this.stoppie && this.stoppieT > 2.4) { this.crash('bars'); return; }
-    if (!this.wheelie) this.pitch = smooth(this.pitch, this.stoppie ? -0.28 : 0, 8, dt);
+    if (!this.wheelie) this.pitch = smooth(this.pitch, this.stoppie ? -0.28 : this.air && this.hopT < 0.6 ? 0.16 * Math.sin(Math.min(1, this.hopT / 0.55) * Math.PI) : 0, this.hopT < 0.6 ? 14 : 8, dt);
     // tuck on straights
     this.tuck = smooth(this.tuck, Math.abs(inp.steer) < 0.1 && thr > 0.8 && this.v > 16 ? 1 : 0, 3, dt);
     // visual lean + slide yaw
@@ -215,13 +224,13 @@ class Rider {
     this.v = Math.max(0, this.v - 9 * dt); const ds = this.v * Math.cos(this.psi) * dt; this.dist += ds; this.s = ((this.dist % T.L) + T.L) % T.L; this.d += this.v * Math.sin(this.psi) * dt * 0.5;
     this.d = clamp(this.d, -this.halfW, this.halfW); this.y = T.gapAt(this.s) ? 0 : T.yAt(this.s); this.air = false;
     this.lean = smooth(this.lean, this.crashLean * 1.45, 6, dt);
-    if (this.crashT > 2.0) this.respawn();
+    if (this.crashT > this.crashDur) { this.crashDur = 2.0; this.respawn(); }
   }
   respawn() {
     const T = this.race.track; const cp = Math.floor(this.dist / T.cpSpacing) * T.cpSpacing;
     this.dist = this.dist > 0 ? Math.max(cp, this.dist - 30) : this.dist; this.s = ((this.dist % T.L) + T.L) % T.L;
     if (T.roof) { const x = T.wrapD(this.s - T.roof.s0); if (x > 0 && x < T.roof.len) { this.dist -= x + 6; this.s = ((this.dist % T.L) + T.L) % T.L; } }   // restart before the rooftop run
-    this.d = clamp(T.rlAt(this.s) * 0.4, -this.halfW + 0.5, this.halfW - 0.5); this.psi = 0; this.v = 5; this.omega = 0; this.lean = 0; this.wobble = 0; this.crashed = false; this.invuln = 2; this.y = T.gy(this.s, this.d); this.vy = 0; this.slide = 0; this.air = false;
+    this.d = clamp(T.rlAt(this.s) * 0.4, -this.halfW + 0.5, this.halfW - 0.5); this.psi = 0; this.v = 5; this.omega = 0; this.lean = 0; this.wobble = 0; this.strafe = 0; this.flatT = 0; this.crashed = false; this.invuln = 2; this.y = T.gy(this.s, this.d); this.vy = 0; this.slide = 0; this.air = false;
     this.race.onRespawn(this);
   }
   // ── AI driver ──
@@ -241,6 +250,11 @@ class Rider {
     // police: close in on the player and ride alongside him
     const PL = this.race.player;
     if (P && P.style === 'cop' && PL && !PL.crashed && !nakaPick) { const gap = PL.dist - this.dist; if (gap > -60 && gap < 30) target = PL.d + (gap < 3 && gap > -3 ? (this.d > PL.d ? 0.95 : -0.95) : 0); }
+    // grab what's on the road: Sting cans for everyone, weapons for the ones who fight
+    const C = this.race.combat; if (C && C.pickups && !nakaPick && !goKick) { let best = null, bd = 1e9; const fighter = this.race.combatOn && !(P && P.style === 'clean');
+      for (const pk of C.pickups) { if (!pk.active) continue; const want = pk.type === 'sting' ? this.boost < 70 : fighter && (WEAPONS[pk.type] && WEAPONS[pk.type].slot === 'throw' ? !this.weapons.throw : !this.weapons.melee); if (!want) continue;
+        let ds = pk.s - this.s; if (ds < -T.L / 2) ds += T.L; if (ds > T.L / 2) ds -= T.L; if (ds < 6 || ds > 34 || Math.abs(pk.d - target) > 3.2) continue; if (ds < bd) { bd = ds; best = pk; } }
+      if (best) target = best.d; }
     // avoid obstacles ahead
     for (const o of this.race.world.obstacles) {
       if (goKick && o.kicker === goKick) continue;
@@ -249,7 +263,7 @@ class Rider {
         if (o.kind === 'island') { if (ds > 40 + this.v) continue; const sg = Math.sign(o.d), lane = sg * ((T.w0At(o.s) / 2 + 2.6 + T.wAt(o.s) / 2) / 2);
           target = this.ai.shortcut ? lane : (sg > 0 ? Math.min(target, o.d - o.hw - 2.0) : Math.max(target, o.d + o.hw + 2.0)); continue; }
         const gapL = (T.wAt(o.s) / 2 - 0.4) - (o.d + o.hw), gapR = (o.d - o.hw) - (-T.wAt(o.s) / 2 + 0.4);
-        if (Math.abs(target - o.d) < o.hw + 0.8) target = gapL > gapR ? o.d + o.hw + 0.85 : o.d - o.hw - 0.85; }
+        const mg = o.kind === 'traffic' ? 1.2 : 0.8; if (Math.abs(target - o.d) < o.hw + mg) target = gapL > gapR ? o.d + o.hw + mg + 0.05 : o.d - o.hw - mg - 0.05; }
     }
     for (const h of T.hazards) {
       let ds = h.s - this.s; if (ds < -T.L / 2) ds += T.L; if (ds > T.L / 2) ds -= T.L; if (ds < 0 || ds > 26 + this.v * 0.6 || h.lane) continue;

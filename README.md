@@ -15,9 +15,9 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | A D / ← → | Lean |
 | Space | Drift |
 | Shift | Boost |
-| Q | Wheelie |
+| Q | Hop (tap) / wheelie (hold) |
 | J / L | Hit |
-| K | Throw |
+| K | Throw / spit / shoot |
 | C | Camera |
 | P / Esc | Pause |
 
@@ -31,8 +31,20 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - **Adhoora Pul:** the unfinished metro bridge. Hit the tin lip and jump the gap in slow motion (UDAAN!) under a tower crane, or fall in.
   - **Namak Khet:** a salt-pan kachha road with dust, fences, pylons, floodlight poles, ground fog and a broken-down HORN OK PLEASE truck.
   - **Lokhandwala:** market neon and chasing festoon bulbs back to the finish.
-  - Nitro strips on the tarmac give anyone who threads them a kick of speed and boost. Shaving past traffic scores a PEEP PEEP! near miss.
+  - Shaving past traffic scores a PEEP PEEP! near miss.
 - **Rival taunts.** On every track, rivals now and then shout Hinglish lines in speech bubbles when they pass you, when you pass them, or when you hit them.
+- **Controls.** Steering answers at once: the bike starts sliding toward the side you press while the heading catches up. On touch, the two arrows act as one pad, so you can slide your thumb across. Tap weight-back (Q) to hop over slicks, glass and potholes; hold it for a wheelie in any gear. A wheelie is also a speed trick (more pull, a higher top speed, less steering).
+- **Fights.**
+  - Hits freeze for a few frames on contact (hit-stop), with a lens punch, a swing arc of light, impact flashes and sparks.
+  - New weapons: the saria (iron rod, heavy hits, metal sparks) and the katta (a country pistol with 4 shots that bursts tyres; at speed a blowout throws the rider down the road).
+  - Gutka now also leaves a red slick on the road behind you. Whoever rides through it slides.
+  - Takedowns: a crashed bike tumbles and bounces with sparks while the rider rolls down the road on his own. When you cause it (or go down yourself), the camera cuts to a slow-motion takedown shot, then back to the race.
+- **Sting boost.** Boost comes from glowing Sting cans on the road; the rider chugs one and tosses it. Boosting floods the screen neon cyan and pink, tints the sky light violet, throws electric sparks and arcs off the silencer and leaves light trails.
+- **Nitro gates.** Every track has nitro strips under a neon gate with a tall light beacon, so you can line up from far away.
+- **Direction guide.** A chevron ribbon on the road follows the racing line: green to go, amber to lift, red to brake. A card at the top shows the next sharp corner or hairpin and the distance and side of the next nitro. It can be turned off in Settings.
+- **Traffic.** Autos, kaali-peeli taxis, BEST buses and tempos on every track except Dharavi's lanes. Set Off, Light or Jam in Settings.
+- **Street life.** Pani puri and bhel carts, vada pav and chai tapris, ganne-ka-ras crushers, roadside shrines, BEST bus stops, plants and white-and-red painted tree trunks, each stall lit by its own bulb. There are no people.
+- **Look.** A colour grade that lifts night shadows into violet and pushes saturation, brighter night lighting and more street lamps, neon rim lights and an underglow on your bike, and thick two-stroke smoke with backfire flames.
 - **Police Express+.** A solo escape mode on its own night stage, **Bhaag Chapri Bhaag**.
   - Finish 2 laps before the BUSTED meter fills. Police bikes with sirens and lathis chase you.
   - Nakabandi checkpoints have full-width barricades. You can jump the big yellow ramps or smash through.
@@ -102,10 +114,10 @@ npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
 | `00_core` | Config, builds, upgrades, mods, save data, stats |
 | `05_textures` | Procedural canvas textures |
 | `10_tracks`, `15_track` | Track definitions; centreline, widths, elevation, hazards, shortcuts, set pieces, racing line |
-| `18_batch`, `20_world`, `21_stage`, `22_underground` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights); the Mumbai Underground set pieces (metro, tunnel, cut, LED hairpin, docks, broken bridge, salt pans, market neon) |
+| `18_batch`, `20_world`, `21_stage`, `22_underground`, `23_street` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights); the Mumbai Underground set pieces (metro, tunnel, cut, LED hairpin, docks, broken bridge, salt pans, market neon); stalls, shrines, bus stops and nitro gates on every track |
 | `28_bikemodel`, `30_bike`, `32_bikemods` | Bike GLB loading, paint and finishes, rig, visual mods |
 | `29_ridermodel`, `31_cloth`, `40_rider` | Skinned rider and IK, shirt cloth, rider physics and AI |
-| `45_race`, `46_police`, `47_underground`, `50_combat` | Race flow, scoring, coins, style-move scheduling; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); Underground runtime (traffic, nitro, burst main, UDAAN slow-mo, metro rumble, tunnel echo, section cards) and rival taunts; weapons, particles, tyre spray |
+| `45_race`, `46_police`, `47_underground`, `48_street`, `50_combat` | Race flow, scoring, coins, style-move scheduling; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); Underground runtime (burst main, UDAAN slow-mo, metro rumble, tunnel echo, section cards) and rival taunts; traffic, nitro, the direction guide and the boost look on every track; weapons, gutka slicks, the katta, wrecks, particles, tyre spray |
 | `55_speedfx`, `56_reflect`, `57_comic`, `58_entry` | Speed lines and lens rain; wet-road mirror; glow and comic post pass; the winner's entry cutscene |
 | `60_audio`, `62_music` | Engine and SFX synthesis; procedural music |
 | `70_hud`, `80_ui`, `85_input`, `90_main` | HUD, menus, garage, input, game loop and camera |

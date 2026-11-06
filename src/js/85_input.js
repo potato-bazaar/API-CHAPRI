@@ -15,10 +15,14 @@ const INPUT = {
     addEventListener('pointerdown', () => { AUDIO.init(); GAME && GAME.onFirstInteract(); }, { capture: true });
     for (const btn of $$('.tbtn')) {
       const t = btn.dataset.t;
-      const down = (e) => { e.preventDefault(); AUDIO.init(); try { btn.setPointerCapture(e.pointerId); } catch (_) {} this.touch[t] = true; this.tPressed.add(t); btn.classList.add('on'); };
-      const up = () => { this.touch[t] = false; btn.classList.remove('on'); };
+      const down = (e) => { e.preventDefault(); AUDIO.init(); try { btn.setPointerCapture(e.pointerId); } catch (_) {} this.touch[t] = true; this.tPressed.add(t); btn.classList.add('on'); if (t === 'left' || t === 'right') this.steerPtr = e.pointerId; };
+      const up = (e) => { if ((t === 'left' || t === 'right') && e && e.pointerId === this.steerPtr) { this.touch.left = this.touch.right = false; this.steerPtr = null; $$('.tbtn[data-t="left"], .tbtn[data-t="right"]').forEach(b => b.classList.remove('on')); return; } this.touch[t] = false; btn.classList.remove('on'); };
       btn.addEventListener('pointerdown', down); btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
       btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      // the two arrows work as one steering pad: slide your thumb across without lifting and the bike follows it
+      if (t === 'left' || t === 'right') btn.addEventListener('pointermove', (e) => { if (e.pointerId !== this.steerPtr) return; const L = $('.tbtn[data-t="left"]'), R = $('.tbtn[data-t="right"]'); if (!L || !R) return;
+        const a = L.getBoundingClientRect(), b = R.getBoundingClientRect(), mid = (a.right + b.left) / 2, right = e.clientX >= mid;
+        if (right !== !!this.touch.right) { this.touch.right = right; this.touch.left = !right; R.classList.toggle('on', right); L.classList.toggle('on', !right); } });
     }
     // swipe down on the play area = weight back (GDD touch mapping)
     let sy = null; const gl = $('#gl');
@@ -37,14 +41,14 @@ const INPUT = {
     let analog = false;
     if (ax) { target = ax; analog = true; }
     if (SAVE.settings.tilt && IS_TOUCH && this.tilt !== null && !T.left && !T.right) { const v = this.tilt; target = Math.abs(v) < 3 ? 0 : clamp((v - Math.sign(v) * 3) / 22, -1, 1); analog = true; }
-    // eased digital steering = the 0.25 s lean-in the GDD asks for (lean assist)
-    if (analog) this.steerSm = target; else this.steerSm = smooth(this.steerSm, target, target === 0 ? 12 : 7, dt);
+    // digital steering: a very short ease-in (no dead feel), an instant flip when you swap sides, a quick return to centre
+    if (analog) this.steerSm = target; else { if (target && Math.sign(target) !== Math.sign(this.steerSm)) this.steerSm = target * 0.35; this.steerSm = smooth(this.steerSm, target, target === 0 ? 18 : 22, dt); }
     const out = {
       throttle: Math.max(this.down('throttle') || T.gas ? 1 : 0, gb(7)),
       brake: Math.max(this.down('brake') || T.brake ? 1 : 0, gb(6)),
       rear: this.down('rear') || T.rear || gb(1) > 0.5 ? 1 : 0,
       steer: clamp(this.steerSm, -1, 1),
-      back: this.down('back') || !!T.back || !!T.swipeBack || ay > 0.6,
+      back: this.down('back') || !!T.back || !!T.swipeBack || ay > 0.6, hop: this.hit('back') || this.tPressed.has('back') || gpress(11),
       boost: this.down('boost') || !!T.boost || gb(5) > 0.5,
       hitL: this.hit('hitL'), hitR: this.hit('hitR'), hitAuto: this.tPressed.has('hit') || gpress(0), gpSide: ax < -0.3 ? 1 : ax > 0.3 ? -1 : 0,
       throw: this.hit('throw') || this.tPressed.has('throw') || gpress(2),

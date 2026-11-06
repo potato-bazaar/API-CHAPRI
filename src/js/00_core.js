@@ -160,7 +160,7 @@ const DEFAULT_KEYS = {
 };
 const KEY_LABELS = {
   throttle: 'Throttle', brake: 'Front brake', left: 'Lean left', right: 'Lean right', rear: 'Rear brake / slide', hitL: 'Hit left', hitR: 'Hit right',
-  throw: 'Throw / spit', back: 'Weight back (wheelie)', boost: 'Two-stroke kick', gearUp: 'Gear up (manual)', gearDown: 'Gear down (manual)',
+  throw: 'Throw / spit / shoot', back: 'Hop (tap) / wheelie (hold)', boost: 'Two-stroke kick', gearUp: 'Gear up (manual)', gearDown: 'Gear down (manual)',
   camera: 'Camera', respawn: 'Respawn', pause: 'Pause', horn: 'Horn', mute: 'Mute',
 };
 
@@ -173,7 +173,7 @@ function defaultSave() {
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
-    settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true },
+    settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },

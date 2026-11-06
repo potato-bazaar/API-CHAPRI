@@ -82,7 +82,7 @@ function tyreMatFor(low) {
 }
 // reflections follow the mood: bright by day, dim at night and in the monsoon
 function setBikeEnv(mood, wet) {
-  BIKE_MODEL.envI = (1 - 0.7 * (mood ? mood.night : 0)) * (wet ? 0.65 : 1);
+  BIKE_MODEL.envI = (1 - 0.35 * (mood ? mood.night : 0)) * (wet ? 0.8 : 1);   // chrome and paint keep their shine at night
   if (!BIKE_MODEL.ready) return;
   for (const m of [BIKE_MODEL.parts.tyreMat, ...BIKE_MODEL.mats.values()]) m.envMapIntensity = BIKE_MODEL.envI;
 }

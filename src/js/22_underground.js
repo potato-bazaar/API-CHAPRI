@@ -114,8 +114,8 @@ Object.assign(World.prototype, {
   ugSkip(s, what) {
     const T = this.track; if (!T.ug) return false; const z = T.zoneAt(s);
     if (what === 'building') return z === 'docks' || z === 'kachha' || z === 'bridge';
-    if (what === 'lamp') return z === 'kachha' || z === 'docks' || z === 'cut' || z === 'chevron' || z === 'bridge';
-    if (what === 'tree') return z !== 'market';
+    if (what === 'lamp') return z === 'docks' || z === 'cut' || z === 'chevron' || z === 'bridge';
+    if (what === 'tree') return z === 'tunnel' || z === 'docks' || z === 'bridge' || z === 'cut' || z === 'chevron' || z === 'kachha';
     if (what === 'clutter') return z !== 'market' && z !== 'metro' && z !== null;
     if (what === 'wires') return z !== 'market';
     if (what === 'auto') return z !== 'market' && z !== null;
@@ -140,7 +140,7 @@ Object.assign(World.prototype, {
   },
   buildUnderground(B) {
     this.ugInit(); const T = this.track;
-    this.ugMetro(B); this.ugCut(B); this.ugDocks(B); this.ugBridge(B); this.ugKachha(B); this.ugMarket(B); this.ugNitros(B);
+    this.ugMetro(B); this.ugCut(B); this.ugDocks(B); this.ugBridge(B); this.ugKachha(B); this.ugMarket(B);
     const UB = this.ugB, M = this.ugM;
     const add = (b, mat, o, ro = 0) => { const m = b.mesh(mat, o); if (m) { m.renderOrder = ro; this.group.add(m); this.disposables.push(m.geometry); } return m; };
     this.ugMesh = { sign: add(UB.sign, M.sign), led: add(UB.led, M.led), sea: add(UB.sea, M.sea, { receive: true }), nitro: add(UB.nitro, M.nitro, {}, 2), cpool: add(UB.cpool, M.cpool, {}, 2), water: add(UB.water, M.water, {}, 3), cone: add(UB.cone, M.cone, {}, 4), blinkA: add(UB.blinkA, M.blinkA), blinkB: add(UB.blinkB, M.blinkB) };
@@ -263,6 +263,9 @@ Object.assign(World.prototype, {
         if (inLed(s, sg) && inLed(s1, sg)) { at(s, sg * (o0 - 0.06), 0.95, pA); at(s1, sg * (o1 - 0.06), 0.95, pB); at(s1, sg * (o1 - 0.06), 4.1, pC); at(s, sg * (o0 - 0.06), 4.1, pD); UB.led.quad(pA, pB, pC, pD, '#ffffff', [[s / 6, 0], [s1 / 6, 0], [s1 / 6, 1], [s / 6, 1]]);
           for (const y of [0.85, 4.1]) { at(s, sg * (o0 - 0.08), y, pA); B.props.box(pA.x, pA.y, pA.z, 0.14, 0.12, 2.05, T.yawAt(s + 1), '#111'); }
           if (n % 3 === 0) this.ugPool(T.pos(s, sg * (T.wAt(s) / 2 - 1.6), new THREE.Vector3(), 0.03), 4.2, (n >> 1) % 2 ? '#ff2e88' : '#3fd0c9'); } } }
+    // gulmohar and peepal trees up on the terraces, leaning over the walls
+    for (let s = c0 + 10; s < c1 - 10; s += 16 + RNG() * 14) for (const sg of [-1, 1]) { if (RNG() < 0.35) continue; const k = kAt(s), inner = Math.sign(k) === sg && Math.abs(k) > 1e-3; if (inner && 1 / Math.abs(k) < off(s) + 6) continue;
+      T.pos(s, sg * (off(s) + 2.2 + RNG() * 3), p, 0); if (T.clearance(p.x, p.z) < 4) continue; this.tree(B, p.x, WH + 0.35, p.z, 5 + RNG() * 3); if (RNG() < 0.3) for (let j = 0; j < 4; j++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 2.4, WH + 4.5 + RNG() * 1.5, p.z + (RNG() - 0.5) * 2.4, RNG() * 6, 0.9, 0.7, 0.9, '#e8452a'); }
     // graffiti panels (not on the LED wall), wall lamps with sodium pools
     const tags = ['g0', 'g1', 'g2', 'g3'], oldTags = ['graffiti', 'posters'];
     for (let s = c0 + 14, k = 0; s < c1 - 10; s += 21, k++) { const sg = k % 2 ? 1 : -1; if (inLed(s, sg) || T.wrapD(s - h0) > -8 && T.wrapD(s - h1) < 8) continue; const yaw = T.yawAt(s), o = off(s), dirIn = Math.atan2(-sg * Math.cos(yaw), sg * Math.sin(yaw));
@@ -387,6 +390,9 @@ Object.assign(World.prototype, {
         T.pos(s, sg * (edge(s) + a - 0.5), pA, 0.08); T.pos(s + 16, sg * (edge(s + 16) + a - 0.5), pB, 0.08); T.pos(s + 16, sg * (edge(s + 16) + a + 0.1), pC, 0.08); T.pos(s, sg * (edge(s) + a + 0.1), pD, 0.08); B.props.quad(pA, pB, pC, pD, '#6a5a48', undefined, UP); } }
     // fence posts with a sagging wire
     for (const sg of [-1, 1]) { let prev = null; for (let s = k0; s < k1; s += 4) { T.pos(s, sg * (edge(s) + 0.6), p, 0); B.props.box(p.x, p.y, p.z, 0.1, 1.3, 0.1, T.yawAt(s) + (RNG() - 0.5) * 0.3, '#4a3a2a'); const top = p.clone().setY(p.y + 1.15); if (prev) this.sag(B.props, prev, top, 0.12, 0.02, '#2a2a2a', 3); prev = top; if ((s / 4) % 3 === 0) this.whoosh.push({ s, d: sg * (edge(s) + 0.6), k: 'post' }); } }
+    // babool scrub and a few neem trees beyond the fence
+    for (const sg of [-1, 1]) for (let s = k0 + 6; s < k1 - 6; s += 9 + RNG() * 10) { T.pos(s, sg * (edge(s) + 2.2 + RNG() * 2.5), p, 0); if (T.clearance(p.x, p.z) < 3) continue;
+      if (RNG() < 0.22) this.tree(B, p.x, 0, p.z, 4.5 + RNG() * 2.5); else for (let j = 0; j < 3; j++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 1.6, 0.35 + RNG() * 0.5, p.z + (RNG() - 0.5) * 1.6, RNG() * 6, 0.7 + RNG() * 0.5, 0.5 + RNG() * 0.4, 0.7 + RNG() * 0.5, pick(['#3f6b2f', '#4f7d35', '#5a7a30', '#2f5a28'])); }
     // pylons and their wires
     const sgP = -(this.ugDockSide || 1), pyl = [];
     for (let s = k0 + 20; s < k1 - 10; s += 92) { T.pos(s, sgP * (edge(s) + 22), p, 0); p.y = 0; if (T.clearance(p.x, p.z) < 12) continue; const yaw = T.yawAt(s);
@@ -428,9 +434,9 @@ Object.assign(World.prototype, {
   },
   ugMood(nt, wet) {
     if (!this.ugRT) return;
-    const U = this.skyMat.uniforms; U.top.value.set(wet ? '#07080e' : '#0a0a16'); U.mid.value.set(wet ? '#171823' : '#1f1a2c'); U.hor.value.set(wet ? '#363240' : '#4e3238'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
+    const U = this.skyMat.uniforms; U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
     this.ugSky = { top: U.top.value.clone(), mid: U.mid.value.clone(), hor: U.hor.value.clone() };
-    this.fog.color.set(wet ? '#201f2a' : '#2a2230'); this.fog.near = wet ? 20 : 28; this.fog.far = wet ? 250 : 320;
+    this.fog.color.set(wet ? '#2a2a38' : '#352a40'); this.fog.near = wet ? 26 : 34; this.fog.far = wet ? 280 : 360;
     this.ugM.sign.emissive.set('#ffffff').multiplyScalar(nt ? 0.8 : 0.3); this.ugM.sea.color.set(wet ? '#0a121c' : '#0b1724');
     this.ugM.cone.opacity = nt ? 0.55 : 0.18; this.ugM.cpool.opacity = nt ? 0.6 : 0.25; this.hemiBaseUG = this.hemiBase;
   },

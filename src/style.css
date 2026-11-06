@@ -439,7 +439,7 @@ kbd { font-family: var(--f-num); }
 @media (prefers-reduced-motion: reduce) { .entry.go .entry-title, .entry.go .entry-title .t2 { animation: none; } }
 
 /* Mumbai Underground: section cards, rival speech bubbles, the main-map badge */
-.zone-card { position: absolute; left: 50%; top: 13vh; translate: -50% 0; text-align: center; pointer-events: none; white-space: nowrap; }
+.zone-card { position: absolute; left: 50%; top: 23vh; translate: -50% 0; text-align: center; pointer-events: none; white-space: nowrap; }
 .zone-card.go { animation: zoneIn 2.6s ease-out forwards; }
 .zone-card small { display: block; font-family: var(--f-display); font-weight: 700; font-size: .9rem; letter-spacing: .28em; text-transform: uppercase; color: var(--teal); text-shadow: 0 2px 0 #120814; }
 .zone-card b { display: block; font-family: var(--f-num); font-weight: 700; font-size: clamp(2.1rem, 6vw, 3.8rem); line-height: .92; letter-spacing: .08em; color: #fff; -webkit-text-stroke: 5px #120814; paint-order: stroke fill; text-shadow: 0 3px 0 #120814; }
@@ -454,3 +454,16 @@ kbd { font-family: var(--f-num); }
 .tcard .tnew { position: absolute; top: .4rem; left: .4rem; padding: .1rem .45rem; border-radius: .4rem; background: var(--pink); color: #fff; font-style: normal; font-weight: 800; font-size: .62rem; letter-spacing: .06em; box-shadow: 0 2px 0 #120814; }
 @media (prefers-reduced-motion: reduce) { .zone-card.go, .bubble { animation-duration: .01s; } }
 .tcard { position: relative; }
+
+/* direction guide: next sharp corner + nitro distance, top centre */
+.guide { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 74px); translate: -50% 0; display: flex; gap: .45rem; pointer-events: none; white-space: nowrap; z-index: 3; }
+.guide > span { display: inline-flex; align-items: center; gap: .35rem; padding: .18rem .6rem .2rem .45rem; border-radius: 999px; background: rgba(14, 8, 22, .72); border: 2px solid rgba(255, 255, 255, .14); font-family: var(--f-num); font-weight: 600; font-size: 1.05rem; letter-spacing: .05em; color: #fff; box-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.guide b { font-weight: 700; color: var(--marigold); }
+.guide .gturn.hairpin { border-color: rgba(255, 60, 70, .8); } .guide .gturn.sharp { border-color: rgba(255, 194, 26, .8); }
+.guide .gnitro { border-color: rgba(63, 232, 255, .8); color: #c8fbff; } .guide .gnitro em { font-style: normal; font-size: 1.2rem; color: #3fe8ff; }
+.garrow { width: 1.25rem; height: 1.25rem; display: inline-block; background: no-repeat center / contain; }
+.garrow.r.sharp { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffc21a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 21V12a5 5 0 0 1 5-5h8'/%3E%3Cpath d='M15 3l4 4-4 4'/%3E%3C/svg%3E"); }
+.garrow.l.sharp { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffc21a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 21V12a5 5 0 0 0-5-5H5'/%3E%3Cpath d='M9 3L5 7l4 4'/%3E%3C/svg%3E"); }
+.garrow.r.hairpin { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff3c46' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 21V9a6 6 0 0 1 12 0v7'/%3E%3Cpath d='M14 13l4 4 4-4'/%3E%3C/svg%3E"); }
+.garrow.l.hairpin { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff3c46' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 21V9a6 6 0 0 0-12 0v7'/%3E%3Cpath d='M2 13l4 4 4-4'/%3E%3C/svg%3E"); }
+@media (max-height: 420px) { .guide { top: calc(env(safe-area-inset-top, 0px) + 58px); } .guide > span { font-size: .92rem; } }

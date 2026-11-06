@@ -74,7 +74,7 @@ class Game {
     }
     const s = SAVE.setup; const tk = timeKey || (s.time === 'auto' ? def.time : s.time);
     const mood = this.world.setMood(tk, weather || s.weather);
-    this.scene.fog = mood.fog; this.renderer.toneMappingExposure = mood.exposure; this.wet = (weather || s.weather) === 'monsoon';
+    this.scene.fog = mood.fog; this.renderer.toneMappingExposure = mood.exposure * (this.postOn() ? 1 : 1.12); this.wet = (weather || s.weather) === 'monsoon';
     setBikeEnv(this.world.mood, this.wet);
     this.buildRain(this.wet);
   }
@@ -252,34 +252,53 @@ class Game {
     if (this.world && this.race && !this.entry) { const hl = this.world.headlight; if (hl.intensity > 0) { const P = this.race.player, T = this.race.track; const yaw = T.yawAt(P.s) + P.psi; T.pos(P.s, P.d, hl.position, P.y - T.yAt(P.s) + 1.0); hl.target.position.set(hl.position.x + Math.sin(yaw) * 20, hl.position.y - 1.2, hl.position.z + Math.cos(yaw) * 20); hl.target.updateMatrixWorld(); } }
     AUDIO.update(this.state === 'race' || this.state === 'results' ? this.race : null, dt);
     this.renderRefl(dt);
-    if (this.postOn()) { const M = this.world && this.world.mood, glow = (M ? M.night : 0) > 0.5 || this.wet; this.comic.setLook(glow ? 0.75 : 0.32, glow ? 0.76 : 0.88, this.comicOn());
+    if (this.postOn()) { const M = this.world && this.world.mood, nt = (M ? M.night : 0) > 0.5, glow = nt || this.wet; this.comic.setLook(glow ? 0.8 : 0.32, glow ? 0.74 : 0.88, this.comicOn());
+      const neon = this.state === 'race' && this.fx ? this.fx.boostAmt : 0; this.comic.setGrade(nt ? 0.085 : this.wet ? 0.05 : 0.025, nt ? 0.84 : this.wet ? 0.9 : 0.96, 1.15, neon);
       const P = this.race && this.race.player; this.comic.speed = P && this.state === 'race' ? clamp((P.v - 12) / 22, 0, 1) : 0; this.comic.boost = P && P.boosting ? 1 : 0; this.comic.render(this.scene, this.camera); }
     else this.renderer.render(this.scene, this.camera);
     INPUT.endFrame();
   }
   raceFrame(dt, inp) {
-    if (this._hero && this._hero.g.visible) this._hero.g.visible = false;
+    this.bikeLights(dt);
     const R = this.race, P = R.player;
     if (inp.pause) { this.pause(); return; }
     { const finalLap = R.laps > 1 && P.lap >= R.laps - 1; const lvl = R.state === 'countdown' ? 0 : (P.boosting || finalLap) ? 2 : 1;
       if (lvl === 2 && MUSIC.level < 2 && finalLap && !this._riserDone) { MUSIC.riser(1.4); this._riserDone = true; } if (R.state === 'countdown') this._riserDone = false; MUSIC.setLevel(lvl); }
-    if (!DEBUG.autopilot) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; }
+    if (!DEBUG.autopilot) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; if (inp.hop) P.input.hop = true; }
     if (R.state === 'racing') {
       if (inp.hitL) R.combat.melee(P, 1); if (inp.hitR) R.combat.melee(P, -1); if (inp.hitAuto) R.combat.melee(P, inp.gpSide || R.combat.autoSide(P));
       if ((inp.hitL || inp.hitR || inp.hitAuto) && !R.combatOn) this.hud.callout('COMBAT OFF', null, 'info');
       else if ((inp.hitL || inp.hitR || inp.hitAuto) && R.raceT < 10) this.hud.callout(`FIGHT IN ${Math.ceil(10 - R.raceT)}s`, null, 'info');
-      if (inp.throw) { if (!R.combat.throwItem(P) && R.combatOn && !P.weapons.throw) this.hud.callout('NO BOTTLE / GUTKA', null, 'info'); }
+      if (inp.throw) { if (!R.combat.throwItem(P) && R.combatOn && !P.weapons.throw) this.hud.callout('NOTHING TO THROW', null, 'info'); }
       if (inp.respawn && !P.crashed && !P.finished) P.respawn();
       if (SAVE.settings.manualGears) { if (inp.gearUp) P.gear = Math.min(4, P.gear + 1); if (inp.gearDown) P.gear = Math.max(1, P.gear - 1); }
       if (DEBUG.autopilot && R.raceT > 12 && Math.random() < 0.01) R.combat.melee(P, R.combat.autoSide(P));
+      if (DEBUG.autopilot && R.raceT > 12 && P.weapons.throw && Math.random() < 0.006) R.combat.throwItem(P);
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
     R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
-    if (R.state === 'finished') { this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
+    if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
     const cp = this.camera.position; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < 1.6) r.rig.root.visible = false; }
+  }
+  // takedown cam (Burnout style): cut to a low angle ahead of the wreck, slow motion while the bike rolls and the rider
+  // tumbles down the road, then cut straight back to the chase cam. Also used when you go down yourself.
+  takedownCam(r) {
+    const R = this.race; if (!R || !r.wreck || REDUCED_MOTION || this.camMode === 2) return; if (this.td || (this.tdLast && this.t - this.tdLast < 5 && !r.isPlayer)) return;
+    const T = R.track, W = r.wreck, side = -Math.sign(r.d || 1) || 1, s0 = W.bike.s + Math.max(5, W.bike.vs * 0.45);
+    const pos = T.pos(s0, clamp(W.bike.d + side * 4.2, -T.wAt(s0) / 2 - 1.5, T.wAt(s0) / 2 + 1.5), new THREE.Vector3(), 1.25);
+    this.td = { r, t: 0, dur: r.isPlayer ? 2.1 : 1.7, pos, look: new THREE.Vector3() }; this.tdLast = this.t; R.slowmo = r.isPlayer ? 0.8 : 1.1;
+    if (!r.isPlayer) { this.hud.big('TAKEDOWN!', r.short || r.name, 1.4); AUDIO.dhishoom(1); MUSIC.hornStab && MUSIC.hornStab(); }
+  }
+  tdCam(dt) {
+    const D = this.td, R = this.race, T = R.track, W = D.r.wreck, cam = this.camera; D.t += dt;
+    if (!W || D.t > D.dur) { this.td = null; this.camInit = false; this.chaseCam(dt); return; }
+    const b = W.bike, rd = W.rider, pb = T.pos(b.s, b.d, this._v, b.y - T.yAt(b.s)), pr = T.pos(rd.s, rd.d, this._w, rd.y - T.yAt(rd.s));
+    const tgt = pb.clone().lerp(pr, 0.5); D.look.lerp(tgt, D.t < dt * 1.5 ? 1 : 1 - Math.exp(-8 * dt));
+    cam.position.lerp(D.pos.clone().lerp(tgt, 0.12).setY(Math.max(D.pos.y, tgt.y + 0.9)), D.t < dt * 1.5 ? 1 : 1 - Math.exp(-3 * dt)); cam.lookAt(D.look);
+    cam.fov = smooth(cam.fov, 52, 6, dt); cam.updateProjectionMatrix(); this.camLook.copy(D.look); this.applyShake(dt);
   }
   chaseCam(dt) {
     const R = this.race, P = R.player, T = R.track, cam = this.camera, fx = this.fx;
@@ -321,7 +340,7 @@ class Game {
       C.side = smooth(C.side, -C.lean * 0.28, 4, dt);   // drift a little to the outside of a turn, so you see the lean
       const back = far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring, up = (far ? 3.4 : 1.62) - fx.dip;
       const cs = ((C.dist - back * Math.cos(C.psi)) % T.L + T.L) % T.L; let cd = C.d + C.side - back * Math.sin(C.psi);
-      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 2.5) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
+      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 1.8) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
       const g0 = T.roof && T.gapAt(cs) ? C.y : T.yAt(cs); C.gy = C.gy === undefined || !this.camInit ? g0 : smooth(C.gy, clamp(g0, C.y - 2, C.y + 2), 6, dt);   // ground under the lens, smoothed (breaker humps, roof gaps)
       const target = T.pos(cs, cd, this._w); C.su = smooth(C.su, P.susp || 0, 9, dt); target.y = lerp(C.gy, C.y, 0.75) + up + C.su * 0.25;
       this.camPos.copy(target); this.camInit = true;
@@ -347,12 +366,22 @@ class Game {
   // studio lights for the home, garage and store shots: a warm key on the face, pink and cyan rims behind
   heroLights(on) {
     if (!this._hero) { const g = new THREE.Group(); const key = new THREE.PointLight(0xffd7a8, 0, 7, 1.6), pink = new THREE.PointLight(0xff3d9a, 0, 6, 1.6), cyan = new THREE.PointLight(0x3fd0ff, 0, 6, 1.6); g.add(key, pink, cyan); this._hero = { g, key, pink, cyan }; this.scene.add(g); }
-    const H = this._hero; H.g.visible = on; if (!on || !this.menuRig) return;
+    const H = this._hero; H.g.visible = true; if (!on || !this.menuRig) { H.key.intensity = H.pink.intensity = H.cyan.intensity = 0; return; }   // stay in the scene (no shader recompiles), just dark
     const p = this.menuRig.root.position, yaw = this.menuRig.root.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
     const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 1 + night * 0.8 + (this.wet ? 0.4 : 0);
     H.key.position.set(p.x + fx * 1.8 + lx * 1.2, p.y + 1.9, p.z + fz * 1.8 + lz * 1.2); H.key.intensity = 5 * k;
     H.pink.position.set(p.x - fx * 1.1 - lx * 1.0, p.y + 1.7, p.z - fz * 1.1 - lz * 1.0); H.pink.intensity = 7 * k;
     H.cyan.position.set(p.x - fx * 0.9 + lx * 1.3, p.y + 1.5, p.z - fz * 0.9 + lz * 1.3); H.cyan.intensity = 5 * k;
+  }
+  // in the race the studio lights ride with the player's bike: a warm key from the front, pink and cyan rims behind.
+  // They give the bike shape and shine at night; boosting turns the rims up into a neon halo.
+  bikeLights(dt) {
+    if (!this._hero) this.heroLights(true); const H = this._hero, R = this.race; if (!R) return; H.g.visible = true;
+    const P = R.player, T = R.track, rp = P.rig.root.position, yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
+    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 0.45 + night * 0.85 + (this.wet ? 0.25 : 0), b = this.fx ? this.fx.boostAmt : 0;
+    H.key.position.set(rp.x + fx * 1.6 + lx * 0.9, rp.y + 2.3, rp.z + fz * 1.6 + lz * 0.9); H.key.intensity = 4 * k;
+    H.pink.position.set(rp.x - fx * 1.2 - lx * 1.0, rp.y + 1.5, rp.z - fz * 1.2 - lz * 1.0); H.pink.intensity = (5 + b * 14) * k;
+    H.cyan.position.set(rp.x - fx * 1.0 + lx * 1.1, rp.y + 1.3, rp.z - fz * 1.0 + lz * 1.1); H.cyan.intensity = (4 + b * 14) * k;
   }
   menuFrame(dt, inp) {
     const rig = this.menuRig; if (!rig || !this.track) return; this.heroLights(this.state === 'menu' || this.state === 'garage' || this.state === 'store');

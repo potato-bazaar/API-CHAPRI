@@ -1,6 +1,5 @@
 // ───────────────────────── MUMBAI UNDERGROUND: race runtime ─────────────────────────
-// Traffic you weave through in the tunnel and the cut (autos, kaali-peeli taxis, a BEST bus, a tempo) that honks
-// when you shave past it; nitro strips; the burst water main; UDAAN! slow-mo over the broken bridge; the metro
+// The burst water main; UDAAN! slow-mo over the broken bridge; the metro
 // rumbling overhead; the tunnel echo and its honking; a location card the first time you enter each section.
 // Rival taunts (Hinglish speech bubbles) run on every track.
 const UG_CARDS = { tunnel: ['ANDHERI TUNNEL', 'अंधेरी सुरंग'], cut: ['SUBWAY CUT', 'graffiti gali'], chevron: ['LED HAIRPIN', 'brake maar, bhai'], docks: ['DOCK 7', 'mumbai port'], bridge: ['ADHOORA PUL', 'udaan lo'], kachha: ['NAMAK KHET', 'kachha rasta'], market: ['LOKHANDWALA', 'market road · finish'] };
@@ -34,23 +33,8 @@ class UGOps {
   constructor(race) {
     this.race = race; const T = race.track, W = race.world, Z = T.ug;
     W.ugMetroDepart = false; this.lastS = new Map(); this.seen = new Set(); this.zone = null; this.udaan = 0; this.burstT = 0; this.honkT = 3; this.chimeT = 0; this.rumbleT = 0;
-    W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic');
-    // traffic lanes: the whole tunnel, and the cut up to the hairpin
-    const geo = trafficGeo(); this.mats = { body: new THREE.MeshLambertMaterial({ vertexColors: true }), lights: new THREE.MeshBasicMaterial({ vertexColors: true }) };
-    this.zones = [{ a: Z.tunnel[0] - 4, b: Z.tunnel[1], kinds: ['auto', 'taxi', 'bus', 'auto', 'tempo', 'taxi'] }, { a: Z.cut[0] + 6, b: Z.chevron[0] - 12, kinds: ['taxi', 'auto'] }];
-    this.cars = [];
-    this.zones.forEach((zn, zi) => zn.kinds.forEach((kind, i) => { const K = TRAFFIC_KINDS[kind], g = new THREE.Group(); const body = new THREE.Mesh(geo[kind].body, this.mats.body); body.castShadow = true; g.add(body, new THREE.Mesh(geo[kind].lights, this.mats.lights)); race.group.add(g);
-      const c = { kind, K, g, zi, s: 0, d: 0, v: K.v[0], vT: K.v[0] + RNG() * (K.v[1] - K.v[0]), lane: i % 2 ? 1 : -1, laneT: 3 + RNG() * 6, hornT: 0, prevDs: null, lastNear: -9 };
-      c.obs = { s: 0, d: 0, hw: K.hw, hl: K.hl, kind: 'traffic' }; W.obstacles.push(c.obs); this.cars.push(c); }));
-    this.zones.forEach((zn, zi) => this.spread(zi)); this.zones.forEach(zn => (zn.fresh = true));
     this.cardEl = $('#zoneCard'); this._p = new THREE.Vector3();
   }
-  // lay a zone's cars out along it, both lanes, gaps between them
-  spread(zi) { const T = this.race.track, zn = this.zones[zi], cs = this.cars.filter(c => c.zi === zi), len = zn.b - zn.a;
-    cs.forEach((c, i) => { c.s = zn.a + len * (i + 0.3 + RNG() * 0.4) / cs.length; c.lane = RNG() < 0.5 ? -1 : 1; c.d = this.laneD(c, c.s); c.v = c.vT; c.prevDs = null; this.place(c); }); }
-  laneD(c, s) { const w = this.race.track.wAt(s) / 2; return c.lane * Math.max(0, w * 0.5 - c.K.hw * 0.35); }
-  place(c) { const T = this.race.track; T.pos(c.s, c.d, c.g.position, 0); c.g.rotation.y = T.yawAt(c.s) + clamp((c.dv || 0) / Math.max(3, c.v), -0.3, 0.3); c.obs.s = c.s; c.obs.d = c.d; }
-  honk(c, vol) { if (vol < 0.04) return; const f = c.K.horn; for (let i = 0; i < c.K.beeps; i++) { AUDIO.tone('square', f, f * 0.99, 0.15, 0.07 * vol, i * 0.2); AUDIO.tone('square', f * 1.26, f * 1.25, 0.15, 0.05 * vol, i * 0.2); } }
   card(z) { const el = this.cardEl, C = UG_CARDS[z]; if (!el || !C) return; el.innerHTML = `<small>${C[1]}</small><b>${C[0]}</b>`; el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); clearTimeout(this._cardT); this._cardT = setTimeout(() => (el.hidden = true), 2700); }
   update(dt) {
     const R = this.race, T = R.track, W = R.world, P = R.player, G = R.game, racing = R.state === 'racing';
@@ -58,34 +42,12 @@ class UGOps {
     AUDIO.setVerb && AUDIO.setVerb(inT ? 0.32 : 0);
     if (racing && z && z !== this.zone && UG_CARDS[z] && !this.seen.has(z) && P.lap <= 0) { this.seen.add(z); this.card(z); }
     this.zone = z;
-    // ── traffic ──
-    this.zones.forEach((zn, zi) => { const toA = T.wrapD(zn.a - P.s); if (toA > 160 && toA < 700) { if (!zn.fresh) { this.spread(zi); zn.fresh = true; } } else if (toA < 40) zn.fresh = false; });
-    for (const c of this.cars) { const zn = this.zones[c.zi];
-      if (!zn.fresh) { let lim = c.vT; for (const o of this.cars) { if (o === c) continue; const ds = T.wrapD(o.s - c.s); if (ds > 0 && ds < c.K.hl + o.K.hl + 5 && Math.abs(o.d - c.d) < 1.9) lim = Math.min(lim, o.v - 0.4); }
-        c.v = smooth(c.v, Math.max(2.5, lim), 1.6, dt); c.s += c.v * dt;
-        c.laneT -= dt; if (c.laneT <= 0) { c.laneT = 5 + RNG() * 7; const nl = -c.lane; if (!this.cars.some(o => o !== c && Math.sign(o.d) === nl && Math.abs(T.wrapD(o.s - c.s)) < o.K.hl + c.K.hl + 4)) c.lane = nl; }
-        const old = c.d; c.d = smooth(c.d, this.laneD(c, c.s), 0.7, dt); c.dv = (c.d - old) / Math.max(dt, 1e-4);
-        // out of its zone and out of sight: back to the start of the zone
-        const past = T.wrapD(c.s - zn.b), rel = T.wrapD(c.s - P.s), atA = T.wrapD(zn.a - P.s);
-        if (past > 20 && (rel > 160 || rel < -40) && !(atA > -30 && atA < 140)) { c.s = zn.a - 4; c.v = c.vT; c.prevDs = null; } }
-      this.place(c);
-      // shaving past one: near miss, it honks; riders that clip it get honked at too
-      const ds = T.wrapD(c.s - P.s), lat = Math.abs(c.d - P.d);
-      if (c.prevDs !== null && c.prevDs > 0 && ds <= 0 && !P.crashed && racing) {
-        if (lat < c.K.hw + 1.35 && P.v - c.v > 5 && R.raceT - c.lastNear > 2) { c.lastNear = R.raceT; P.boost = Math.min(100, P.boost + 12); R.award('nearMiss', PTS.nearMiss); R.score.trafficShaves = (R.score.trafficShaves || 0) + 1; G.comicPop('PEEP PEEP!', { s: c.s, d: c.d, y: T.yAt(c.s) + 0.6 }, 0.8, '#ffd23f'); this.honk(c, 1); c.hornT = 2;
-          if (Math.random() < 0.3) P.rig.gesture('wave', c.d > P.d ? 1 : -1); } }
-      c.prevDs = ds; c.hornT -= dt;
-      if (c.hornT <= 0) for (const r of R.riders) { if (r.isPlayer || r.eliminated || r.crashed) continue; const dr = T.wrapD(c.s - r.s); if (dr > -1 && dr < c.K.hl + 3 && Math.abs(c.d - r.d) < c.K.hw + 0.9) { this.honk(c, R.distToPlayer(r) * 0.9); c.hornT = 2.5 + Math.random() * 2; break; } } }
     // tunnel ambience: somebody is always honking in Andheri Tunnel
     if (inT) { this.honkT -= dt; if (this.honkT < 0) { this.honkT = 1.6 + Math.random() * 3; const f = pick([300, 380, 460, 560, 700]); AUDIO.tone('square', f, f * 0.98, 0.14 + Math.random() * 0.2, 0.025, 0); if (Math.random() < 0.5) AUDIO.tone('square', f, f * 0.98, 0.14, 0.025, 0.22); } }
-    // ── nitro strips (everybody gets them) ──
-    for (const r of R.riders) { if (r.eliminated) continue; const last = this.lastS.get(r); this.lastS.set(r, r.s); if (last === undefined || r.crashed || r.air) continue;
-      for (const n of T.nitros || []) { const a = T.wrapD(last - n.s), b = T.wrapD(r.s - n.s); if (a < n.len * 0.5 && b >= n.len * 0.5 && b < n.len + 6 && Math.abs(r.d - n.d) < n.hw + 0.4) {
-        r.v = Math.min(r.v + 4.5, r.vTop * 1.3);
-        if (r.isPlayer) { P.boost = Math.min(100, P.boost + 30); G.comicPop('NITRO!', P, 1.05, '#3fe8ff'); G.fx.fovPunch = Math.max(G.fx.fovPunch, 10); G.shake(0.22); R.rumble(0.5, 0.18); AUDIO.boostKick(); } } }
-      // the burst main: a curtain of water across the tunnel
-      if (T.burst) { const a = T.wrapD(last - T.burst.s), b = T.wrapD(r.s - T.burst.s); if (a < 0 && b >= 0 && b < 6) { if (r.isPlayer || R.distToPlayer(r) > 0.3) R.combat.splash(r, 1.3, true);
-        if (r.isPlayer) { G.comicPop('CHHAPAAK!', P, 1.15, '#9cd8ff'); AUDIO.splash(1.3); G.fx.lensSplash && G.fx.lensSplash(1.3); G.shake(0.18); R.rumble(0.35, 0.12); r.v *= 0.985; } } } }
+    // the burst main: a curtain of water across the tunnel
+    for (const r of R.riders) { if (r.eliminated) continue; const last = this.lastS.get(r); this.lastS.set(r, r.s); if (last === undefined || r.crashed || r.air || !T.burst) continue;
+      const a = T.wrapD(last - T.burst.s), b = T.wrapD(r.s - T.burst.s); if (a < 0 && b >= 0 && b < 6) { if (r.isPlayer || R.distToPlayer(r) > 0.3) R.combat.splash(r, 1.3, true);
+        if (r.isPlayer) { G.comicPop('CHHAPAAK!', P, 1.15, '#9cd8ff'); AUDIO.splash(1.3); G.fx.lensSplash && G.fx.lensSplash(1.3); G.shake(0.18); R.rumble(0.35, 0.12); r.v *= 0.985; } } }
     // ── UDAAN: slow motion over the gap in the broken bridge ──
     const gap = T.roof && T.gapAt(P.s);
     if (gap && P.air && !P.crashed && P.y > T.roof.h - 0.8 && this.udaan === 0 && racing) { this.udaan = 1; R.slowmo = 0.85; G.comicPop('UDAAN!!', P, 1.5, '#ffd23f'); G.fx.fovPunch = Math.max(G.fx.fovPunch, 9); AUDIO.whoosh(1.2); try { MUSIC.whistle(AUDIO.ctx.currentTime + 0.05, 0.16); } catch (e) { } }
@@ -95,7 +57,7 @@ class UGOps {
     if (W.ugMetroDepart) { W.ugMetroDepart = false; const dm = W.metro ? W.metro.position.distanceTo(G.camera.position) : 999; if (dm < 160) { const v = clamp(1.2 - dm / 160, 0.15, 1); AUDIO.tone('sine', 1047, 1047, 0.45, 0.1 * v); AUDIO.tone('sine', 784, 784, 0.7, 0.1 * v, 0.42); AUDIO.trainHorn(v * 0.7, 0.9); } }
     const mk = W.ugMetroNear || 0; if (mk > 0) { G.shake(0.06 + 0.14 * mk); this.rumbleT -= dt; if (this.rumbleT < 0) { this.rumbleT = 0.25; R.rumble(0.2 * mk, 0.2); AUDIO.noise(0.35, 90, 0.8, 0.35 * mk, 'lowpass'); } }
   }
-  dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.ugS = null; AUDIO.setVerb && AUDIO.setVerb(0); clearTimeout(this._cardT); if (this.cardEl) this.cardEl.hidden = true; this.mats.body.dispose(); this.mats.lights.dispose(); }
+  dispose() { const W = this.race.world; W.ugS = null; AUDIO.setVerb && AUDIO.setVerb(0); clearTimeout(this._cardT); if (this.cardEl) this.cardEl.hidden = true; }
 }
 
 // ── rival taunts: a speech bubble over a rider, now and then, when he passes you, you pass him, or you hit him ──

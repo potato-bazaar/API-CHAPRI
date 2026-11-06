@@ -128,6 +128,10 @@ function beltGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.ad
 function bottleGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.add(new THREE.CylinderGeometry(0.035, 0.035, 0.14, 8).translate(0, 0, 0), M, new THREE.Color('#5a3a0e')); b.add(new THREE.CylinderGeometry(0.014, 0.03, 0.08, 8).translate(0, 0.11, 0), M, new THREE.Color('#5a3a0e')); b.add(new THREE.CylinderGeometry(0.036, 0.036, 0.05, 8), M, new THREE.Color('#ffd23f')); return b.build(); }
 function lathiGeom() { const b = new Batch(); const M = new THREE.Matrix4(); b.add(new THREE.CylinderGeometry(0.016, 0.02, 1.0, 8).rotateX(Math.PI / 2).translate(0, 0, 0.46), M, new THREE.Color('#8a5426')); b.add(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 8).rotateX(Math.PI / 2).translate(0, 0, 0.94), M, new THREE.Color('#d9c48a')); return b.build(); }
 const CHAIN_G = chainGeom(), BELT_G = beltGeom(), BOTTLE_G = bottleGeom(), LATHI_G = lathiGeom();
+// saria (bent rebar) and the katta (a crude pistol), weapon-hand space: +z down the forearm
+const ROD_G = (() => { const b = new Batch(), M = new THREE.Matrix4(); M.makeTranslation(0, 0, 0.5); b.add(new THREE.CylinderGeometry(0.014, 0.014, 1.0, 6).rotateX(Math.PI / 2), M, new THREE.Color('#8a4a2a')); M.makeRotationX(0.6).setPosition(0, 0.05, 1.03); b.add(new THREE.CylinderGeometry(0.014, 0.014, 0.16, 6).rotateX(Math.PI / 2), M, new THREE.Color('#7a3a1e')); return b.build(); })();
+const GUN_G = (() => { const b = new Batch(), M = new THREE.Matrix4(); M.makeTranslation(0, 0.03, 0.12); b.add(new THREE.BoxGeometry(0.035, 0.04, 0.22), M, new THREE.Color('#3a3c42')); M.makeRotationX(0.35).setPosition(0, -0.02, 0.03); b.add(new THREE.BoxGeometry(0.03, 0.09, 0.04), M, new THREE.Color('#6b3e26')); return b.build(); })();
+const SWOOSH_G = new THREE.RingGeometry(0.42, 1.25, 22, 1, -1.25, 2.5).rotateX(-Math.PI / 2);
 const SHIRT_TEX_CACHE = {};
 // boost exhaust jets: an additive cyan cone with a white-hot core (they bloom in the post pass)
 const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.375, 0).rotateX(-Math.PI / 2);
@@ -136,7 +140,7 @@ const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: tr
 
 // ── swagger: style moves while riding (one hand off the bar) and reactions to being hit ──
 // durations in seconds; 'smoke' is skipped when the player turns smoking off in Settings
-const GESTURES = { smoke: 3.0, scratch: 1.7, hair: 1.4, mustache: 1.6, shades: 1.7, lookback: 1.4, shout: 1.3, glance: 0.7, wave: 1.5 };
+const GESTURES = { smoke: 3.0, scratch: 1.7, hair: 1.4, mustache: 1.6, shades: 1.7, lookback: 1.4, shout: 1.3, glance: 0.7, wave: 1.5, drink: 1.35 };
 let CIG = null;
 function cigAssets() {
   if (CIG) return CIG; const b = new Batch(), M = new THREE.Matrix4();
@@ -223,8 +227,11 @@ class BikeRig {
     // weapons in hand (right hand by default)
     this.weapon = new THREE.Group(); this.wPitch = 0;
     if (this.rm) this.body.add(this.weapon); else { this.weapon.position.set(0, 0, 0.58); this.armR.add(this.weapon); }
-    this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT); this.wLathi = new THREE.Mesh(LATHI_G, BIKE_MAT);
-    this.weapon.add(this.wChain, this.wBelt, this.wBottle, this.wLathi); this.showWeapon(null);
+    this.wChain = new THREE.Mesh(CHAIN_G, BIKE_MAT); this.wBelt = new THREE.Mesh(BELT_G, BIKE_MAT); this.wBottle = new THREE.Mesh(BOTTLE_G, BIKE_MAT); this.wLathi = new THREE.Mesh(LATHI_G, BIKE_MAT); this.wRod = new THREE.Mesh(ROD_G, BIKE_MAT); this.wGun = new THREE.Mesh(GUN_G, BIKE_MAT);
+    this.weapon.add(this.wChain, this.wBelt, this.wBottle, this.wLathi, this.wRod, this.wGun); this.showWeapon(null);
+    // the swing arc: a ring of light that sweeps round the side you strike
+    if (!o.ghost) { this.swooshMat = new THREE.MeshBasicMaterial({ map: TEX.swoosh, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, opacity: 0, color: 0xfff1c0 }); this.swoosh = new THREE.Mesh(SWOOSH_G, this.swooshMat); this.swoosh.visible = false; this.swoosh.renderOrder = 4; this.body.add(this.swoosh); }
+    if (this.rm && !o.ghost) { if (!TEX.stingCan) streetTextures(); this.can = new THREE.Mesh(CAN_G, new THREE.MeshLambertMaterial({ map: TEX.stingCan, emissiveMap: TEX.stingCan, emissive: 0x444444 })); this.can.scale.setScalar(0.42); this.can.visible = false; this.body.add(this.can); }
     if (this.rm && !o.ghost) { const C = cigAssets(); this.cig = new THREE.Mesh(C.g, BIKE_MAT); const em = new THREE.Mesh(C.ember, C.emberMat); em.position.y = 0.05; em.scale.y = 0.6; this.cig.add(em); this.cig.visible = false; this.body.add(this.cig); }
     // blob shadow
     this.blob = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.blob, transparent: true, depthWrite: false, opacity: 0.8 }));
@@ -233,7 +240,12 @@ class BikeRig {
     this.t = 0; this.tuck = 0.4; this.anim = null; this.wheelSpin = 0; this.head = { yaw: 0, pitch: 0 };
     this._shL = new THREE.Vector3(); this._shR = new THREE.Vector3(); this._dir = new THREE.Vector3(); this._gL = new THREE.Vector3(); this._gR = new THREE.Vector3();
   }
-  showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.wLathi.visible = kind === 'lathi'; this.heldKind = kind; }
+  // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
+  addUnderglow() { if (this.glow) return; const [c, x] = mkCanvas(64, 128); const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(63,232,255,0)'); g.addColorStop(0.25, 'rgba(63,232,255,0.9)'); g.addColorStop(0.75, 'rgba(255,46,136,0.9)'); g.addColorStop(1, 'rgba(255,46,136,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 128);
+    const r = x.createRadialGradient(32, 64, 4, 32, 64, 46); x.globalCompositeOperation = 'destination-in'; r.addColorStop(0, 'rgba(0,0,0,1)'); r.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = r; x.fillRect(0, 0, 64, 128);
+    this.glowTex = new THREE.CanvasTexture(c); this.glowMat = new THREE.MeshBasicMaterial({ map: this.glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.75, polygonOffset: true, polygonOffsetFactor: -2 });
+    this.glow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.7).rotateX(-Math.PI / 2), this.glowMat); this.glow.position.y = 0.035; this.glow.renderOrder = 2; this.root.add(this.glow); }
+  showWeapon(kind) { this.wChain.visible = kind === 'chain'; this.wBelt.visible = kind === 'belt'; this.wBottle.visible = kind === 'bottle'; this.wLathi.visible = kind === 'lathi'; this.wRod.visible = kind === 'rod'; this.wGun.visible = kind === 'katta'; this.heldKind = kind; }
   play(name, side = 1, dur = 0.4) { this.anim = { name, side, t: 0, dur }; }
   // a style move, if the hands are free; false when something else is playing (or there's no skinned rider)
   gesture(name, side = 1) { if (this.anim || !this.rm || !GESTURES[name]) return false; this.play(name, side, GESTURES[name]); return true; }
@@ -255,6 +267,7 @@ class BikeRig {
     if (this.jets) { const on = !!st.boost && !st.crashed; for (const j of this.jets) { j.visible = on; if (on) { const k = 0.8 + Math.random() * 0.45; j.scale.set(k, k, 0.75 + Math.random() * 0.7); } } }
     if (this.mods && this.mods.siren) { const ph = Math.floor((this.t + this.mods.sirenPh) * 7) % 4; this.mods.siren[0].visible = ph < 2 && ph !== 1 || ph === 1; this.mods.siren[1].visible = ph >= 2; }
     if (this.mods && this.mods.flames.length) { const on = !!st.boost && !st.crashed; for (const f of this.mods.flames) { f.visible = on; if (on) { const k = 0.75 + Math.random() * 0.5; f.scale.set(k, k, 0.6 + Math.random() * 0.9); } } }
+    if (this.glow) { this.glow.visible = !st.crashed; this.glowMat.opacity = st.boost ? 1 : 0.6; }
     this.lean.rotation.z = -st.lean * 1.12; this.lean.rotation.y = st.slide || 0; this.leanNow = st.lean || 0;
     this.setPitch(st.pitch || 0);
     // suspension: the frame bounces on the wheels; the rider's weight lags behind it
@@ -280,17 +293,21 @@ class BikeRig {
     if (A) {
       A.t += dt; const ph = clamp(A.t / A.dur, 0, 1), s = A.side; // side: +1 = rider's left, -1 = right
       const pulse = Math.sin(ph * Math.PI);
-      if (A.name === 'kick') { const leg = s > 0 ? this.legL : this.legR; leg.rotation.z = s * 1.25 * pulse; leg.rotation.x = -0.7 * pulse; this.torsoG.rotation.z -= s * 0.25 * pulse; }
+      if (this.swoosh) { const sw = A.name === 'swing' || A.name === 'kick'; this.swoosh.visible = sw; if (sw) { const k = clamp((ph - 0.3) / 0.5, 0, 1); this.swooshMat.opacity = Math.sin(k * Math.PI) * 0.85; this.swoosh.scale.set(s, 1, 1); this.swoosh.position.set(0, A.name === 'kick' ? 0.75 : 1.35, -0.2); this.swoosh.rotation.set(0, s * (0.9 - k * 1.8), s * (A.name === 'kick' ? -0.3 : 0.35)); } }
+      if (A.name === 'kick') { const leg = s > 0 ? this.legL : this.legR; const e = ph < 0.3 ? ph / 0.3 : ph < 0.55 ? 1 : 1 - (ph - 0.55) / 0.45; leg.rotation.z = s * 1.45 * e; leg.rotation.x = -0.55 * e; this.torsoG.rotation.z -= s * 0.38 * e; this.torsoG.rotation.y += s * 0.2 * e; }
       else if (A.name === 'swing') { // windup back/up, then sweep across to the side
         const arm = s > 0 ? 'L' : 'R'; const wind = ph < 0.45 ? ph / 0.45 : 1 - (ph - 0.45) / 0.55;
         const tgt = new THREE.Vector3(s * (0.55 + 0.35 * (1 - wind)), 1.35 + 0.45 * wind, -0.35 * wind + 0.25 * (1 - wind));
         if (arm === 'L') armLTarget = tgt; else armRTarget = tgt;
         this.wPitch = -1.2 * wind + 0.4; this.torsoG.rotation.y = s * 0.4 * pulse;
       } else if (A.name === 'throw') { const tgt = ph < 0.4 ? new THREE.Vector3(-0.35, 1.6, -0.4) : new THREE.Vector3(-0.3, 1.25, 0.9); armRTarget = tgt; }
+      else if (A.name === 'aim' || A.name === 'aimBack') {   // katta: arm out straight at the target, a kick of recoil
+        const back = A.name === 'aimBack', rc = ph > 0.25 && ph < 0.4 ? 0.12 : 0; armRTarget = back ? new THREE.Vector3(-0.62, 1.55 + rc, -0.75) : new THREE.Vector3(-0.32 + s * 0.15, 1.5 + rc, 0.95 - rc); this.wPitch = 0.1;
+        if (back) { this.torsoG.rotation.y -= 0.55; this.headG.rotation.y = -1.2; } else this.headG.rotation.y = s * 0.25; }
       else if (A.name === 'spit') { this.headG.rotation.x += 0.35 * pulse; this.headG.rotation.y = s * 1.1 * pulse; }
       else if (A.name === 'hit') { this.torsoG.rotation.z += s * 0.45 * pulse; this.headG.rotation.z += s * 0.5 * pulse; }
       else if (this.rm && GESTURES[A.name]) { const T = this.gestureTargets(A, ph, armLTarget, armRTarget); armLTarget = T[0]; armRTarget = T[1]; }
-      if (A.t >= A.dur) { this.anim = null; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
+      if (A.t >= A.dur) { this.anim = null; if (this.swoosh) this.swoosh.visible = false; if (this.can) this.can.visible = false; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
         if (this.queued) { const [n, sd] = this.queued; this.queued = null; this.play(n, sd, GESTURES[n]); } }
     }
     if (st.celebrate && !this.free) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
@@ -301,7 +318,7 @@ class BikeRig {
       // far-away riders re-pose less often (the bike's lean and pitch still move every frame)
       const cam = typeof GAME !== 'undefined' && GAME && GAME.camera; const far = cam ? cam.position.distanceToSquared(this.root.position) : 0;
       this._poseN = (this._poseN || 0) + 1; const every = far > 3600 ? 4 : far > 625 ? 2 : 1;
-      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); }
+      if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); this.placeCan(); }
       if (far < 4900) this.rm.cloth.step(dt, wind, far > 900);
       return;
     }
@@ -357,12 +374,19 @@ class BikeRig {
       if (s > 0) L = _gv[4].copy(gL).lerp(fist, reach); else R = _gv[4].copy(gR).lerp(fist, reach);
       H.y += s * 0.85 * reach; this.torsoG.rotation.y += s * 0.2 * reach; this.torsoG.rotation.z -= s * 0.1 * reach;
     } else if (A.name === 'glance') { H.y += s * 0.75 * Math.sin(ph * Math.PI); }
+    else if (A.name === 'drink') {   // Sting: can up, head back, chug, crush it and toss it away
+      const reach = env(0, 0.16, 0.8, 0.95), tip = env(0.2, 0.32, 0.62, 0.74), toss = _ss(0.74, 0.86, ph);
+      const mouth = _gv[2].copy(F.mouth).add(_gv[3].set(-0.05, -0.02, 0.06)), out = _gv[5].set(-0.75, F.mouth.y - 0.1, F.mouth.z - 0.3);
+      R = _gv[4].copy(gR).lerp(mouth.lerp(out, toss), reach); H.x -= 0.5 * tip; this.torsoG.rotation.x -= 0.12 * tip;
+      if (this.can) this.can.visible = ph > 0.03 && ph < 0.84;
+    }
     else if (A.name === 'wave') {   // a lazy two-finger salute off the brow
       const reach = env(0, 0.2, 0.7, 1), flick = _ss(0.35, 0.55, ph);
       R = _gv[4].copy(gR).lerp(_gv[2].copy(F.brow).add(_gv[3].set(-0.06 - flick * 0.25, -0.03 + flick * 0.05, 0.05 + flick * 0.15)), reach); H.y -= 0.25 * reach; H.z -= 0.1 * reach;
     }
     return [L, R];
   }
+  placeCan() { if (!this.can || !this.can.visible) return; const h = this.rm.hand('r'); this.can.position.copy(h); this.can.position.y += 0.02; this.can.quaternion.setFromAxisAngle(_gv[0].set(1, 0, 0), -(this.headG.rotation.x) * 0.8 - 0.4); }
   // the cigarette sits between the right fingers, across the forearm
   placeCig() {
     if (!this.cig || !this.cig.visible) return; const h = this.rm.hand('r'), dir = _gv[0].subVectors(h, this.rm.elbow('r')).normalize();
@@ -371,7 +395,7 @@ class BikeRig {
     this.cig.position.addScaledVector(ax, 0.035);   // most of it sticks out past the knuckles
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
-  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
+  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.swooshMat) this.swooshMat.dispose(); if (this.glow) { this.glow.geometry.dispose(); this.glowMat.dispose(); this.glowTex.dispose(); } if (this.can) this.can.material.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
 }
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _wv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], _wq = new THREE.Quaternion();

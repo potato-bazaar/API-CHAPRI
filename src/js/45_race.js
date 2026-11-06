@@ -21,6 +21,7 @@ class Race {
     const look = lookFromSave(b.id);
     this.player = new Rider(this, 0, { isPlayer: true, name: SAVE.name || 'You', short: 'You', stats: st, look });
     this.riders.push(this.player);
+    this.player.rig.addUnderglow();
     if (M.rivals) {
       const stock = buildStatsStock();
       RIVALS.forEach((rv, i) => {
@@ -50,6 +51,7 @@ class Race {
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
     const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
     if (M.police) this.police = new PoliceOps(this);
+    this.street = new StreetOps(this);
     if (T0.ug) this.ug = new UGOps(this);
     this.taunts = new Taunts(this);
     this.prevSliding = false; this.splatShown = 0; this.contactT = new Map(); this.coinState = new Uint8Array(this.track.coins.length); this.coinsGot = 0; this.world.resetCoins && this.world.resetCoins();
@@ -60,7 +62,8 @@ class Race {
   hudWarn(side) { this.hud.warn(side); AUDIO.warn(); }
   // ── frame update (fixed sub-steps) ──
   update(dt) {
-    if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.35; }
+    if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
+    if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; }
     const P = this.player;
     if (this.state === 'countdown') {
       const before = this.raceT; this.raceT += dt;
@@ -84,6 +87,7 @@ class Race {
     this.combat.update(dt, this.raceT);
     if (this.stage) this.stage.update(dt);
     if (this.ug) this.ug.update(dt);
+    this.street.update(dt);
     if (this.police) this.police.update(dt);
     this.collectCoins();
     this.scoring(dt);
@@ -122,7 +126,7 @@ class Race {
           const sg = a.d > o.d ? 1 : -1; a.d = o.d + sg * (o.hw + 0.4);
           if (o.kind === 'island') { a.v *= 0.94; a.addWobble(6 / a.st.wobbleRes, true); a.psi = sg * 0.06; a.shoveV = sg * 1.2; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.15); } continue; }
           const head = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1);   // dead-centre hits cost more than clipping a corner
-          a.v *= lerp(0.88, 0.7, head); a.addWobble((12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
+          const tf = o.kind === 'traffic'; a.v *= tf ? lerp(0.93, 0.8, head) : lerp(0.88, 0.7, head); a.addWobble((tf ? 8 + 10 * head : 12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
           if (a.isPlayer) { AUDIO.thud(1); this.rumble(0.8, 0.2); this.game.shake(0.5); this.hud.callout('THOK!', null, 'bad'); }
         }
       }
@@ -207,17 +211,18 @@ class Race {
       if (a.isPlayer) {
         let pts = this.award('knockdowns', this.mode === 'rumble' ? PTS.rumbleKnockdown : PTS.knockdown); this.score.knockCount = (this.score.knockCount || 0) + 1;
         if (this.player.downedBy === r) { pts += this.award('revenge', PTS.revenge); this.player.downedBy = null; this.hud.callout('BADLA PURA!', `+${pts}`, 'gold'); }
-        else this.hud.callout('KNOCKDOWN!', `+${pts}`, 'gold');
+        else this.hud.callout(r.crashKind === 'blowout' ? 'TYRE BLOWOUT!' : 'TAKEDOWN!', `+${pts}`, 'gold');
         this.hud.toast(`Rival down! +${pts} pts`, 'fist');
-        this.slowmo = 0.3; dailyProgress('knockdowns', 1);
+        dailyProgress('knockdowns', 1);
       }
       if (r.isPlayer) r.downedBy = a;
     }
-    this.combat.dropWeapons(r);
+    this.combat.dropWeapons(r); this.combat.startWreck(r);
+    if (this.state === 'racing' && r.wreck && (r.isPlayer || (r.lastHitBy && r.lastHitBy.isPlayer && this.raceT - r.lastHitT < 2.5))) this.game.takedownCam && this.game.takedownCam(r);
     if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
   }
-  onRespawn(r) { if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
+  onRespawn(r) { this.combat.endWreck(r); if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
   onPothole(r, h) {
     this.combat.splash(r, h.big ? 1 : 0.5, this.wet);
     if (!r.isPlayer) return;
@@ -238,6 +243,7 @@ class Race {
       const cy = c.abs ? c.h : T.yAt(c.s) + c.h; if (Math.abs(P.d - c.d) > 1.1 || Math.abs(py - cy) > 1.15) continue;
       this.coinState[i] = 1; this.coinsGot = (this.coinsGot || 0) + 1; SAVE.coins += 5; AUDIO.coin && AUDIO.coin(); this.world.hideCoin && this.world.hideCoin(i); this.hud.coinTick && this.hud.coinTick(this.coinsGot); }
   }
+  onHop(r) { if (r.isPlayer) { AUDIO.whoosh(0.35); AUDIO.thud(0.15); this.rumble(0.2, 0.05); } }
   onSlip(r) { if (!r.isPlayer) return; AUDIO.squeal(0.9); this.hud.callout('PHISAL GAYA!', null, 'bad'); this.game.comicPop('SKRRRT!', r, 0.9, '#9cc2ff'); }
   onLand(r, impact) { if (r.isPlayer && impact > 3.5) { this.game.shake(clamp(impact / 14, 0.15, 0.5)); this.game.comicPop && this.game.comicPop('DHAMM!', r, 0.8); } }
   onWall(r, into) { this.combat.wallSparks && this.combat.wallSparks(r, into); if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
@@ -274,6 +280,7 @@ class Race {
     const T = this.track;
     for (const r of this.riders) {
       if (r.eliminated) continue;
+      if (r.wreck) { this.combat.poseWreck(r); r.rig.root.visible = true; r.rig.update(dt, { lean: 0, pitch: 0, speed: Math.max(0, r.wreck.bike.vs), crashed: true, susp: 0, slide: 0 }); continue; }
       T.pos(r.s, r.d, r.rig.root.position, r.y - T.yAt(r.s));
       const wob = r.wobble > 30 && !r.crashed ? Math.sin(this.raceT * 28 + r.idx) * (r.wobble - 30) / 70 * 0.12 : 0;
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
@@ -293,7 +300,7 @@ class Race {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
-  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); }
+  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); }
 }
 function buildStatsStock() { const b = BUILDS[0]; return { build: b, top: 100, acc: 1, lean: 45, grip: 1, brake: 1, wobbleRes: 1, zeroTo100: 7.8, boostFill: 1, wheelieEase: 0, lvls: {} }; }
 function makeGhost(rig) { const m = new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.32, depthWrite: false }); rig.root.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = false; } }); rig.blob.visible = false; }
