@@ -105,6 +105,7 @@ node tools/t32.mjs look sion-flyover golden monsoon 10       # in-race screensho
 node tools/t33.mjs                                           # garage close-ups of mod combinations
 node tools/t36.mjs                                           # fast-forward a Police Express+ run: escaped or busted
 node tools/t37.mjs                                           # Police Express+ screenshots: checkpoint, stairs, water, boost
+node tools/t40.mjs                                           # feel audit: keyboard steering vs AI, contacts, wobble, camera jerk
 ```
 
 ## Credits and licences
