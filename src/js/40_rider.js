@@ -11,8 +11,10 @@ class Rider {
     this.race = race; this.idx = idx; this.cfg = cfg; this.isPlayer = !!cfg.isPlayer;
     this.name = cfg.name; this.short = cfg.short || cfg.name;
     this.st = cfg.stats;
-    this.vTop = this.st.top / 3.6; this.A = 5.1 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
-    this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 0.92;
+    this.vTop = this.st.top / 3.6; this.A = 5.9 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
+    this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 1.06;   // arcade grip: a touch more than a real tyre
+    // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
+    this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
     // state
@@ -74,27 +76,34 @@ class Rider {
     // steering by lean: grip budget sets the yaw-rate ceiling
     const vv = Math.max(this.v, 2.5);
     let wMax = Math.min(2.4, this.gripLat * gripMul / vv);
-    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.15; if (this.stoppie) wMax *= 0.3; if (this.air) wMax = 0;
+    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.15; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
     let steer = inp.steer; if (this.splatT > 0 && !this.isPlayer) steer += Math.sin(raceT * 9 + this.idx) * 0.8;
-    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : 9, dt);
+    const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
+    if (this.assist) {
+      // road-relative steering: input = heading off the road (narrower at speed, wider in a drift); the curve itself is fed forward,
+      // so letting go straightens the bike along the road instead of carrying it into a wall. Still limited by grip.
+      const psiMax = lerp(0.62, 0.29, clamp(this.v / 28, 0, 1)) * (this.sliding ? 1.5 : 1);
+      const ff = k * this.v * Math.cos(this.psi) / denom, req = ff + 6.5 * wrapAngle(-steer * psiMax - this.psi);
+      steer = clamp(-req / Math.max(0.05, wMax), -1, 1);
+    }
+    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : this.assist ? 11 : 9, dt);
     if (this.isPlayer && inp.brake > 0.6 && Math.abs(this.omega * this.v) > 0.8 * this.gripLat && this.v > 10) this.addWobble(38 * dt, true); // front-end wobble
     // rain: past ~3/4 of the grip budget (or braking hard) the rear steps out and scrubs speed
     if (this.race.wet && !this.air && this.v > 8) {
       const demand = Math.abs(this.omega * this.v) / Math.max(0.1, this.gripLat * gripMul), want = clamp((demand - 0.74) * 3.5, 0, 1) + (inp.brake > 0.7 && this.v > 13 ? 0.45 : 0);
       this.wetSlip = smooth(this.wetSlip || 0, Math.min(1, want), want > (this.wetSlip || 0) ? 7 : 3, dt);
-      if (this.wetSlip > 0.05) { this.v -= this.wetSlip * 2.4 * dt; this.psi += (this.omega >= 0 ? 1 : -1) * this.wetSlip * 0.22 * dt; this.addWobble(this.wetSlip * (this.isPlayer ? 16 : 6) * dt, true);
+      if (this.wetSlip > 0.05) { this.v -= this.wetSlip * 2.0 * dt; this.psi += (this.omega >= 0 ? 1 : -1) * this.wetSlip * 0.22 * dt; this.addWobble(this.wetSlip * (this.isPlayer ? 10 : 6) * dt, true);
         if (this.wetSlip > 0.45 && !this._slipOn) { this._slipOn = true; this.race.onSlip && this.race.onSlip(this); } }
       if (this.wetSlip < 0.2) this._slipOn = false;
     } else this.wetSlip = 0;
     if (this.sliding) { this.slideDist += this.v * dt; this.boost = Math.min(100, this.boost + 10 * fill * dt); }
     // track-space integration
-    const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
     const ds = this.v * Math.cos(this.psi) / denom * dt; const dd = this.v * Math.sin(this.psi) * dt + this.shoveV * dt;
     this.psi = wrapAngle(this.psi + this.omega * dt - k * ds);
     this.shoveV *= Math.exp(-5 * dt);
     const oldLap = this.lap, oldS = this.s; this.dist += ds; this.s = ((this.dist % T.L) + T.L) % T.L; this.d += dd;
     // kichad makes the rear step out; the kachha lane chatters the suspension
-    if (this.surf === 1 && this.v > 7) { this.psi += (RNG() - 0.5) * 0.035 * Math.min(1.5, this.v / 18); this.slide = smooth(this.slide, (RNG() - 0.5) * 0.5, 4, dt); }
+    if (this.surf === 1 && this.v > 7) { const w = Math.sin(raceT * 2.3 + this.idx * 1.7) + 0.5 * Math.sin(raceT * 5.1 + this.idx); this.psi += w * 0.22 * dt * Math.min(1.5, this.v / 18); this.slide = smooth(this.slide, w * 0.22, 4, dt); }   // a slow, readable fishtail
     if (this.surf === 2 && this.v > 4) this.suspV += (RNG() - 0.5) * 9 * dt * Math.min(1.5, this.v / 12);
     this.roadHits(T, oldS);
     // walls & kerbs
@@ -103,11 +112,13 @@ class Rider {
       const sg = Math.sign(this.d); const into = Math.max(0, sg * Math.sin(this.psi)) + Math.max(0, sg * this.shoveV / 8);
       this.d = sg * hw;
       if (into > 0.03) {
-        this.v *= 1 - clamp(into * 0.9, 0.04, 0.55);
-        this.psi = -sg * Math.min(Math.abs(this.psi), 0.12);
-        this.addWobble((8 + 85 * into * Math.min(1, this.v / 14)) / this.st.wobbleRes);
-        this.shoveV = 0; this.race.onWall(this, into);
-      }
+        // a glancing hit: keep most of the speed, bounce the nose back off the wall, small push away
+        const hard = into > 0.3;
+        this.v *= 1 - clamp(into * 0.5, 0.02, hard ? 0.32 : 0.14);
+        this.psi = -sg * Math.min(Math.abs(this.psi) * 0.35, 0.1);
+        this.addWobble((3 + 48 * Math.max(0, into - 0.06) * Math.min(1, this.v / 14)) / this.st.wobbleRes, !hard);
+        this.shoveV = -sg * Math.min(3, 0.6 + into * this.v * 0.18); this.race.onWall(this, into);
+      } else if (this.v > 6) { this.v -= 1.2 * dt; this.scrapeT = 0.12; }   // sliding along the wall: sparks, a little drag
     } else if (Math.abs(this.d) > hw - 0.45 && this.v > 8) { this.v -= 0.5 * dt; if (this.isPlayer) this.race.rumble(0.05, 0.1); }
     // elevation + air time (kicker ramps rise under one lane only)
     const kick = this.air ? null : T.kickerAt(this.s, this.d);
@@ -126,7 +137,7 @@ class Rider {
       // rooftop gaps: too slow and you drop between the buildings
       if (T.roof && ((T.gapAt(this.s) && this.y < T.roof.h - 1.1) || (this.y <= gy && T.onRoofTop(this.s) && this.y < gy - 0.75))) { this.y = Math.min(this.y, gy); this.crash('fell'); return; }
       if (this.y <= gy) { const gvy = clamp((T.gy(this.s + 0.6, this.d) - gy) / 0.6 * this.v, -12, 12), impact = Math.max(0, gvy - this.vy); this.y = gy; this.air = false; this.vy = gvy;   /* landing on a down-ramp is soft */ this.suspV -= clamp(impact * 0.55, 0.3, 4.5);
-        if (this.airT > 0.5) this.race.onAir(this, this.airT); if (Math.abs(this.lean) > 0.5) this.addWobble(25); if (impact > 6) this.addWobble((impact - 6) * 4.5 / this.st.wobbleRes);
+        this.landImpact = impact; if (this.airT > 0.5) this.race.onAir(this, this.airT); if (Math.abs(this.lean) > 0.65) this.addWobble(12); if (impact > 7.5) this.addWobble((impact - 7.5) * 3 / this.st.wobbleRes);
         this.race.onLand(this, impact); if (this.isPlayer) this.race.rumble(clamp(impact / 8, 0.25, 0.9), 0.15); }
     }
     // suspension: a stiff spring-damper the hits feed into; the rig bounces the frame and the rider on it
@@ -151,10 +162,10 @@ class Rider {
     this.tuck = smooth(this.tuck, Math.abs(inp.steer) < 0.1 && thr > 0.8 && this.v > 16 ? 1 : 0, 3, dt);
     // visual lean + slide yaw
     const leanT = clamp(Math.atan2(this.v * this.omega, G), -this.maxLean - (this.sliding ? 0.15 : 0), this.maxLean + (this.sliding ? 0.15 : 0));
-    this.lean = smooth(this.lean, this.air ? this.lean : leanT, 8, dt);
+    this.lean = smooth(this.lean, this.air ? leanT * 0.6 : leanT, this.air ? 4 : 8, dt);
     this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
     // wobble recovery
-    if (this.wobbleT > 0.6 && Math.abs(inp.steer) < 0.6) this.wobble = Math.max(0, this.wobble - 30 * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
+    if (this.wobbleT > 0.45) this.wobble = Math.max(0, this.wobble - (Math.abs(inp.steer) < 0.6 ? 42 : 30) * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
     if (this.wobble >= 100) { this.crash('wobble'); return; }
     // wrong way
     if (Math.cos(this.psi) < -0.2 && this.v > 2) this.wrongT += dt; else this.wrongT = 0;
@@ -174,7 +185,9 @@ class Rider {
   roadHits(T, oldS) {
     const crossed = (x) => { let a = oldS - x, b = this.s - x; if (a > T.L / 2) a -= T.L; if (a < -T.L / 2) a += T.L; if (b > T.L / 2) b -= T.L; if (b < -T.L / 2) b += T.L; return a < 0 && b >= 0; };
     for (const b of T.bumps) if (b.type === 'breaker' && crossed(b.s)) {
-      if (this.v > 10.5 && !this.air) this.addWobble((this.v - 10.5) * 0.85 / this.st.wobbleRes, true);
+      if (this.air) continue;
+      // fast over a breaker: the bike hops it (a little air, a small wobble) instead of being punished every time
+      if (this.v > 15) { this.addWobble((this.v - 15) * (b.triple ? 0.7 : 0.45) / this.st.wobbleRes, true); this.air = true; this.airT = 0; this.vy = Math.min(2.6, 0.9 + (this.v - 15) * 0.09); }
       this.suspV -= Math.min(2.2, this.v * 0.07); this.race.onBreaker(this, b);
     }
     if (this.air) return;
@@ -184,9 +197,9 @@ class Rider {
       if (this.lastHole === h.id && this.race.raceT - this.lastHoleT < 2) continue;
       this.lastHole = h.id; this.lastHoleT = this.race.raceT;
       const sp = clamp(this.v / 20, 0.3, 1.7);
-      this.v *= h.big ? 0.84 : 0.965; this.suspV -= (h.big ? 2.8 : 1.3) * sp;
+      this.v *= h.big ? 0.9 : 0.98; this.suspV -= (h.big ? 2.8 : 1.3) * sp;
       if (h.big && this.v > 13) { this.air = true; this.airT = 0; this.vy = 1.2 + this.v * 0.06; }   // the far lip kicks the bike up
-      this.addWobble(((h.big ? 14 : 4) + Math.max(0, this.v - 12) * (h.big ? 1.5 : 0.45) + Math.abs(this.lean) * (h.big ? 22 : 6)) / this.st.wobbleRes);
+      this.addWobble(((h.big ? 9 : 2) + Math.max(0, this.v - 12) * (h.big ? 0.8 : 0.2) + Math.abs(this.lean) * (h.big ? 12 : 3)) / this.st.wobbleRes, !h.big);
       this.race.onPothole(this, h);
     }
   }

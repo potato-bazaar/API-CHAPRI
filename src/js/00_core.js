@@ -205,6 +205,6 @@ function buildStats(buildId) {
   const brake = 1 + b.mod.brake + br * 0.07;
   const wobbleRes = 1 + br * 0.06 + (fx.wobble || 0);
   // 0–100 estimate for the stat card
-  const zeroTo100 = clamp(7.8 / acc * (100 / Math.min(top, 100)) ** 0.5, 4.5, 12);
+  const zeroTo100 = clamp(6.7 / acc * (100 / Math.min(top, 100)) ** 0.5, 4.5, 12);
   return { build: b, mods: md, top, acc, lean, grip, brake, wobbleRes, zeroTo100, boostFill: (b.mod.boost || 1) + (fx.boost || 0), wheelieEase: b.mod.wheelie || 0, lvls: { engine: e, silencer: s, tyres: t, brakes: br } };
 }

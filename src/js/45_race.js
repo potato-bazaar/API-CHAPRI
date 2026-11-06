@@ -95,11 +95,14 @@ class Race {
         if (Math.abs(dl) < 0.8) { if (dd > 0.6 && dd < 3.6) a.drafting = true; else if (-dd > 0.6 && -dd < 3.6) b.drafting = true; }
         if (a.crashed || b.crashed || a.invuln > 0 || b.invuln > 0 || a.air !== b.air) continue;
         if (Math.abs(dd) < 1.75 && Math.abs(dl) < 0.78) {
-          const push = (0.78 - Math.abs(dl)) / 2 * (dl >= 0 ? 1 : -1);
-          a.d -= push; b.d += push; const rel = Math.abs(a.v - b.v);
-          if (dd > 0) a.v = Math.min(a.v, b.v * 0.985); else b.v = Math.min(b.v, a.v * 0.985);
+          // soft contact: bikes lean on each other and slide apart (a spring, not a teleport); a rider closing from behind
+          // trades a share of the speed difference instead of being glued to the leader's speed
+          const ov = 0.78 - Math.abs(dl), sg = dl >= 0 ? 1 : -1, corr = ov * Math.min(1, dt * 9) * 0.5;
+          a.d -= sg * corr; b.d += sg * corr; a.shoveV = clamp(a.shoveV - sg * ov * 22 * dt, -3, 3); b.shoveV = clamp(b.shoveV + sg * ov * 22 * dt, -3, 3);
+          const rel = Math.abs(a.v - b.v), back = dd > 0 ? a : b, front = dd > 0 ? b : a;
+          if (Math.abs(dd) > 0.9 && back.v > front.v) { const dv = (back.v - front.v) * (1 - Math.exp(-5 * dt)); back.v -= dv * 0.75; front.v += dv * 0.25; }
           const key = a.idx * 16 + b.idx; const last = this.contactT.get(key) ?? -9;
-          if (this.raceT - last > 0.6) { a.addWobble((5 + rel * 3) / a.st.wobbleRes); b.addWobble((5 + rel * 3) / b.st.wobbleRes); if (a.isPlayer || b.isPlayer) { AUDIO.thud(0.5); this.rumble(0.35, 0.12); this.game.shake(0.15); } }
+          if (this.raceT - last > 0.6) { a.addWobble((3 + rel * 1.6) / a.st.wobbleRes, true); b.addWobble((3 + rel * 1.6) / b.st.wobbleRes, true); if (a.isPlayer || b.isPlayer) { AUDIO.thud(0.4); this.rumble(0.3, 0.1); this.game.shake(0.1); const o = a.isPlayer ? b : a, me = a.isPlayer ? a : b; me.rig.react && me.rig.react('bump', Math.sign(o.d - me.d) || 1); } }
           this.contactT.set(key, this.raceT);
         }
       }
@@ -108,8 +111,9 @@ class Race {
         let ds = a.s - o.s; if (ds > this.track.L / 2) ds -= this.track.L; if (ds < -this.track.L / 2) ds += this.track.L;
         if (Math.abs(ds) < o.hl + 0.9 && Math.abs(a.d - o.d) < o.hw + 0.38 && !a.crashed && !a.air) {
           const sg = a.d > o.d ? 1 : -1; a.d = o.d + sg * (o.hw + 0.4);
-          if (o.kind === 'island') { a.v *= 0.9; a.addWobble(9 / a.st.wobbleRes); a.psi = sg * 0.06; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.2); } continue; }
-          a.v *= 0.55; a.addWobble(32 / a.st.wobbleRes); a.psi = sg * 0.1;
+          if (o.kind === 'island') { a.v *= 0.94; a.addWobble(6 / a.st.wobbleRes, true); a.psi = sg * 0.06; a.shoveV = sg * 1.2; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.15); } continue; }
+          const head = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1);   // dead-centre hits cost more than clipping a corner
+          a.v *= lerp(0.88, 0.7, head); a.addWobble((12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
           if (a.isPlayer) { AUDIO.thud(1); this.rumble(0.8, 0.2); this.game.shake(0.5); this.hud.callout('THOK!', null, 'bad'); }
         }
       }
@@ -204,13 +208,13 @@ class Race {
     this.combat.splash(r, h.big ? 1 : 0.5, this.wet);
     if (!r.isPlayer) return;
     AUDIO.thud(h.big ? 1 : 0.55); AUDIO.splash && this.wet && AUDIO.splash(h.big ? 1 : 0.5);
-    this.rumble(h.big ? 0.9 : 0.4, 0.18); this.game.shake(h.big ? 0.6 : 0.22);
-    this.hud.callout(h.big ? 'BADA GADDHA!' : 'GADDHA!', null, 'bad'); this.game.comicPop && this.game.comicPop(h.big ? 'DHADAAM!' : 'DHAD!', r, h.big ? 1.2 : 0.8);
+    this.rumble(h.big ? 0.9 : 0.35, 0.18); this.game.shake(h.big ? 0.45 : 0.14);
+    if (h.big) { this.hud.callout('BADA GADDHA!', null, 'bad'); this.game.comicPop && this.game.comicPop('DHADAAM!', r, 1.1); }
   }
   onBreaker(r, b) {
-    if (!r.isPlayer) return; const hard = r.v > 10.5;
-    AUDIO.thud(clamp(r.v / 25, 0.25, 0.8)); this.rumble(clamp(r.v / 30, 0.2, 0.7), 0.12); this.game.shake(clamp(r.v / 60, 0.08, 0.35));
-    if (hard && (!b.triple || !this._brkT || this.raceT - this._brkT > 1.2)) { this._brkT = this.raceT; this.hud.callout(b.triple ? 'TEEN BREAKER!' : 'BREAKER!', null, 'bad'); this.game.comicPop && this.game.comicPop(b.triple ? 'DHAK DHAK DHAK!' : 'DHAK!', r, 0.9); }
+    if (!r.isPlayer) return; const hop = r.air;   // fast riders hop breakers: a thump and a pop, no red penalty banner
+    AUDIO.thud(clamp(r.v / 25, 0.25, 0.8)); this.rumble(clamp(r.v / 30, 0.2, 0.7), 0.12); this.game.shake(clamp(r.v / 70, 0.06, 0.25));
+    if (hop && (!b.triple || !this._brkT || this.raceT - this._brkT > 1.2)) { this._brkT = this.raceT; this.game.comicPop && this.game.comicPop(b.triple ? 'DHAK DHAK DHAK!' : 'DHAK!', r, 0.8); }
   }
   // coins floating over jumps, gaps and shortcut lanes (player only)
   collectCoins() {
@@ -222,7 +226,7 @@ class Race {
   }
   onSlip(r) { if (!r.isPlayer) return; AUDIO.squeal(0.9); this.hud.callout('PHISAL GAYA!', null, 'bad'); this.game.comicPop('SKRRRT!', r, 0.9, '#9cc2ff'); }
   onLand(r, impact) { if (r.isPlayer && impact > 3.5) { this.game.shake(clamp(impact / 14, 0.15, 0.5)); this.game.comicPop && this.game.comicPop('DHAMM!', r, 0.8); } }
-  onWall(r, into) { if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
+  onWall(r, into) { this.combat.wallSparks && this.combat.wallSparks(r, into); if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
   onAir(r, t) { if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
   onWheelie(r, dist) { if (r.isPlayer) { const pts = this.award('stunts', Math.min(150, dist)); this.score.wheelies = (this.score.wheelies || 0) + 1; this.hud.callout(`WHEELIE ${Math.round(dist)} m`, `+${pts}`, 'stunt'); if (dist > 10) dailyProgress('wheelies', 1); } }
   onStoppie(r, t) { if (r.isPlayer && this.raceT - (this._stoppieT || -9) > 5) { this._stoppieT = this.raceT; const pts = this.award('stunts', clamp(20 + 60 * (t - 0.5) / 0.9, 20, 80)); this.score.stoppies = (this.score.stoppies || 0) + 1; this.hud.callout('STOPPIE', `+${pts}`, 'stunt'); } }

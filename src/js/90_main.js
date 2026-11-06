@@ -54,17 +54,15 @@ class Game {
     if (rebuild && changed && this.world) { const id = this.track.def.id; this.worldKey = null; this.loadTrack(id); if (this.state === 'menu') this.refreshMenuRig(); }
   }
   // wet-road mirror: medium/high only, and off with ?refl=0
-  setupRefl() { const want = this.quality !== 'low' && URLP.get('refl') !== '0'; if (want && !this.refl) { try { this.refl = new WetReflect(this.renderer, this.quality === 'high' ? 0.5 : 0.4); } catch (e) { this.refl = null; } } else if (!want && this.refl) { this.refl.dispose(); this.refl = null; } if (this.refl) { this.refl.scale = this.quality === 'high' ? 0.5 : 0.4; this.refl.resize(); } }
+  setupRefl() { const want = this.quality !== 'low' && URLP.get('refl') !== '0'; if (want && !this.refl) { try { this.refl = new WetReflect(this.renderer, this.quality === 'high' ? 0.5 : 0.32); } catch (e) { this.refl = null; } } else if (!want && this.refl) { this.refl.dispose(); this.refl = null; } if (this.refl) { this.refl.scale = this.quality === 'high' ? 0.5 : 0.32; this.refl.resize(); } }
   renderRefl(dt) {
     if (!this.refl || !this.refl.ok || !this.world) { REFL.U.uReflOn.value = 0; return; }
     let h = 0; if (this.race && this.state !== 'menu' && this.state !== 'garage') { const P = this.race.player; h = P.air ? this.race.track.gy(P.s, P.d) : P.y; } else if (this.menuRig) h = this.menuRig.root.position.y;
     this.reflH = this.reflH === undefined || Math.abs(h - this.reflH) > 3 ? h : this.reflH + (h - this.reflH) * Math.min(1, dt * 8);
     REFL.U.uRTime.value = this.t;
-    // medium quality refreshes the mirror every other frame; the stale one is still projected through its own camera, so it stays put on the road
-    this.reflN = (this.reflN || 0) + 1; if (this.quality === 'medium' && this.reflN % 2 && REFL.U.uReflOn.value > 0.5) return;
     this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain]));
   }
-  resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
+  resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
   onFirstInteract() { if (this.firstInteract) return; this.firstInteract = true; $('#soundPill').hidden = true; }
   // ── tracks & scenes ──
   loadTrack(id, timeKey, weather) {
@@ -149,11 +147,26 @@ class Game {
     if (this.menuRig) this.scene.remove(this.menuRig.root);
     this.endRace();
     this.race = new Race(this, setup, cup); this.scene.add(this.race.group);
-    [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
-    this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
+    [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
+    this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0; this.warmUp();
     $$('.screen').forEach(s => s.classList.remove('show')); $('#hud').classList.add('show');
     this.state = 'race'; this.setMusic('race'); MUSIC.setLevel(0); this.camPsi = 0; this.camInit = false; this.camMode = SAVE.settings.camera || 0;
     if (IS_TOUCH) { try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (_) {} }
+  }
+  // three.js only compiles what's visible, so hidden race effects (boost jets, flames, sparks, police lights, wheel blur)
+  // used to compile mid-race — the first boost froze a frame. Compile everything once while the countdown starts.
+  warmUp() {
+    const hidden = []; this.scene.traverse(o => { if (!o.visible && !o.isLight) { hidden.push(o); o.visible = true; } });   // lights stay as they are: the light count is part of every program
+    try { this.renderer.compile(this.scene, this.camera); } catch (e) { }
+    for (const o of hidden) o.visible = false;
+  }
+  // slow phones: when frames run long, drop the render resolution a step; give it back when there's headroom again
+  govern(raw) {
+    if (this.state !== 'race' || raw > 0.25 || URLP.get('q') || !QUALITY[this.quality]) { if (this.gov) this.gov.t = 0; return; }
+    const G = this.gov || (this.gov = { sm: 1 / 60, t: 0 }); G.sm += (raw - G.sm) * 0.05; G.t += raw; if (G.t < 2.5) return;
+    let k = this.govK || 1; const base = Math.min(devicePixelRatio || 1, QUALITY[this.quality].pr);
+    if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
+    G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   endRace() { if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
@@ -219,7 +232,7 @@ class Game {
   // ── frame loop ──
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
-    let dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.t += dt;
+    const rawDt = (now - this.last) / 1000; let dt = Math.min(0.1, rawDt); this.last = now; this.t += dt; this.govern(rawDt);
     if (this.bench) { this.bench.n++; if (this.bench.n > 30) this.bench.sum += dt; if (this.bench.n > 150) { const avg = this.bench.sum / 120; SAVE.settings.detected = avg > 0.034 ? 'low' : avg > 0.021 ? 'medium' : 'high'; persist(); this.bench = null; if (SAVE.settings.detected !== this.quality && this.state === 'menu') this.applyQuality(true); } }
     dt *= DEBUG.timescale;
     const inp = INPUT.read(dt);
@@ -274,28 +287,55 @@ class Game {
     const acc = dt > 0 ? (P.v - (this._pv ?? P.v)) / dt : 0; this._pv = P.v; this.accSm = smooth(this.accSm || 0, clamp(acc, -14, 9), 5, dt);
     const spring = clamp(this.accSm * 0.07, -0.45, 0.6) + fx.boostAmt * 0.35;
     // engine + road vibration that grows with speed (stronger on kerbs, lighter with reduced motion)
-    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.006 + 0.016 * vN * vN + onKerb * 0.025 + fx.boostAmt * 0.012) * (P.crashed ? 0 : 1);
+    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.003 + 0.008 * vN * vN + onKerb * 0.014 + (P.surf === 2 || P.surf === 3 ? 0.012 : 0) + fx.boostAmt * 0.007) * (P.crashed ? 0 : 1);
     const vy = (Math.sin(this.t * 61) + Math.sin(this.t * 37.3) * 0.6) * vib, vr = Math.sin(this.t * 47.1) * vib * 0.5;
     if (this.camMode === 2) { // helmet cam
       cam.position.set(rp.x + fx2 * 0.05, rp.y + 1.6 - P.tuck * 0.15 + vy - fx.dip * 0.3, rp.z + fz * 0.05);
       cam.lookAt(rp.x + fx2 * 12, rp.y + 1.2, rp.z + fz * 12); cam.rotateZ(-P.lean * 0.7 + vr); this.camInit = false; this.camLook.set(rp.x + fx2 * 12, rp.y + 1.2, rp.z + fz * 12);
     } else {
-      const far = this.camMode === 1; const back = far ? 7.6 + spring : 2.6 + P.v * 0.015 + spring, up = (far ? 3.4 : 1.62) - fx.dip;
-      this.camPsi = this.camInit ? smooth(this.camPsi, P.psi, 5, dt) : P.psi;
-      const cs = P.s - back * Math.cos(this.camPsi); let cd = P.d - back * Math.sin(this.camPsi);
-      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 2.5) - 0.2; cd = clamp(cd, -lim, lim);
-      const target = T.pos(cs, cd, this._w); target.y = lerp(T.yAt(cs), P.y, 0.75) + up;
-      if (!this.camInit) { this.camPos.copy(target); this.camInit = true; } else this.camPos.lerp(target, 1 - Math.exp(-20 * dt));
+      // chase cam: a rig of smoothed offsets around the bike rather than a world-space lerp. Lateral, height, heading and
+      // roll each have their own spring, so lane changes slide the bike across the frame, turns swing the camera round late,
+      // landings and gear shifts nod it, and hard snaps (walls, contacts) are filtered before they reach the screen.
+      const far = this.camMode === 1, C = this.cr || (this.cr = {});
+      if (!this.camInit) Object.assign(C, { psi: P.psi * 0.5, psiV: 0, su: 0, d: P.d, dv: 0, y: P.y, yv: 0, lean: P.lean, nod: 0, nodV: 0, gear: P.gear, air: P.air, side: 0, dist: P.dist, v: P.v });
+      if (Math.abs(P.dist - C.dist) > 30) { C.dist = P.dist; C.v = P.v; }
+      if (Math.abs(P.d - C.d) > 3) { C.d = P.d; C.dv = 0; }
+      if (Math.abs(P.y - C.y) > 9) { C.y = P.y; C.yv = 0; }
+      // springs, substepped so they stay stable on slow frames. Heading: a soft late swing. Distance and lateral are
+      // critically damped and track velocity too (no lag at steady speed): a sudden speed loss lets the bike come back
+      // toward the lens over a few frames instead of the whole view stopping dead with it. Height rides a soft spring.
+      for (let i = 0, n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; i < n; i++) {
+        C.psiV += ((P.psi * 0.55 - C.psi) * 22 - C.psiV * 9.4) * h; C.psi += C.psiV * h;
+        C.v += ((P.dist - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
+        C.dv += ((P.d - C.d) * 100 - C.dv * 20) * h; C.d += C.dv * h;
+        C.yv += ((P.y - C.y) * 95 - C.yv * 17.5) * h; C.y += C.yv * h;
+        C.nodV += (-C.nod * 130 - C.nodV * 13) * h; C.nod += C.nodV * h;
+      }
+      C.lean = smooth(C.lean, P.lean, 5, dt);
+      if (C.air && !P.air) { const imp = clamp((P.landImpact || 0) / 8, 0, 1); C.nodV -= 0.25 + imp * 0.9; fx.dip = Math.max(fx.dip, 0.05 + imp * 0.16); }   // touchdown
+      if (P.gear !== C.gear) { if (P.gear > C.gear && P.input.throttle > 0.5) C.nodV += 0.55; C.gear = P.gear; }   // the bike squats and surges on an upshift
+      C.air = P.air;
+      C.side = smooth(C.side, -C.lean * 0.28, 4, dt);   // drift a little to the outside of a turn, so you see the lean
+      const back = far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring, up = (far ? 3.4 : 1.62) - fx.dip;
+      const cs = ((C.dist - back * Math.cos(C.psi)) % T.L + T.L) % T.L; let cd = C.d + C.side - back * Math.sin(C.psi);
+      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 2.5) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
+      const g0 = T.roof && T.gapAt(cs) ? C.y : T.yAt(cs); C.gy = C.gy === undefined || !this.camInit ? g0 : smooth(C.gy, clamp(g0, C.y - 2, C.y + 2), 6, dt);   // ground under the lens, smoothed (breaker humps, roof gaps)
+      const target = T.pos(cs, cd, this._w); C.su = smooth(C.su, P.susp || 0, 9, dt); target.y = lerp(C.gy, C.y, 0.75) + up + C.su * 0.25;
+      this.camPos.copy(target); this.camInit = true;
       cam.position.copy(this.camPos); cam.position.y += vy;
-      const la = far ? 6 : 4.6; this.camLook.set(rp.x + fx2 * la, rp.y + (far ? 1.0 : 0.62), rp.z + fz * la);   // near cam pitches down: bike sits above the dash, more road (and its reflections) in view
-      cam.lookAt(this.camLook); cam.rotateZ(-P.lean * 0.28 + vr);
+      // look ahead along the camera's heading, leaning a little into the coming bend
+      const la = far ? 6 : 4.6, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
+      const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
+      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35, lp.z + Math.cos(yawL) * la);
+      cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }
     // field of view opens with speed; boost adds a punch that settles back
     const fov = 62 + 22 * Math.pow(Math.min(vN, 1.2), 1.15) + fx.boostAmt * 6 + fx.fovPunch;
     cam.fov = smooth(cam.fov, Math.min(fov, 100), fov > cam.fov ? 6 : 2.5, dt); cam.updateProjectionMatrix();
     this.applyShake(dt);
   }
-  applyShake(dt) { if (this.shakeAmt > 0.001) { const s = this.shakeAmt * 0.12; this.camera.position.x += (Math.random() - 0.5) * s; this.camera.position.y += (Math.random() - 0.5) * s; this.camera.rotateZ((Math.random() - 0.5) * s * 0.3); this.shakeAmt *= Math.exp(-6 * dt); } }
+  // shake: a fast decaying wobble from layered sines (a punch you feel), not per-frame random jitter
+  applyShake(dt) { if (this.shakeAmt > 0.001) { const s = this.shakeAmt * 0.075 * (REDUCED_MOTION ? 0.4 : 1), t = this.t; this.camera.position.x += (Math.sin(t * 43) + Math.sin(t * 71.3) * 0.5) * s; this.camera.position.y += (Math.sin(t * 52.7 + 1.3) + Math.sin(t * 89.1) * 0.4) * s; this.camera.rotateZ(Math.sin(t * 37.9 + 0.7) * s * 0.35); this.shakeAmt *= Math.exp(-7 * dt); } }
   orbitCam(dt, P, radius, h, speed) {
     const T = this.race.track; const rp = T.pos(P.s, P.d, this._v, P.y - T.yAt(P.s)); this.orbitA = (this.orbitA || 0) + dt * speed;
     const yaw = T.yawAt(P.s) + this.orbitA + 2.4; this.camera.position.set(rp.x + Math.sin(yaw) * radius, rp.y + h, rp.z + Math.cos(yaw) * radius); this.camera.lookAt(rp.x, rp.y + 0.9, rp.z);

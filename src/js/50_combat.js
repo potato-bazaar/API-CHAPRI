@@ -55,7 +55,9 @@ class Combat {
   constructor(race) {
     this.race = race; this.group = new THREE.Group();
     this.smoke = new Particles(700, TEX.soft, false); this.mud = new Particles(260, TEX.blob, false); this.stars = new Particles(160, TEX.star, true); this.sparks = new Particles(220, TEX.soft, true);
-    this.group.add(this.smoke.points, this.stars.points, this.sparks.points, this.mud.points);
+    this.spray = new Particles(1100, TEX.soft, false);   // monsoon tyre spray: rooster tails, side sheets, mist
+    this.group.add(this.smoke.points, this.stars.points, this.sparks.points, this.mud.points, this.spray.points);
+    const night = race.world && race.world.mood ? race.world.mood.night : 0; this.sprayCol = col(night > 0.5 ? '#a3b0c8' : '#eef3fa'); this.mistCol = col(night > 0.5 ? '#7d89a3' : '#d8e0ec');
     this.projectiles = []; this.glass = []; this.pickups = [];
     // pickups: one Points cloud per type keeps draw calls low
     this.pickClouds = {};
@@ -192,7 +194,7 @@ class Combat {
     const cnt = {}; for (const k in this.pickClouds) cnt[k] = 0;
     for (const pk of this.pickups) { if (!pk.active) continue; const c = this.pickClouds[pk.type]; const i = cnt[pk.type]++; if (i >= 40) continue; T.pos(pk.s, pk.d, this._v, 1.0 + Math.sin(raceT * 3 + pk.s) * 0.15); c.g.attributes.position.setXYZ(i, this._v.x, this._v.y, this._v.z); }
     for (const k in this.pickClouds) { const c = this.pickClouds[k]; c.g.setDrawRange(0, cnt[k]); c.g.attributes.position.needsUpdate = true; c.pts.visible = cnt[k] > 0 && (k === 'oil' || R.combatOn); }
-    this.smoke.update(dt); this.stars.update(dt); this.sparks.update(dt); this.mud.update(dt);
+    this.smoke.update(dt); this.stars.update(dt); this.sparks.update(dt); this.mud.update(dt); this.spray.update(dt);
   }
   collect(r, pk) {
     const R = this.race;
@@ -220,13 +222,36 @@ class Combat {
     if (r.surf === 2 && r.v > 5 && Math.random() < 0.5) this.smoke.emit(base.x - fx * 0.7, base.y + 0.15, base.z - fz * 0.7, -fx * 2 + (Math.random() - 0.5) * 2, 0.7, -fz * 2 + (Math.random() - 0.5) * 2, 1.2, 0.5, 2.6, this.race.wet ? C_MUDW : C_DUST, 0.35, 1.4, -0.1);
     if (this.race.wet && r.isPlayer) for (let i = 0; i < 3; i++) { const sd = (Math.random() - 0.3) * 18, dd = (Math.random() - 0.5) * T.wAt(r.s) * 0.9; const q = T.pos(r.s + sd, dd, this._w2 || (this._w2 = new THREE.Vector3()), 0.03);
       this.smoke.emit(q.x, q.y, q.z, 0, 1.0 + Math.random(), 0, 0.22, 0.06, 0.3, C_WATER, 0.55, 2, 7); }
-    if (this.race.wet && r.v > 8 && Math.random() < 0.6) this.smoke.emit(base.x - fx * 0.7, base.y + 0.2, base.z - fz * 0.7, -fx * r.v * 0.15 + (Math.random() - 0.5) * 2, 1.5, -fz * r.v * 0.15 + (Math.random() - 0.5) * 2, 0.5, 0.3, 1.4, C_WATER, 0.4, 2, 5);
+    if (this.race.wet && r.v > 5 && !r.air) this.tyreSpray(r, dt, base, fx, fz, lx, lz);
+    if (r.scrapeT > 0) { r.scrapeT -= dt; const q = T.pos(r.s, r.d + Math.sign(r.d) * 0.32, this._w3 || (this._w3 = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.25);
+      for (let i = 0; i < 2; i++) this.sparks.emit(q.x, q.y, q.z, fx * r.v * 0.55 + (Math.random() - 0.5) * 2, 0.5 + Math.random() * 2, fz * r.v * 0.55 + (Math.random() - 0.5) * 2, 0.22, 0.12, 0.04, C_FIRE, 1, 1.5, 9); }
+  }
+  // wet tarmac: the rear tyre throws a rooster tail up and back, the front sheets water out to both sides, and a fine mist hangs behind
+  tyreSpray(r, dt, base, fx, fz, lx, lz) {
+    const P = this.race.player; if (!r.isPlayer && Math.abs(r.dist - P.dist) > 48) return;
+    const vn = clamp(r.v / 26, 0, 1.4), rate = (r.isPlayer ? 1 : 0.85) * vn; const fw = r.v * 0.68;   // water leaves the tyre backwards at about a third of road speed
+    r._sprA = (r._sprA || 0) + rate * 110 * dt;
+    while (r._sprA > 1) { r._sprA--; const sp = (Math.random() - 0.5) * 1.4, up = (1.3 + Math.random() * 2.0) * Math.min(1.2, vn + 0.25), j = Math.random() * 0.25;
+      this.spray.emit(base.x - fx * (0.62 + j) + lx * sp * 0.05, base.y + 0.12 + j * 0.6, base.z - fz * (0.62 + j) + lz * sp * 0.05, fx * fw + lx * sp, up, fz * fw + lz * sp, 0.34 + Math.random() * 0.18, 0.45, 1.6 + Math.random() * 0.6, this.sprayCol, 0.68, 1.0, 9); }
+    r._sprB = (r._sprB || 0) + rate * 60 * dt;
+    while (r._sprB > 1) { r._sprB--; const sd = Math.random() < 0.5 ? 1 : -1, out = 1.4 + Math.random() * 1.6;
+      this.spray.emit(base.x + fx * 0.6 + lx * sd * 0.1, base.y + 0.07, base.z + fz * 0.6 + lz * sd * 0.1, fx * r.v * 0.85 + lx * sd * out, 0.7 + Math.random() * 1.0, fz * r.v * 0.85 + lz * sd * out, 0.28 + Math.random() * 0.12, 0.32, 1.0, this.sprayCol, 0.5, 1.2, 9); }
+    r._sprC = (r._sprC || 0) + rate * 18 * dt;
+    while (r._sprC > 1) { r._sprC--;
+      this.spray.emit(base.x - fx * 1.0, base.y + 0.4, base.z - fz * 1.0, fx * r.v * 0.7 + (Math.random() - 0.5), 0.4 + Math.random() * 0.5, fz * r.v * 0.7 + (Math.random() - 0.5), 0.7 + Math.random() * 0.4, 1.4, 4.2, this.mistCol, 0.2, 1.4, 0.5); }
+  }
+  // scraping a wall or kerb: a burst of sparks on that side
+  wallSparks(r, into) {
+    const T = this.race.track; if (!r.isPlayer && this.race.distToPlayer(r) < 0.1) return;
+    const yaw = T.yawAt(r.s) + r.psi, fx = Math.sin(yaw), fz = Math.cos(yaw); const q = T.pos(r.s, r.d + Math.sign(r.d) * 0.34, this._w3 || (this._w3 = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.3);
+    const n = Math.round(6 + into * 40); for (let i = 0; i < n; i++) this.sparks.emit(q.x, q.y, q.z, fx * r.v * 0.6 + (Math.random() - 0.5) * 3, 0.8 + Math.random() * 3, fz * r.v * 0.6 + (Math.random() - 0.5) * 3, 0.3 + Math.random() * 0.2, 0.14, 0.04, C_FIRE, 1, 1.2, 9);
+    if (r.isPlayer) AUDIO.scrape && AUDIO.scrape(clamp(0.3 + into * 2, 0.3, 1));
   }
   splash(r, amt, wet) { // pothole: water (monsoon) or grit thrown up around the front wheel
     const T = this.race.track; const yaw = T.yawAt(r.s) + r.psi; const fx = Math.sin(yaw), fz = Math.cos(yaw); const b = T.pos(r.s, r.d, this._v, r.y - T.yAt(r.s));
     const n = Math.round((wet ? 22 : 10) * amt); for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 1.5 + Math.random() * 3.5 * amt;
       (wet ? this.smoke : this.mud).emit(b.x + fx * 0.5, b.y + 0.1, b.z + fz * 0.5, Math.cos(a) * sp + fx * r.v * 0.15, 2 + Math.random() * 3 * amt, Math.sin(a) * sp + fz * r.v * 0.15, wet ? 0.6 : 0.5, wet ? 0.25 : 0.1, wet ? 0.6 : 0.16, wet ? C_WATER : C_GRIT, wet ? 0.7 : 1, 0.8, 9); }
   }
-  reset() { this.projectiles.length = 0; this.glass.forEach(g => { this.group.remove(g.mesh); g.mesh.geometry.dispose(); }); this.glass.length = 0; this.smoke.clear(); this.stars.clear(); this.sparks.clear(); this.mud.clear(); }
-  dispose() { this.reset(); this.mud.dispose(); this.smoke.dispose(); this.stars.dispose(); this.sparks.dispose(); for (const k in this.pickClouds) { this.pickClouds[k].g.dispose(); this.pickClouds[k].m.dispose(); } this.glassMat.dispose(); }
+  reset() { this.projectiles.length = 0; this.glass.forEach(g => { this.group.remove(g.mesh); g.mesh.geometry.dispose(); }); this.glass.length = 0; this.smoke.clear(); this.stars.clear(); this.sparks.clear(); this.mud.clear(); this.spray.clear(); }
+  dispose() { this.reset(); this.mud.dispose(); this.spray.dispose(); this.smoke.dispose(); this.stars.dispose(); this.sparks.dispose(); for (const k in this.pickClouds) { this.pickClouds[k].g.dispose(); this.pickClouds[k].m.dispose(); } this.glassMat.dispose(); }
 }

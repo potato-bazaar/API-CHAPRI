@@ -853,7 +853,7 @@ function buildStats(buildId) {
   const brake = 1 + b.mod.brake + br * 0.07;
   const wobbleRes = 1 + br * 0.06 + (fx.wobble || 0);
   // 0–100 estimate for the stat card
-  const zeroTo100 = clamp(7.8 / acc * (100 / Math.min(top, 100)) ** 0.5, 4.5, 12);
+  const zeroTo100 = clamp(6.7 / acc * (100 / Math.min(top, 100)) ** 0.5, 4.5, 12);
   return { build: b, mods: md, top, acc, lean, grip, brake, wobbleRes, zeroTo100, boostFill: (b.mod.boost || 1) + (fx.boost || 0), wheelieEase: b.mod.wheelie || 0, lvls: { engine: e, silencer: s, tyres: t, brakes: br } };
 }
 
@@ -1463,7 +1463,7 @@ class Track {
       const k = Math.abs(this.k[i]); const Reff = 1 / Math.max(k, 1e-4) + this.w0[i] * 0.7;
       this.vmax[i] = Math.min(vTop, Math.sqrt(G * 1.0 * cornerMul * Reff));
     }
-    for (const bp of this.bumps) if (bp.type === 'breaker') for (let i = Math.floor((bp.s - 3) / STEP); i <= Math.ceil((bp.s + 3) / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.min(this.vmax[j], bp.triple ? 11 : 12.5); }
+    for (const bp of this.bumps) if (bp.type === 'breaker') for (let i = Math.floor((bp.s - 3) / STEP); i <= Math.ceil((bp.s + 3) / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.min(this.vmax[j], bp.triple ? 13 : 14.5); }
     const b = 7.5;
     for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) { const j = (i + 1) % N; this.vmax[i] = Math.min(this.vmax[i], Math.sqrt(this.vmax[j] ** 2 + 2 * b * STEP)); }
     if (this.roof) for (let i = 0; i < N; i++) { const x = this.wrapD(i * STEP - this.roof.s0); if (x > -30 && x < this.roof.len) this.vmax[i] = Math.max(this.vmax[i], 19); }
@@ -3105,6 +3105,22 @@ const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.37
 const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   new THREE.MeshBasicMaterial({ color: '#e8fbff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })];
 
+// spinning spokes alias into a frozen or backwards wheel at speed (each frame turns them ~80°). Over the spokes sits a
+// motion-blur disc: a blurred spoke sheet with bright streak arcs that turns at a readable rate, fading in with speed.
+let WHEEL_BLUR = null;
+function wheelBlurAssets() {
+  if (WHEEL_BLUR) return WHEEL_BLUR;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), C = N / 2;
+  const g = x.createRadialGradient(C, C, C * 0.28, C, C, C); g.addColorStop(0, 'rgba(150,154,162,0.5)'); g.addColorStop(0.75, 'rgba(176,180,188,0.62)'); g.addColorStop(0.96, 'rgba(120,124,132,0.7)'); g.addColorStop(1, 'rgba(90,92,98,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(C, C, C, 0, 7); x.fill();
+  // streak arcs: a bright head that fades along its tail (the eye reads the direction and the spin)
+  const arc = (a0, len, r0, r1, rgb, a) => { for (let i = 0; i < 24; i++) { const t = i / 24; x.strokeStyle = `rgba(${rgb},${(a * (1 - t) * (1 - t)).toFixed(3)})`; x.lineWidth = (r1 - r0) * C; x.beginPath(); x.arc(C, C, (r0 + r1) / 2 * C, a0 - t * len, a0 - (t + 1 / 24) * len, true); x.stroke(); } };
+  arc(0.3, 1.25, 0.46, 0.62, '255,255,255', 0.75); arc(3.4, 1.0, 0.66, 0.8, '255,255,255', 0.55); arc(1.9, 0.9, 0.34, 0.44, '40,42,48', 0.6); arc(5.0, 0.8, 0.82, 0.9, '40,42,48', 0.5);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  WHEEL_BLUR = { tex, gF: new THREE.RingGeometry(0.06, 0.2, 40, 1).rotateY(Math.PI / 2), gR: new THREE.RingGeometry(0.06, 0.188, 40, 1).rotateY(Math.PI / 2) };
+  for (const k of ['gF', 'gR']) { const uv = WHEEL_BLUR[k].attributes.uv, p = WHEEL_BLUR[k].attributes.position, R = k === 'gF' ? 0.2 : 0.188; for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getZ(i) / R * 0.5 + 0.5, p.getY(i) / R * 0.5 + 0.5); }
+  return WHEEL_BLUR;
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -3127,6 +3143,9 @@ class BikeRig {
       this.body.add(this.wheelR, this.wheelF);
       const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights);
       if (o.mods && !o.ghost) this.mods = addBikeMods(this, o, low, cast);
+      if (!o.ghost) { const W = wheelBlurAssets(); this.blurMat = new THREE.MeshLambertMaterial({ map: W.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 }); this.blurs = [];
+        for (const [wh, geo] of [[this.wheelF, W.gF], [this.wheelR, W.gR]]) { const grp = new THREE.Group(); for (const sx of [1, -1]) { const m = new THREE.Mesh(geo, this.blurMat); m.position.x = sx * 0.058; m.renderOrder = 2; grp.add(m); } grp.visible = false; this.body.add(grp); this.blurs.push({ grp, wh }); }
+        this.blurAng = Math.random() * 6; }
       if (!o.ghost) { this.jets = []; for (const sx of [-1, 1]) { const j = new THREE.Group(); j.position.set(sx * 0.13, 0.33, -0.95); j.rotation.x = -0.12;
         const outer = new THREE.Mesh(JET_G, JET_MAT[0]), core = new THREE.Mesh(JET_G, JET_MAT[1]); core.scale.set(0.45, 0.55, 0.45); j.add(outer, core); j.visible = false; this.body.add(j); this.jets.push(j); } }
     } else {
@@ -3191,7 +3210,12 @@ class BikeRig {
     const su = (st.susp || 0) * 0.9, wr = this.model ? WHEEL_R_M : WHEEL_R; this.body.position.y = su + (this.mods ? this.mods.lift : 0); this.wheelR.position.y = wr - su; this.wheelF.position.y = wr - su;
     this.bobV = (this.bobV || 0) + (((su - (this.bob || 0)) * 140) - this.bobV * 10) * Math.min(dt, 0.05); this.bob = (this.bob || 0) + this.bobV * Math.min(dt, 0.05);
     this.riderLag = clamp(this.bob - su, -0.08, 0.08);
-    this.wheelSpin += (st.speed || 0) / WHEEL_R * dt; this.wheelR.rotation.x = this.wheelSpin; this.wheelF.rotation.x = st.pitch < -0.05 ? this.wheelF.rotation.x : this.wheelSpin;
+    const wRate = (st.speed || 0) / WHEEL_R; this.wheelSpin += wRate * dt; this.wheelR.rotation.x = this.wheelSpin; this.wheelF.rotation.x = st.pitch < -0.05 ? this.wheelF.rotation.x : this.wheelSpin;
+    if (this.blurs) {
+      const op = clamp(((st.speed || 0) - 2.5) / 7, 0, 1) * 0.88, cam = typeof GAME !== 'undefined' && GAME && GAME.camera, near = !cam || cam.position.distanceToSquared(this.root.position) < 1600;
+      this.blurMat.opacity = op; this.blurAng += Math.min(wRate, 9 + wRate * 0.12) * dt;
+      for (const b of this.blurs) { b.grp.visible = op > 0.02 && near; if (b.grp.visible) { b.grp.position.copy(b.wh.position); b.grp.rotation.x = b.wh === this.wheelF && st.pitch < -0.05 ? b.grp.rotation.x : this.blurAng; } }
+    }
     this.blob.scale.set(1 - Math.min(0.5, Math.abs(st.lean) * 0.6), 1, 1); this.blob.position.x = -Math.sin(st.lean) * 0.35; this.blob.material.opacity = st.air ? 0.35 : 0.8;
     // torso: tuck forward on straights, sit back for wheelies, look around
     const tuckTarget = st.idle ? 0.12 : st.weightBack ? -0.05 : 0.32 + 0.38 * (st.tuck || 0) + Math.min(0.32, Math.abs(st.lean) * 0.5);   // dives low into corners
@@ -3241,7 +3265,7 @@ class BikeRig {
     this.weapon.position.copy(h).addScaledVector(dir, 0.06); this.weapon.quaternion.setFromUnitVectors(Z_AXIS, dir).multiply(_wq.setFromAxisAngle(_wv[3].set(1, 0, 0), this.wPitch * 0.6));
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
-  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
+  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
 }
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _wv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], _wq = new THREE.Quaternion();
@@ -3427,8 +3451,10 @@ class Rider {
     this.race = race; this.idx = idx; this.cfg = cfg; this.isPlayer = !!cfg.isPlayer;
     this.name = cfg.name; this.short = cfg.short || cfg.name;
     this.st = cfg.stats;
-    this.vTop = this.st.top / 3.6; this.A = 5.1 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
-    this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 0.92;
+    this.vTop = this.st.top / 3.6; this.A = 5.9 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
+    this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 1.06;   // arcade grip: a touch more than a real tyre
+    // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
+    this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
     // state
@@ -3490,27 +3516,34 @@ class Rider {
     // steering by lean: grip budget sets the yaw-rate ceiling
     const vv = Math.max(this.v, 2.5);
     let wMax = Math.min(2.4, this.gripLat * gripMul / vv);
-    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.15; if (this.stoppie) wMax *= 0.3; if (this.air) wMax = 0;
+    if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.15; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
     let steer = inp.steer; if (this.splatT > 0 && !this.isPlayer) steer += Math.sin(raceT * 9 + this.idx) * 0.8;
-    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : 9, dt);
+    const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
+    if (this.assist) {
+      // road-relative steering: input = heading off the road (narrower at speed, wider in a drift); the curve itself is fed forward,
+      // so letting go straightens the bike along the road instead of carrying it into a wall. Still limited by grip.
+      const psiMax = lerp(0.62, 0.29, clamp(this.v / 28, 0, 1)) * (this.sliding ? 1.5 : 1);
+      const ff = k * this.v * Math.cos(this.psi) / denom, req = ff + 6.5 * wrapAngle(-steer * psiMax - this.psi);
+      steer = clamp(-req / Math.max(0.05, wMax), -1, 1);
+    }
+    const wT = -steer * wMax; this.omega = smooth(this.omega, wT, this.sliding ? 6 : this.assist ? 11 : 9, dt);
     if (this.isPlayer && inp.brake > 0.6 && Math.abs(this.omega * this.v) > 0.8 * this.gripLat && this.v > 10) this.addWobble(38 * dt, true); // front-end wobble
     // rain: past ~3/4 of the grip budget (or braking hard) the rear steps out and scrubs speed
     if (this.race.wet && !this.air && this.v > 8) {
       const demand = Math.abs(this.omega * this.v) / Math.max(0.1, this.gripLat * gripMul), want = clamp((demand - 0.74) * 3.5, 0, 1) + (inp.brake > 0.7 && this.v > 13 ? 0.45 : 0);
       this.wetSlip = smooth(this.wetSlip || 0, Math.min(1, want), want > (this.wetSlip || 0) ? 7 : 3, dt);
-      if (this.wetSlip > 0.05) { this.v -= this.wetSlip * 2.4 * dt; this.psi += (this.omega >= 0 ? 1 : -1) * this.wetSlip * 0.22 * dt; this.addWobble(this.wetSlip * (this.isPlayer ? 16 : 6) * dt, true);
+      if (this.wetSlip > 0.05) { this.v -= this.wetSlip * 2.0 * dt; this.psi += (this.omega >= 0 ? 1 : -1) * this.wetSlip * 0.22 * dt; this.addWobble(this.wetSlip * (this.isPlayer ? 10 : 6) * dt, true);
         if (this.wetSlip > 0.45 && !this._slipOn) { this._slipOn = true; this.race.onSlip && this.race.onSlip(this); } }
       if (this.wetSlip < 0.2) this._slipOn = false;
     } else this.wetSlip = 0;
     if (this.sliding) { this.slideDist += this.v * dt; this.boost = Math.min(100, this.boost + 10 * fill * dt); }
     // track-space integration
-    const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
     const ds = this.v * Math.cos(this.psi) / denom * dt; const dd = this.v * Math.sin(this.psi) * dt + this.shoveV * dt;
     this.psi = wrapAngle(this.psi + this.omega * dt - k * ds);
     this.shoveV *= Math.exp(-5 * dt);
     const oldLap = this.lap, oldS = this.s; this.dist += ds; this.s = ((this.dist % T.L) + T.L) % T.L; this.d += dd;
     // kichad makes the rear step out; the kachha lane chatters the suspension
-    if (this.surf === 1 && this.v > 7) { this.psi += (RNG() - 0.5) * 0.035 * Math.min(1.5, this.v / 18); this.slide = smooth(this.slide, (RNG() - 0.5) * 0.5, 4, dt); }
+    if (this.surf === 1 && this.v > 7) { const w = Math.sin(raceT * 2.3 + this.idx * 1.7) + 0.5 * Math.sin(raceT * 5.1 + this.idx); this.psi += w * 0.22 * dt * Math.min(1.5, this.v / 18); this.slide = smooth(this.slide, w * 0.22, 4, dt); }   // a slow, readable fishtail
     if (this.surf === 2 && this.v > 4) this.suspV += (RNG() - 0.5) * 9 * dt * Math.min(1.5, this.v / 12);
     this.roadHits(T, oldS);
     // walls & kerbs
@@ -3519,11 +3552,13 @@ class Rider {
       const sg = Math.sign(this.d); const into = Math.max(0, sg * Math.sin(this.psi)) + Math.max(0, sg * this.shoveV / 8);
       this.d = sg * hw;
       if (into > 0.03) {
-        this.v *= 1 - clamp(into * 0.9, 0.04, 0.55);
-        this.psi = -sg * Math.min(Math.abs(this.psi), 0.12);
-        this.addWobble((8 + 85 * into * Math.min(1, this.v / 14)) / this.st.wobbleRes);
-        this.shoveV = 0; this.race.onWall(this, into);
-      }
+        // a glancing hit: keep most of the speed, bounce the nose back off the wall, small push away
+        const hard = into > 0.3;
+        this.v *= 1 - clamp(into * 0.5, 0.02, hard ? 0.32 : 0.14);
+        this.psi = -sg * Math.min(Math.abs(this.psi) * 0.35, 0.1);
+        this.addWobble((3 + 48 * Math.max(0, into - 0.06) * Math.min(1, this.v / 14)) / this.st.wobbleRes, !hard);
+        this.shoveV = -sg * Math.min(3, 0.6 + into * this.v * 0.18); this.race.onWall(this, into);
+      } else if (this.v > 6) { this.v -= 1.2 * dt; this.scrapeT = 0.12; }   // sliding along the wall: sparks, a little drag
     } else if (Math.abs(this.d) > hw - 0.45 && this.v > 8) { this.v -= 0.5 * dt; if (this.isPlayer) this.race.rumble(0.05, 0.1); }
     // elevation + air time (kicker ramps rise under one lane only)
     const kick = this.air ? null : T.kickerAt(this.s, this.d);
@@ -3542,7 +3577,7 @@ class Rider {
       // rooftop gaps: too slow and you drop between the buildings
       if (T.roof && ((T.gapAt(this.s) && this.y < T.roof.h - 1.1) || (this.y <= gy && T.onRoofTop(this.s) && this.y < gy - 0.75))) { this.y = Math.min(this.y, gy); this.crash('fell'); return; }
       if (this.y <= gy) { const gvy = clamp((T.gy(this.s + 0.6, this.d) - gy) / 0.6 * this.v, -12, 12), impact = Math.max(0, gvy - this.vy); this.y = gy; this.air = false; this.vy = gvy;   /* landing on a down-ramp is soft */ this.suspV -= clamp(impact * 0.55, 0.3, 4.5);
-        if (this.airT > 0.5) this.race.onAir(this, this.airT); if (Math.abs(this.lean) > 0.5) this.addWobble(25); if (impact > 6) this.addWobble((impact - 6) * 4.5 / this.st.wobbleRes);
+        this.landImpact = impact; if (this.airT > 0.5) this.race.onAir(this, this.airT); if (Math.abs(this.lean) > 0.65) this.addWobble(12); if (impact > 7.5) this.addWobble((impact - 7.5) * 3 / this.st.wobbleRes);
         this.race.onLand(this, impact); if (this.isPlayer) this.race.rumble(clamp(impact / 8, 0.25, 0.9), 0.15); }
     }
     // suspension: a stiff spring-damper the hits feed into; the rig bounces the frame and the rider on it
@@ -3567,10 +3602,10 @@ class Rider {
     this.tuck = smooth(this.tuck, Math.abs(inp.steer) < 0.1 && thr > 0.8 && this.v > 16 ? 1 : 0, 3, dt);
     // visual lean + slide yaw
     const leanT = clamp(Math.atan2(this.v * this.omega, G), -this.maxLean - (this.sliding ? 0.15 : 0), this.maxLean + (this.sliding ? 0.15 : 0));
-    this.lean = smooth(this.lean, this.air ? this.lean : leanT, 8, dt);
+    this.lean = smooth(this.lean, this.air ? leanT * 0.6 : leanT, this.air ? 4 : 8, dt);
     this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
     // wobble recovery
-    if (this.wobbleT > 0.6 && Math.abs(inp.steer) < 0.6) this.wobble = Math.max(0, this.wobble - 30 * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
+    if (this.wobbleT > 0.45) this.wobble = Math.max(0, this.wobble - (Math.abs(inp.steer) < 0.6 ? 42 : 30) * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
     if (this.wobble >= 100) { this.crash('wobble'); return; }
     // wrong way
     if (Math.cos(this.psi) < -0.2 && this.v > 2) this.wrongT += dt; else this.wrongT = 0;
@@ -3590,7 +3625,9 @@ class Rider {
   roadHits(T, oldS) {
     const crossed = (x) => { let a = oldS - x, b = this.s - x; if (a > T.L / 2) a -= T.L; if (a < -T.L / 2) a += T.L; if (b > T.L / 2) b -= T.L; if (b < -T.L / 2) b += T.L; return a < 0 && b >= 0; };
     for (const b of T.bumps) if (b.type === 'breaker' && crossed(b.s)) {
-      if (this.v > 10.5 && !this.air) this.addWobble((this.v - 10.5) * 0.85 / this.st.wobbleRes, true);
+      if (this.air) continue;
+      // fast over a breaker: the bike hops it (a little air, a small wobble) instead of being punished every time
+      if (this.v > 15) { this.addWobble((this.v - 15) * (b.triple ? 0.7 : 0.45) / this.st.wobbleRes, true); this.air = true; this.airT = 0; this.vy = Math.min(2.6, 0.9 + (this.v - 15) * 0.09); }
       this.suspV -= Math.min(2.2, this.v * 0.07); this.race.onBreaker(this, b);
     }
     if (this.air) return;
@@ -3600,9 +3637,9 @@ class Rider {
       if (this.lastHole === h.id && this.race.raceT - this.lastHoleT < 2) continue;
       this.lastHole = h.id; this.lastHoleT = this.race.raceT;
       const sp = clamp(this.v / 20, 0.3, 1.7);
-      this.v *= h.big ? 0.84 : 0.965; this.suspV -= (h.big ? 2.8 : 1.3) * sp;
+      this.v *= h.big ? 0.9 : 0.98; this.suspV -= (h.big ? 2.8 : 1.3) * sp;
       if (h.big && this.v > 13) { this.air = true; this.airT = 0; this.vy = 1.2 + this.v * 0.06; }   // the far lip kicks the bike up
-      this.addWobble(((h.big ? 14 : 4) + Math.max(0, this.v - 12) * (h.big ? 1.5 : 0.45) + Math.abs(this.lean) * (h.big ? 22 : 6)) / this.st.wobbleRes);
+      this.addWobble(((h.big ? 9 : 2) + Math.max(0, this.v - 12) * (h.big ? 0.8 : 0.2) + Math.abs(this.lean) * (h.big ? 12 : 3)) / this.st.wobbleRes, !h.big);
       this.race.onPothole(this, h);
     }
   }
@@ -3790,11 +3827,14 @@ class Race {
         if (Math.abs(dl) < 0.8) { if (dd > 0.6 && dd < 3.6) a.drafting = true; else if (-dd > 0.6 && -dd < 3.6) b.drafting = true; }
         if (a.crashed || b.crashed || a.invuln > 0 || b.invuln > 0 || a.air !== b.air) continue;
         if (Math.abs(dd) < 1.75 && Math.abs(dl) < 0.78) {
-          const push = (0.78 - Math.abs(dl)) / 2 * (dl >= 0 ? 1 : -1);
-          a.d -= push; b.d += push; const rel = Math.abs(a.v - b.v);
-          if (dd > 0) a.v = Math.min(a.v, b.v * 0.985); else b.v = Math.min(b.v, a.v * 0.985);
+          // soft contact: bikes lean on each other and slide apart (a spring, not a teleport); a rider closing from behind
+          // trades a share of the speed difference instead of being glued to the leader's speed
+          const ov = 0.78 - Math.abs(dl), sg = dl >= 0 ? 1 : -1, corr = ov * Math.min(1, dt * 9) * 0.5;
+          a.d -= sg * corr; b.d += sg * corr; a.shoveV = clamp(a.shoveV - sg * ov * 22 * dt, -3, 3); b.shoveV = clamp(b.shoveV + sg * ov * 22 * dt, -3, 3);
+          const rel = Math.abs(a.v - b.v), back = dd > 0 ? a : b, front = dd > 0 ? b : a;
+          if (Math.abs(dd) > 0.9 && back.v > front.v) { const dv = (back.v - front.v) * (1 - Math.exp(-5 * dt)); back.v -= dv * 0.75; front.v += dv * 0.25; }
           const key = a.idx * 16 + b.idx; const last = this.contactT.get(key) ?? -9;
-          if (this.raceT - last > 0.6) { a.addWobble((5 + rel * 3) / a.st.wobbleRes); b.addWobble((5 + rel * 3) / b.st.wobbleRes); if (a.isPlayer || b.isPlayer) { AUDIO.thud(0.5); this.rumble(0.35, 0.12); this.game.shake(0.15); } }
+          if (this.raceT - last > 0.6) { a.addWobble((3 + rel * 1.6) / a.st.wobbleRes, true); b.addWobble((3 + rel * 1.6) / b.st.wobbleRes, true); if (a.isPlayer || b.isPlayer) { AUDIO.thud(0.4); this.rumble(0.3, 0.1); this.game.shake(0.1); const o = a.isPlayer ? b : a, me = a.isPlayer ? a : b; me.rig.react && me.rig.react('bump', Math.sign(o.d - me.d) || 1); } }
           this.contactT.set(key, this.raceT);
         }
       }
@@ -3803,8 +3843,9 @@ class Race {
         let ds = a.s - o.s; if (ds > this.track.L / 2) ds -= this.track.L; if (ds < -this.track.L / 2) ds += this.track.L;
         if (Math.abs(ds) < o.hl + 0.9 && Math.abs(a.d - o.d) < o.hw + 0.38 && !a.crashed && !a.air) {
           const sg = a.d > o.d ? 1 : -1; a.d = o.d + sg * (o.hw + 0.4);
-          if (o.kind === 'island') { a.v *= 0.9; a.addWobble(9 / a.st.wobbleRes); a.psi = sg * 0.06; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.2); } continue; }
-          a.v *= 0.55; a.addWobble(32 / a.st.wobbleRes); a.psi = sg * 0.1;
+          if (o.kind === 'island') { a.v *= 0.94; a.addWobble(6 / a.st.wobbleRes, true); a.psi = sg * 0.06; a.shoveV = sg * 1.2; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.15); } continue; }
+          const head = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1);   // dead-centre hits cost more than clipping a corner
+          a.v *= lerp(0.88, 0.7, head); a.addWobble((12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
           if (a.isPlayer) { AUDIO.thud(1); this.rumble(0.8, 0.2); this.game.shake(0.5); this.hud.callout('THOK!', null, 'bad'); }
         }
       }
@@ -3899,13 +3940,13 @@ class Race {
     this.combat.splash(r, h.big ? 1 : 0.5, this.wet);
     if (!r.isPlayer) return;
     AUDIO.thud(h.big ? 1 : 0.55); AUDIO.splash && this.wet && AUDIO.splash(h.big ? 1 : 0.5);
-    this.rumble(h.big ? 0.9 : 0.4, 0.18); this.game.shake(h.big ? 0.6 : 0.22);
-    this.hud.callout(h.big ? 'BADA GADDHA!' : 'GADDHA!', null, 'bad'); this.game.comicPop && this.game.comicPop(h.big ? 'DHADAAM!' : 'DHAD!', r, h.big ? 1.2 : 0.8);
+    this.rumble(h.big ? 0.9 : 0.35, 0.18); this.game.shake(h.big ? 0.45 : 0.14);
+    if (h.big) { this.hud.callout('BADA GADDHA!', null, 'bad'); this.game.comicPop && this.game.comicPop('DHADAAM!', r, 1.1); }
   }
   onBreaker(r, b) {
-    if (!r.isPlayer) return; const hard = r.v > 10.5;
-    AUDIO.thud(clamp(r.v / 25, 0.25, 0.8)); this.rumble(clamp(r.v / 30, 0.2, 0.7), 0.12); this.game.shake(clamp(r.v / 60, 0.08, 0.35));
-    if (hard && (!b.triple || !this._brkT || this.raceT - this._brkT > 1.2)) { this._brkT = this.raceT; this.hud.callout(b.triple ? 'TEEN BREAKER!' : 'BREAKER!', null, 'bad'); this.game.comicPop && this.game.comicPop(b.triple ? 'DHAK DHAK DHAK!' : 'DHAK!', r, 0.9); }
+    if (!r.isPlayer) return; const hop = r.air;   // fast riders hop breakers: a thump and a pop, no red penalty banner
+    AUDIO.thud(clamp(r.v / 25, 0.25, 0.8)); this.rumble(clamp(r.v / 30, 0.2, 0.7), 0.12); this.game.shake(clamp(r.v / 70, 0.06, 0.25));
+    if (hop && (!b.triple || !this._brkT || this.raceT - this._brkT > 1.2)) { this._brkT = this.raceT; this.game.comicPop && this.game.comicPop(b.triple ? 'DHAK DHAK DHAK!' : 'DHAK!', r, 0.8); }
   }
   // coins floating over jumps, gaps and shortcut lanes (player only)
   collectCoins() {
@@ -3917,7 +3958,7 @@ class Race {
   }
   onSlip(r) { if (!r.isPlayer) return; AUDIO.squeal(0.9); this.hud.callout('PHISAL GAYA!', null, 'bad'); this.game.comicPop('SKRRRT!', r, 0.9, '#9cc2ff'); }
   onLand(r, impact) { if (r.isPlayer && impact > 3.5) { this.game.shake(clamp(impact / 14, 0.15, 0.5)); this.game.comicPop && this.game.comicPop('DHAMM!', r, 0.8); } }
-  onWall(r, into) { if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
+  onWall(r, into) { this.combat.wallSparks && this.combat.wallSparks(r, into); if (r.isPlayer && into > 0.08) { AUDIO.thud(clamp(into * 3, 0.3, 1)); this.rumble(clamp(into * 2, 0.2, 1), 0.15); this.game.shake(clamp(into, 0.1, 0.6)); } }
   onAir(r, t) { if (r.isPlayer) { const pts = this.award('stunts', 30 + 20 * clamp((t - 0.5) / 1, 0, 1)); this.score.airs = (this.score.airs || 0) + 1; this.hud.callout(`AIR ${t.toFixed(1)} s`, `+${pts}`, 'stunt'); } }
   onWheelie(r, dist) { if (r.isPlayer) { const pts = this.award('stunts', Math.min(150, dist)); this.score.wheelies = (this.score.wheelies || 0) + 1; this.hud.callout(`WHEELIE ${Math.round(dist)} m`, `+${pts}`, 'stunt'); if (dist > 10) dailyProgress('wheelies', 1); } }
   onStoppie(r, t) { if (r.isPlayer && this.raceT - (this._stoppieT || -9) > 5) { this._stoppieT = this.raceT; const pts = this.award('stunts', clamp(20 + 60 * (t - 0.5) / 0.9, 20, 80)); this.score.stoppies = (this.score.stoppies || 0) + 1; this.hud.callout('STOPPIE', `+${pts}`, 'stunt'); } }
@@ -4156,7 +4197,9 @@ class Combat {
   constructor(race) {
     this.race = race; this.group = new THREE.Group();
     this.smoke = new Particles(700, TEX.soft, false); this.mud = new Particles(260, TEX.blob, false); this.stars = new Particles(160, TEX.star, true); this.sparks = new Particles(220, TEX.soft, true);
-    this.group.add(this.smoke.points, this.stars.points, this.sparks.points, this.mud.points);
+    this.spray = new Particles(1100, TEX.soft, false);   // monsoon tyre spray: rooster tails, side sheets, mist
+    this.group.add(this.smoke.points, this.stars.points, this.sparks.points, this.mud.points, this.spray.points);
+    const night = race.world && race.world.mood ? race.world.mood.night : 0; this.sprayCol = col(night > 0.5 ? '#a3b0c8' : '#eef3fa'); this.mistCol = col(night > 0.5 ? '#7d89a3' : '#d8e0ec');
     this.projectiles = []; this.glass = []; this.pickups = [];
     // pickups: one Points cloud per type keeps draw calls low
     this.pickClouds = {};
@@ -4293,7 +4336,7 @@ class Combat {
     const cnt = {}; for (const k in this.pickClouds) cnt[k] = 0;
     for (const pk of this.pickups) { if (!pk.active) continue; const c = this.pickClouds[pk.type]; const i = cnt[pk.type]++; if (i >= 40) continue; T.pos(pk.s, pk.d, this._v, 1.0 + Math.sin(raceT * 3 + pk.s) * 0.15); c.g.attributes.position.setXYZ(i, this._v.x, this._v.y, this._v.z); }
     for (const k in this.pickClouds) { const c = this.pickClouds[k]; c.g.setDrawRange(0, cnt[k]); c.g.attributes.position.needsUpdate = true; c.pts.visible = cnt[k] > 0 && (k === 'oil' || R.combatOn); }
-    this.smoke.update(dt); this.stars.update(dt); this.sparks.update(dt); this.mud.update(dt);
+    this.smoke.update(dt); this.stars.update(dt); this.sparks.update(dt); this.mud.update(dt); this.spray.update(dt);
   }
   collect(r, pk) {
     const R = this.race;
@@ -4321,15 +4364,38 @@ class Combat {
     if (r.surf === 2 && r.v > 5 && Math.random() < 0.5) this.smoke.emit(base.x - fx * 0.7, base.y + 0.15, base.z - fz * 0.7, -fx * 2 + (Math.random() - 0.5) * 2, 0.7, -fz * 2 + (Math.random() - 0.5) * 2, 1.2, 0.5, 2.6, this.race.wet ? C_MUDW : C_DUST, 0.35, 1.4, -0.1);
     if (this.race.wet && r.isPlayer) for (let i = 0; i < 3; i++) { const sd = (Math.random() - 0.3) * 18, dd = (Math.random() - 0.5) * T.wAt(r.s) * 0.9; const q = T.pos(r.s + sd, dd, this._w2 || (this._w2 = new THREE.Vector3()), 0.03);
       this.smoke.emit(q.x, q.y, q.z, 0, 1.0 + Math.random(), 0, 0.22, 0.06, 0.3, C_WATER, 0.55, 2, 7); }
-    if (this.race.wet && r.v > 8 && Math.random() < 0.6) this.smoke.emit(base.x - fx * 0.7, base.y + 0.2, base.z - fz * 0.7, -fx * r.v * 0.15 + (Math.random() - 0.5) * 2, 1.5, -fz * r.v * 0.15 + (Math.random() - 0.5) * 2, 0.5, 0.3, 1.4, C_WATER, 0.4, 2, 5);
+    if (this.race.wet && r.v > 5 && !r.air) this.tyreSpray(r, dt, base, fx, fz, lx, lz);
+    if (r.scrapeT > 0) { r.scrapeT -= dt; const q = T.pos(r.s, r.d + Math.sign(r.d) * 0.32, this._w3 || (this._w3 = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.25);
+      for (let i = 0; i < 2; i++) this.sparks.emit(q.x, q.y, q.z, fx * r.v * 0.55 + (Math.random() - 0.5) * 2, 0.5 + Math.random() * 2, fz * r.v * 0.55 + (Math.random() - 0.5) * 2, 0.22, 0.12, 0.04, C_FIRE, 1, 1.5, 9); }
+  }
+  // wet tarmac: the rear tyre throws a rooster tail up and back, the front sheets water out to both sides, and a fine mist hangs behind
+  tyreSpray(r, dt, base, fx, fz, lx, lz) {
+    const P = this.race.player; if (!r.isPlayer && Math.abs(r.dist - P.dist) > 48) return;
+    const vn = clamp(r.v / 26, 0, 1.4), rate = (r.isPlayer ? 1 : 0.85) * vn; const fw = r.v * 0.68;   // water leaves the tyre backwards at about a third of road speed
+    r._sprA = (r._sprA || 0) + rate * 110 * dt;
+    while (r._sprA > 1) { r._sprA--; const sp = (Math.random() - 0.5) * 1.4, up = (1.3 + Math.random() * 2.0) * Math.min(1.2, vn + 0.25), j = Math.random() * 0.25;
+      this.spray.emit(base.x - fx * (0.62 + j) + lx * sp * 0.05, base.y + 0.12 + j * 0.6, base.z - fz * (0.62 + j) + lz * sp * 0.05, fx * fw + lx * sp, up, fz * fw + lz * sp, 0.34 + Math.random() * 0.18, 0.45, 1.6 + Math.random() * 0.6, this.sprayCol, 0.68, 1.0, 9); }
+    r._sprB = (r._sprB || 0) + rate * 60 * dt;
+    while (r._sprB > 1) { r._sprB--; const sd = Math.random() < 0.5 ? 1 : -1, out = 1.4 + Math.random() * 1.6;
+      this.spray.emit(base.x + fx * 0.6 + lx * sd * 0.1, base.y + 0.07, base.z + fz * 0.6 + lz * sd * 0.1, fx * r.v * 0.85 + lx * sd * out, 0.7 + Math.random() * 1.0, fz * r.v * 0.85 + lz * sd * out, 0.28 + Math.random() * 0.12, 0.32, 1.0, this.sprayCol, 0.5, 1.2, 9); }
+    r._sprC = (r._sprC || 0) + rate * 18 * dt;
+    while (r._sprC > 1) { r._sprC--;
+      this.spray.emit(base.x - fx * 1.0, base.y + 0.4, base.z - fz * 1.0, fx * r.v * 0.7 + (Math.random() - 0.5), 0.4 + Math.random() * 0.5, fz * r.v * 0.7 + (Math.random() - 0.5), 0.7 + Math.random() * 0.4, 1.4, 4.2, this.mistCol, 0.2, 1.4, 0.5); }
+  }
+  // scraping a wall or kerb: a burst of sparks on that side
+  wallSparks(r, into) {
+    const T = this.race.track; if (!r.isPlayer && this.race.distToPlayer(r) < 0.1) return;
+    const yaw = T.yawAt(r.s) + r.psi, fx = Math.sin(yaw), fz = Math.cos(yaw); const q = T.pos(r.s, r.d + Math.sign(r.d) * 0.34, this._w3 || (this._w3 = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.3);
+    const n = Math.round(6 + into * 40); for (let i = 0; i < n; i++) this.sparks.emit(q.x, q.y, q.z, fx * r.v * 0.6 + (Math.random() - 0.5) * 3, 0.8 + Math.random() * 3, fz * r.v * 0.6 + (Math.random() - 0.5) * 3, 0.3 + Math.random() * 0.2, 0.14, 0.04, C_FIRE, 1, 1.2, 9);
+    if (r.isPlayer) AUDIO.scrape && AUDIO.scrape(clamp(0.3 + into * 2, 0.3, 1));
   }
   splash(r, amt, wet) { // pothole: water (monsoon) or grit thrown up around the front wheel
     const T = this.race.track; const yaw = T.yawAt(r.s) + r.psi; const fx = Math.sin(yaw), fz = Math.cos(yaw); const b = T.pos(r.s, r.d, this._v, r.y - T.yAt(r.s));
     const n = Math.round((wet ? 22 : 10) * amt); for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 1.5 + Math.random() * 3.5 * amt;
       (wet ? this.smoke : this.mud).emit(b.x + fx * 0.5, b.y + 0.1, b.z + fz * 0.5, Math.cos(a) * sp + fx * r.v * 0.15, 2 + Math.random() * 3 * amt, Math.sin(a) * sp + fz * r.v * 0.15, wet ? 0.6 : 0.5, wet ? 0.25 : 0.1, wet ? 0.6 : 0.16, wet ? C_WATER : C_GRIT, wet ? 0.7 : 1, 0.8, 9); }
   }
-  reset() { this.projectiles.length = 0; this.glass.forEach(g => { this.group.remove(g.mesh); g.mesh.geometry.dispose(); }); this.glass.length = 0; this.smoke.clear(); this.stars.clear(); this.sparks.clear(); this.mud.clear(); }
-  dispose() { this.reset(); this.mud.dispose(); this.smoke.dispose(); this.stars.dispose(); this.sparks.dispose(); for (const k in this.pickClouds) { this.pickClouds[k].g.dispose(); this.pickClouds[k].m.dispose(); } this.glassMat.dispose(); }
+  reset() { this.projectiles.length = 0; this.glass.forEach(g => { this.group.remove(g.mesh); g.mesh.geometry.dispose(); }); this.glass.length = 0; this.smoke.clear(); this.stars.clear(); this.sparks.clear(); this.mud.clear(); this.spray.clear(); }
+  dispose() { this.reset(); this.mud.dispose(); this.spray.dispose(); this.smoke.dispose(); this.stars.dispose(); this.sparks.dispose(); for (const k in this.pickClouds) { this.pickClouds[k].g.dispose(); this.pickClouds[k].m.dispose(); } this.glassMat.dispose(); }
 }
 
 // ===== 55_speedfx.js =====
@@ -4390,20 +4456,30 @@ class SpeedFX {
     ctx.lineCap = 'round'; ctx.strokeStyle = '#e8efff';
     for (const r of this.rs) { r.y += r.v * dt * (1 + speed * 0.02); r.x -= slant * r.v * dt * 0.6; if (r.y > 1.1 || r.x < -0.1) { r.y = -0.1 - Math.random() * 0.2; r.x = Math.random() * 1.2; }
       ctx.globalAlpha = r.a; ctx.lineWidth = (1.2 + r.a * 2) * k * 1.6; ctx.beginPath(); ctx.moveTo(r.x * W, r.y * H); ctx.lineTo((r.x + slant * r.l) * W, (r.y - r.l) * H); ctx.stroke(); }
-    if (this.drops.length < 14 && Math.random() < dt * (3 + speed * 0.1)) this.drops.push({ x: Math.random(), y: Math.random() * 0.8, r: (6 + Math.random() * 14) * k * 1.4, t: 0, life: 1.2 + Math.random() * 2 });
-    for (let i = this.drops.length - 1; i >= 0; i--) { const d = this.drops[i]; d.t += dt; if (d.t > d.life) { this.drops.splice(i, 1); continue; }
-      d.y += dt * (0.02 + d.t * 0.04); d.x += dt * (speed > 15 ? -0.25 : 0); const a = Math.sin(Math.PI * Math.min(1, d.t / d.life)) * 0.75;
-      const x = d.x * W, y = d.y * H; const g = ctx.createRadialGradient(x - d.r * 0.3, y - d.r * 0.35, d.r * 0.1, x, y, d.r);
-      g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.55, 'rgba(210,225,255,0.12)'); g.addColorStop(0.85, 'rgba(40,50,80,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, d.r * 0.9, d.r, 0, 0, 7); ctx.fill(); }
+    // drops on the lens: they splat in, then the wind pushes them out from the vanishing point (with a wet trail) or they slide down
+    const vpx = this._vpx ?? 0.5, vpy = this._vpy ?? 0.45, wind = clamp((speed - 8) / 18, 0, 1.25);
+    if (this.drops.length < 28 && Math.random() < dt * (5 + speed * 0.28)) this.drops.push({ x: Math.random(), y: Math.random() * 0.85, r: (5 + Math.random() * 15) * k * 1.4, t: 0, life: 1.0 + Math.random() * 1.8, sp: 0.5 + Math.random() });
+    for (let i = this.drops.length - 1; i >= 0; i--) { const d = this.drops[i]; d.t += dt;
+      let ox = d.x - vpx, oy = (d.y - vpy) * 0.6; const ol = Math.hypot(ox, oy) || 1; ox /= ol; oy /= ol;
+      const vx = ox * wind * 0.55 * d.sp, vy = oy * wind * 0.55 * d.sp + 0.02 + d.t * 0.035 * (1 - wind * 0.5);
+      d.x += vx * dt; d.y += vy * dt;
+      if (d.t > d.life || d.x < -0.1 || d.x > 1.1 || d.y > 1.1 || d.y < -0.1) { this.drops.splice(i, 1); continue; }
+      const a = Math.sin(Math.PI * Math.min(1, d.t / d.life)) * 0.8, grow = Math.min(1, d.t / 0.07), r = d.r * (0.55 + 0.45 * grow) * (1 + wind * 0.15);
+      const x = d.x * W, y = d.y * H;
+      if (wind > 0.15) { ctx.globalAlpha = a * 0.32; ctx.strokeStyle = 'rgba(220,232,255,1)'; ctx.lineWidth = r * 0.55; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - vx * 0.16 * W, y - vy * 0.16 * H); ctx.stroke(); }
+      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.08, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.6)'); g.addColorStop(0.5, 'rgba(210,225,255,0.14)'); g.addColorStop(0.84, 'rgba(30,40,70,0.38)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, r * (0.9 + wind * 0.25), r * (1 - wind * 0.12), Math.atan2(vy, vx), 0, 7); ctx.fill();
+      if (d.t < 0.12) { ctx.globalAlpha = (1 - d.t / 0.12) * 0.5; ctx.strokeStyle = '#eef4ff'; ctx.lineWidth = 1.2 * k; ctx.beginPath(); ctx.arc(x, y, r * (1 + d.t * 9), 0, 7); ctx.stroke(); }   // the splat
+    }
     ctx.globalAlpha = 1;
   }
   drawLines(dt, camera) {
     const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height; ctx.clearRect(0, 0, W, H);
+    this.vp.copy(this.game.camLook).project(camera); const cx = (this.vp.x + 1) / 2 * W, cy = (1 - this.vp.y) / 2 * H; this._vpx = cx / W; this._vpy = cy / H;
     this.drawRain(dt, this.race && this.race.player ? this.race.player.v : 0);
     if (this.intensity < 0.02) { this.lines.length = 0; return; }
     // vanishing point = where the camera is looking
-    this.vp.copy(this.game.camLook).project(camera); const cx = (this.vp.x + 1) / 2 * W, cy = (1 - this.vp.y) / 2 * H;
     const Rr = Math.hypot(W, H) * 0.55; const want = Math.floor(this.intensity * 110 + this.boostAmt * 70);
     if (this.boostAmt > 0.3) ctx.globalCompositeOperation = 'lighter';   // boost: neon pink / cyan streaks that glow where they cross
     while (this.lines.length < want) this.lines.push(this.newLine(this.boostAmt > 0.5));
@@ -4648,11 +4724,13 @@ const AUDIO = {
     this.eng = this.makeEngine(1.0); this.riv = this.makeEngine(0.0, true);
     // wind + rain beds
     this.wind = this.noiseBed('highpass', 900, 0); this.rain = this.noiseBed('bandpass', 2600, 0); this.city = this.noiseBed('lowpass', 420, 0.025);
+    // tyres: a low scrub that grows as you use the grip, a squeal when the rear steps out, and wet hiss under the spray
+    this.scrub = this.noiseBed('bandpass', 900, 0, 1.4); this.squealB = this.noiseBed('bandpass', 2300, 0, 9); this.hiss = this.noiseBed('highpass', 3200, 0);
     this.on = true;
     MUSIC.init(); if (GAME && GAME.musicMode) MUSIC.setMode(GAME.musicMode);
   },
   applyVolumes() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfxG.gain.value = SAVE.settings.sfx * m; this.engG.gain.value = SAVE.settings.engine * 0.55 * m; MUSIC.applyVolume(); },
-  noiseBed(type, f, g0) { const c = this.ctx; const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const g = c.createGain(); g.gain.value = g0; src.connect(fl); fl.connect(g); g.connect(this.sfxG); src.start(); return g; },
+  noiseBed(type, f, g0, q) { const c = this.ctx; const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; src.playbackRate.value = 0.9 + Math.random() * 0.2; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = c.createGain(); g.gain.value = g0; src.connect(fl); fl.connect(g); g.connect(this.sfxG); src.start(0, Math.random() * 1.5); g.fl = fl; return g; },
   makeEngine(vol, rival) {
     const c = this.ctx; const out = c.createGain(); out.gain.value = vol * 0.0; out.connect(this.engG);
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 3;
@@ -4678,7 +4756,7 @@ const AUDIO = {
   },
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
-    if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); return; }
+    if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
     const P = race.player; const vol = P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
     // dragon / lambi pipe: backfire pops when you snap off the throttle at high revs
@@ -4689,7 +4767,15 @@ const AUDIO = {
     this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? 0.11 : 0, t, 0.5);
+    // tyre voice
+    const onRoad = !P.crashed && !P.air && P.v > 3, demand = onRoad ? Math.abs(P.omega * P.v) / Math.max(1, P.gripLat) : 0;
+    const scrub = onRoad ? clamp((demand - 0.55) * 1.6, 0, 0.7) + (P.input.brake > 0.6 && P.v > 9 ? 0.35 : 0) + (P.surf === 1 || P.surf === 2 ? 0.25 : 0) : 0;
+    this.scrub.gain.setTargetAtTime(scrub * 0.12 * clamp(P.v / 15, 0.3, 1), t, 0.06); this.scrub.fl.frequency.setTargetAtTime(500 + P.v * 22, t, 0.1);
+    const sq = onRoad && !race.wet && P.surf === 0 ? clamp((P.sliding ? 0.8 : 0) + (P.stoppie ? 0.6 : 0) + clamp((demand - 0.9) * 3, 0, 0.5), 0, 1) : 0;
+    this.squealB.gain.setTargetAtTime(sq * 0.07, t, 0.05); this.squealB.fl.frequency.setTargetAtTime(1900 + P.v * 18 + (P.sliding ? 300 : 0), t, 0.08);
+    this.hiss.gain.setTargetAtTime(race.wet && onRoad ? clamp(P.v / 28, 0, 1.2) * 0.1 : 0, t, 0.15);
   },
+  scrape(v = 1) { if (!this.on) return; this.noise(0.28, 2600, 1.2, 0.35 * v, 'bandpass'); this.noise(0.18, 5200, 2, 0.18 * v, 'highpass', 0.02); this.tone('sawtooth', 1800, 900, 0.18, 0.03 * v); },
   tone(type, f0, f1, dur, vol, delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g); g.connect(this.sfxG); o.start(t); o.stop(t + dur + 0.02); },
   noise(dur, f, q, vol, type = 'bandpass', delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(fl); fl.connect(g); g.connect(this.sfxG); s.start(t, Math.random()); s.stop(t + dur + 0.02); },
   gunshot(v = 1) { if (v < 0.05) return; this.noise(0.09, 3200, 0.6, 0.9 * v, 'bandpass'); this.noise(0.25, 700, 0.8, 0.5 * v, 'lowpass', 0.01); this.tone('sine', 160, 45, 0.16, 0.55 * v); },
@@ -5306,17 +5392,15 @@ class Game {
     if (rebuild && changed && this.world) { const id = this.track.def.id; this.worldKey = null; this.loadTrack(id); if (this.state === 'menu') this.refreshMenuRig(); }
   }
   // wet-road mirror: medium/high only, and off with ?refl=0
-  setupRefl() { const want = this.quality !== 'low' && URLP.get('refl') !== '0'; if (want && !this.refl) { try { this.refl = new WetReflect(this.renderer, this.quality === 'high' ? 0.5 : 0.4); } catch (e) { this.refl = null; } } else if (!want && this.refl) { this.refl.dispose(); this.refl = null; } if (this.refl) { this.refl.scale = this.quality === 'high' ? 0.5 : 0.4; this.refl.resize(); } }
+  setupRefl() { const want = this.quality !== 'low' && URLP.get('refl') !== '0'; if (want && !this.refl) { try { this.refl = new WetReflect(this.renderer, this.quality === 'high' ? 0.5 : 0.32); } catch (e) { this.refl = null; } } else if (!want && this.refl) { this.refl.dispose(); this.refl = null; } if (this.refl) { this.refl.scale = this.quality === 'high' ? 0.5 : 0.32; this.refl.resize(); } }
   renderRefl(dt) {
     if (!this.refl || !this.refl.ok || !this.world) { REFL.U.uReflOn.value = 0; return; }
     let h = 0; if (this.race && this.state !== 'menu' && this.state !== 'garage') { const P = this.race.player; h = P.air ? this.race.track.gy(P.s, P.d) : P.y; } else if (this.menuRig) h = this.menuRig.root.position.y;
     this.reflH = this.reflH === undefined || Math.abs(h - this.reflH) > 3 ? h : this.reflH + (h - this.reflH) * Math.min(1, dt * 8);
     REFL.U.uRTime.value = this.t;
-    // medium quality refreshes the mirror every other frame; the stale one is still projected through its own camera, so it stays put on the road
-    this.reflN = (this.reflN || 0) + 1; if (this.quality === 'medium' && this.reflN % 2 && REFL.U.uReflOn.value > 0.5) return;
     this.refl.render(this.scene, this.camera, this.reflH, this.world.reflHide().concat([this.rain]));
   }
-  resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
+  resize() { this.vw = innerWidth; this.vh = innerHeight; if (this.fx) this.fx.resize(); this.renderer.setSize(this.vw, this.vh, false); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize(); this.camera.aspect = this.vw / this.vh; this.camera.updateProjectionMatrix(); if (this.race) this.race.combat && [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6)); }
   onFirstInteract() { if (this.firstInteract) return; this.firstInteract = true; $('#soundPill').hidden = true; }
   // ── tracks & scenes ──
   loadTrack(id, timeKey, weather) {
@@ -5401,11 +5485,26 @@ class Game {
     if (this.menuRig) this.scene.remove(this.menuRig.root);
     this.endRace();
     this.race = new Race(this, setup, cup); this.scene.add(this.race.group);
-    [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
-    this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
+    [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
+    this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0; this.warmUp();
     $$('.screen').forEach(s => s.classList.remove('show')); $('#hud').classList.add('show');
     this.state = 'race'; this.setMusic('race'); MUSIC.setLevel(0); this.camPsi = 0; this.camInit = false; this.camMode = SAVE.settings.camera || 0;
     if (IS_TOUCH) { try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (_) {} }
+  }
+  // three.js only compiles what's visible, so hidden race effects (boost jets, flames, sparks, police lights, wheel blur)
+  // used to compile mid-race — the first boost froze a frame. Compile everything once while the countdown starts.
+  warmUp() {
+    const hidden = []; this.scene.traverse(o => { if (!o.visible && !o.isLight) { hidden.push(o); o.visible = true; } });   // lights stay as they are: the light count is part of every program
+    try { this.renderer.compile(this.scene, this.camera); } catch (e) { }
+    for (const o of hidden) o.visible = false;
+  }
+  // slow phones: when frames run long, drop the render resolution a step; give it back when there's headroom again
+  govern(raw) {
+    if (this.state !== 'race' || raw > 0.25 || URLP.get('q') || !QUALITY[this.quality]) { if (this.gov) this.gov.t = 0; return; }
+    const G = this.gov || (this.gov = { sm: 1 / 60, t: 0 }); G.sm += (raw - G.sm) * 0.05; G.t += raw; if (G.t < 2.5) return;
+    let k = this.govK || 1; const base = Math.min(devicePixelRatio || 1, QUALITY[this.quality].pr);
+    if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
+    G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   endRace() { if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
@@ -5471,7 +5570,7 @@ class Game {
   // ── frame loop ──
   loop(now) {
     requestAnimationFrame((t) => this.loop(t));
-    let dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.t += dt;
+    const rawDt = (now - this.last) / 1000; let dt = Math.min(0.1, rawDt); this.last = now; this.t += dt; this.govern(rawDt);
     if (this.bench) { this.bench.n++; if (this.bench.n > 30) this.bench.sum += dt; if (this.bench.n > 150) { const avg = this.bench.sum / 120; SAVE.settings.detected = avg > 0.034 ? 'low' : avg > 0.021 ? 'medium' : 'high'; persist(); this.bench = null; if (SAVE.settings.detected !== this.quality && this.state === 'menu') this.applyQuality(true); } }
     dt *= DEBUG.timescale;
     const inp = INPUT.read(dt);
@@ -5526,28 +5625,55 @@ class Game {
     const acc = dt > 0 ? (P.v - (this._pv ?? P.v)) / dt : 0; this._pv = P.v; this.accSm = smooth(this.accSm || 0, clamp(acc, -14, 9), 5, dt);
     const spring = clamp(this.accSm * 0.07, -0.45, 0.6) + fx.boostAmt * 0.35;
     // engine + road vibration that grows with speed (stronger on kerbs, lighter with reduced motion)
-    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.006 + 0.016 * vN * vN + onKerb * 0.025 + fx.boostAmt * 0.012) * (P.crashed ? 0 : 1);
+    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.003 + 0.008 * vN * vN + onKerb * 0.014 + (P.surf === 2 || P.surf === 3 ? 0.012 : 0) + fx.boostAmt * 0.007) * (P.crashed ? 0 : 1);
     const vy = (Math.sin(this.t * 61) + Math.sin(this.t * 37.3) * 0.6) * vib, vr = Math.sin(this.t * 47.1) * vib * 0.5;
     if (this.camMode === 2) { // helmet cam
       cam.position.set(rp.x + fx2 * 0.05, rp.y + 1.6 - P.tuck * 0.15 + vy - fx.dip * 0.3, rp.z + fz * 0.05);
       cam.lookAt(rp.x + fx2 * 12, rp.y + 1.2, rp.z + fz * 12); cam.rotateZ(-P.lean * 0.7 + vr); this.camInit = false; this.camLook.set(rp.x + fx2 * 12, rp.y + 1.2, rp.z + fz * 12);
     } else {
-      const far = this.camMode === 1; const back = far ? 7.6 + spring : 2.6 + P.v * 0.015 + spring, up = (far ? 3.4 : 1.62) - fx.dip;
-      this.camPsi = this.camInit ? smooth(this.camPsi, P.psi, 5, dt) : P.psi;
-      const cs = P.s - back * Math.cos(this.camPsi); let cd = P.d - back * Math.sin(this.camPsi);
-      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 2.5) - 0.2; cd = clamp(cd, -lim, lim);
-      const target = T.pos(cs, cd, this._w); target.y = lerp(T.yAt(cs), P.y, 0.75) + up;
-      if (!this.camInit) { this.camPos.copy(target); this.camInit = true; } else this.camPos.lerp(target, 1 - Math.exp(-20 * dt));
+      // chase cam: a rig of smoothed offsets around the bike rather than a world-space lerp. Lateral, height, heading and
+      // roll each have their own spring, so lane changes slide the bike across the frame, turns swing the camera round late,
+      // landings and gear shifts nod it, and hard snaps (walls, contacts) are filtered before they reach the screen.
+      const far = this.camMode === 1, C = this.cr || (this.cr = {});
+      if (!this.camInit) Object.assign(C, { psi: P.psi * 0.5, psiV: 0, su: 0, d: P.d, dv: 0, y: P.y, yv: 0, lean: P.lean, nod: 0, nodV: 0, gear: P.gear, air: P.air, side: 0, dist: P.dist, v: P.v });
+      if (Math.abs(P.dist - C.dist) > 30) { C.dist = P.dist; C.v = P.v; }
+      if (Math.abs(P.d - C.d) > 3) { C.d = P.d; C.dv = 0; }
+      if (Math.abs(P.y - C.y) > 9) { C.y = P.y; C.yv = 0; }
+      // springs, substepped so they stay stable on slow frames. Heading: a soft late swing. Distance and lateral are
+      // critically damped and track velocity too (no lag at steady speed): a sudden speed loss lets the bike come back
+      // toward the lens over a few frames instead of the whole view stopping dead with it. Height rides a soft spring.
+      for (let i = 0, n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; i < n; i++) {
+        C.psiV += ((P.psi * 0.55 - C.psi) * 22 - C.psiV * 9.4) * h; C.psi += C.psiV * h;
+        C.v += ((P.dist - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
+        C.dv += ((P.d - C.d) * 100 - C.dv * 20) * h; C.d += C.dv * h;
+        C.yv += ((P.y - C.y) * 95 - C.yv * 17.5) * h; C.y += C.yv * h;
+        C.nodV += (-C.nod * 130 - C.nodV * 13) * h; C.nod += C.nodV * h;
+      }
+      C.lean = smooth(C.lean, P.lean, 5, dt);
+      if (C.air && !P.air) { const imp = clamp((P.landImpact || 0) / 8, 0, 1); C.nodV -= 0.25 + imp * 0.9; fx.dip = Math.max(fx.dip, 0.05 + imp * 0.16); }   // touchdown
+      if (P.gear !== C.gear) { if (P.gear > C.gear && P.input.throttle > 0.5) C.nodV += 0.55; C.gear = P.gear; }   // the bike squats and surges on an upshift
+      C.air = P.air;
+      C.side = smooth(C.side, -C.lean * 0.28, 4, dt);   // drift a little to the outside of a turn, so you see the lean
+      const back = far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring, up = (far ? 3.4 : 1.62) - fx.dip;
+      const cs = ((C.dist - back * Math.cos(C.psi)) % T.L + T.L) % T.L; let cd = C.d + C.side - back * Math.sin(C.psi);
+      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 2.5) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
+      const g0 = T.roof && T.gapAt(cs) ? C.y : T.yAt(cs); C.gy = C.gy === undefined || !this.camInit ? g0 : smooth(C.gy, clamp(g0, C.y - 2, C.y + 2), 6, dt);   // ground under the lens, smoothed (breaker humps, roof gaps)
+      const target = T.pos(cs, cd, this._w); C.su = smooth(C.su, P.susp || 0, 9, dt); target.y = lerp(C.gy, C.y, 0.75) + up + C.su * 0.25;
+      this.camPos.copy(target); this.camInit = true;
       cam.position.copy(this.camPos); cam.position.y += vy;
-      const la = far ? 6 : 4.6; this.camLook.set(rp.x + fx2 * la, rp.y + (far ? 1.0 : 0.62), rp.z + fz * la);   // near cam pitches down: bike sits above the dash, more road (and its reflections) in view
-      cam.lookAt(this.camLook); cam.rotateZ(-P.lean * 0.28 + vr);
+      // look ahead along the camera's heading, leaning a little into the coming bend
+      const la = far ? 6 : 4.6, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
+      const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
+      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35, lp.z + Math.cos(yawL) * la);
+      cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }
     // field of view opens with speed; boost adds a punch that settles back
     const fov = 62 + 22 * Math.pow(Math.min(vN, 1.2), 1.15) + fx.boostAmt * 6 + fx.fovPunch;
     cam.fov = smooth(cam.fov, Math.min(fov, 100), fov > cam.fov ? 6 : 2.5, dt); cam.updateProjectionMatrix();
     this.applyShake(dt);
   }
-  applyShake(dt) { if (this.shakeAmt > 0.001) { const s = this.shakeAmt * 0.12; this.camera.position.x += (Math.random() - 0.5) * s; this.camera.position.y += (Math.random() - 0.5) * s; this.camera.rotateZ((Math.random() - 0.5) * s * 0.3); this.shakeAmt *= Math.exp(-6 * dt); } }
+  // shake: a fast decaying wobble from layered sines (a punch you feel), not per-frame random jitter
+  applyShake(dt) { if (this.shakeAmt > 0.001) { const s = this.shakeAmt * 0.075 * (REDUCED_MOTION ? 0.4 : 1), t = this.t; this.camera.position.x += (Math.sin(t * 43) + Math.sin(t * 71.3) * 0.5) * s; this.camera.position.y += (Math.sin(t * 52.7 + 1.3) + Math.sin(t * 89.1) * 0.4) * s; this.camera.rotateZ(Math.sin(t * 37.9 + 0.7) * s * 0.35); this.shakeAmt *= Math.exp(-7 * dt); } }
   orbitCam(dt, P, radius, h, speed) {
     const T = this.race.track; const rp = T.pos(P.s, P.d, this._v, P.y - T.yAt(P.s)); this.orbitA = (this.orbitA || 0) + dt * speed;
     const yaw = T.yawAt(P.s) + this.orbitA + 2.4; this.camera.position.set(rp.x + Math.sin(yaw) * radius, rp.y + h, rp.z + Math.cos(yaw) * radius); this.camera.lookAt(rp.x, rp.y + 0.9, rp.z);

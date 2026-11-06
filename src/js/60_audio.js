@@ -12,11 +12,13 @@ const AUDIO = {
     this.eng = this.makeEngine(1.0); this.riv = this.makeEngine(0.0, true);
     // wind + rain beds
     this.wind = this.noiseBed('highpass', 900, 0); this.rain = this.noiseBed('bandpass', 2600, 0); this.city = this.noiseBed('lowpass', 420, 0.025);
+    // tyres: a low scrub that grows as you use the grip, a squeal when the rear steps out, and wet hiss under the spray
+    this.scrub = this.noiseBed('bandpass', 900, 0, 1.4); this.squealB = this.noiseBed('bandpass', 2300, 0, 9); this.hiss = this.noiseBed('highpass', 3200, 0);
     this.on = true;
     MUSIC.init(); if (GAME && GAME.musicMode) MUSIC.setMode(GAME.musicMode);
   },
   applyVolumes() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfxG.gain.value = SAVE.settings.sfx * m; this.engG.gain.value = SAVE.settings.engine * 0.55 * m; MUSIC.applyVolume(); },
-  noiseBed(type, f, g0) { const c = this.ctx; const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const g = c.createGain(); g.gain.value = g0; src.connect(fl); fl.connect(g); g.connect(this.sfxG); src.start(); return g; },
+  noiseBed(type, f, g0, q) { const c = this.ctx; const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; src.playbackRate.value = 0.9 + Math.random() * 0.2; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = c.createGain(); g.gain.value = g0; src.connect(fl); fl.connect(g); g.connect(this.sfxG); src.start(0, Math.random() * 1.5); g.fl = fl; return g; },
   makeEngine(vol, rival) {
     const c = this.ctx; const out = c.createGain(); out.gain.value = vol * 0.0; out.connect(this.engG);
     const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 3;
@@ -42,7 +44,7 @@ const AUDIO = {
   },
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
-    if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); return; }
+    if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
     const P = race.player; const vol = P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
     // dragon / lambi pipe: backfire pops when you snap off the throttle at high revs
@@ -53,7 +55,15 @@ const AUDIO = {
     this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? 0.11 : 0, t, 0.5);
+    // tyre voice
+    const onRoad = !P.crashed && !P.air && P.v > 3, demand = onRoad ? Math.abs(P.omega * P.v) / Math.max(1, P.gripLat) : 0;
+    const scrub = onRoad ? clamp((demand - 0.55) * 1.6, 0, 0.7) + (P.input.brake > 0.6 && P.v > 9 ? 0.35 : 0) + (P.surf === 1 || P.surf === 2 ? 0.25 : 0) : 0;
+    this.scrub.gain.setTargetAtTime(scrub * 0.12 * clamp(P.v / 15, 0.3, 1), t, 0.06); this.scrub.fl.frequency.setTargetAtTime(500 + P.v * 22, t, 0.1);
+    const sq = onRoad && !race.wet && P.surf === 0 ? clamp((P.sliding ? 0.8 : 0) + (P.stoppie ? 0.6 : 0) + clamp((demand - 0.9) * 3, 0, 0.5), 0, 1) : 0;
+    this.squealB.gain.setTargetAtTime(sq * 0.07, t, 0.05); this.squealB.fl.frequency.setTargetAtTime(1900 + P.v * 18 + (P.sliding ? 300 : 0), t, 0.08);
+    this.hiss.gain.setTargetAtTime(race.wet && onRoad ? clamp(P.v / 28, 0, 1.2) * 0.1 : 0, t, 0.15);
   },
+  scrape(v = 1) { if (!this.on) return; this.noise(0.28, 2600, 1.2, 0.35 * v, 'bandpass'); this.noise(0.18, 5200, 2, 0.18 * v, 'highpass', 0.02); this.tone('sawtooth', 1800, 900, 0.18, 0.03 * v); },
   tone(type, f0, f1, dur, vol, delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g); g.connect(this.sfxG); o.start(t); o.stop(t + dur + 0.02); },
   noise(dur, f, q, vol, type = 'bandpass', delay = 0) { if (!this.on) return; const c = this.ctx, t = c.currentTime + delay; const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(fl); fl.connect(g); g.connect(this.sfxG); s.start(t, Math.random()); s.stop(t + dur + 0.02); },
   gunshot(v = 1) { if (v < 0.05) return; this.noise(0.09, 3200, 0.6, 0.9 * v, 'bandpass'); this.noise(0.25, 700, 0.8, 0.5 * v, 'lowpass', 0.01); this.tone('sine', 160, 45, 0.16, 0.55 * v); },

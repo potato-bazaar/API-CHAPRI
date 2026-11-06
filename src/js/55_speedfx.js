@@ -55,20 +55,30 @@ class SpeedFX {
     ctx.lineCap = 'round'; ctx.strokeStyle = '#e8efff';
     for (const r of this.rs) { r.y += r.v * dt * (1 + speed * 0.02); r.x -= slant * r.v * dt * 0.6; if (r.y > 1.1 || r.x < -0.1) { r.y = -0.1 - Math.random() * 0.2; r.x = Math.random() * 1.2; }
       ctx.globalAlpha = r.a; ctx.lineWidth = (1.2 + r.a * 2) * k * 1.6; ctx.beginPath(); ctx.moveTo(r.x * W, r.y * H); ctx.lineTo((r.x + slant * r.l) * W, (r.y - r.l) * H); ctx.stroke(); }
-    if (this.drops.length < 14 && Math.random() < dt * (3 + speed * 0.1)) this.drops.push({ x: Math.random(), y: Math.random() * 0.8, r: (6 + Math.random() * 14) * k * 1.4, t: 0, life: 1.2 + Math.random() * 2 });
-    for (let i = this.drops.length - 1; i >= 0; i--) { const d = this.drops[i]; d.t += dt; if (d.t > d.life) { this.drops.splice(i, 1); continue; }
-      d.y += dt * (0.02 + d.t * 0.04); d.x += dt * (speed > 15 ? -0.25 : 0); const a = Math.sin(Math.PI * Math.min(1, d.t / d.life)) * 0.75;
-      const x = d.x * W, y = d.y * H; const g = ctx.createRadialGradient(x - d.r * 0.3, y - d.r * 0.35, d.r * 0.1, x, y, d.r);
-      g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.55, 'rgba(210,225,255,0.12)'); g.addColorStop(0.85, 'rgba(40,50,80,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, d.r * 0.9, d.r, 0, 0, 7); ctx.fill(); }
+    // drops on the lens: they splat in, then the wind pushes them out from the vanishing point (with a wet trail) or they slide down
+    const vpx = this._vpx ?? 0.5, vpy = this._vpy ?? 0.45, wind = clamp((speed - 8) / 18, 0, 1.25);
+    if (this.drops.length < 28 && Math.random() < dt * (5 + speed * 0.28)) this.drops.push({ x: Math.random(), y: Math.random() * 0.85, r: (5 + Math.random() * 15) * k * 1.4, t: 0, life: 1.0 + Math.random() * 1.8, sp: 0.5 + Math.random() });
+    for (let i = this.drops.length - 1; i >= 0; i--) { const d = this.drops[i]; d.t += dt;
+      let ox = d.x - vpx, oy = (d.y - vpy) * 0.6; const ol = Math.hypot(ox, oy) || 1; ox /= ol; oy /= ol;
+      const vx = ox * wind * 0.55 * d.sp, vy = oy * wind * 0.55 * d.sp + 0.02 + d.t * 0.035 * (1 - wind * 0.5);
+      d.x += vx * dt; d.y += vy * dt;
+      if (d.t > d.life || d.x < -0.1 || d.x > 1.1 || d.y > 1.1 || d.y < -0.1) { this.drops.splice(i, 1); continue; }
+      const a = Math.sin(Math.PI * Math.min(1, d.t / d.life)) * 0.8, grow = Math.min(1, d.t / 0.07), r = d.r * (0.55 + 0.45 * grow) * (1 + wind * 0.15);
+      const x = d.x * W, y = d.y * H;
+      if (wind > 0.15) { ctx.globalAlpha = a * 0.32; ctx.strokeStyle = 'rgba(220,232,255,1)'; ctx.lineWidth = r * 0.55; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - vx * 0.16 * W, y - vy * 0.16 * H); ctx.stroke(); }
+      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.08, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.6)'); g.addColorStop(0.5, 'rgba(210,225,255,0.14)'); g.addColorStop(0.84, 'rgba(30,40,70,0.38)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.globalAlpha = a; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, r * (0.9 + wind * 0.25), r * (1 - wind * 0.12), Math.atan2(vy, vx), 0, 7); ctx.fill();
+      if (d.t < 0.12) { ctx.globalAlpha = (1 - d.t / 0.12) * 0.5; ctx.strokeStyle = '#eef4ff'; ctx.lineWidth = 1.2 * k; ctx.beginPath(); ctx.arc(x, y, r * (1 + d.t * 9), 0, 7); ctx.stroke(); }   // the splat
+    }
     ctx.globalAlpha = 1;
   }
   drawLines(dt, camera) {
     const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height; ctx.clearRect(0, 0, W, H);
+    this.vp.copy(this.game.camLook).project(camera); const cx = (this.vp.x + 1) / 2 * W, cy = (1 - this.vp.y) / 2 * H; this._vpx = cx / W; this._vpy = cy / H;
     this.drawRain(dt, this.race && this.race.player ? this.race.player.v : 0);
     if (this.intensity < 0.02) { this.lines.length = 0; return; }
     // vanishing point = where the camera is looking
-    this.vp.copy(this.game.camLook).project(camera); const cx = (this.vp.x + 1) / 2 * W, cy = (1 - this.vp.y) / 2 * H;
     const Rr = Math.hypot(W, H) * 0.55; const want = Math.floor(this.intensity * 110 + this.boostAmt * 70);
     if (this.boostAmt > 0.3) ctx.globalCompositeOperation = 'lighter';   // boost: neon pink / cyan streaks that glow where they cross
     while (this.lines.length < want) this.lines.push(this.newLine(this.boostAmt > 0.5));

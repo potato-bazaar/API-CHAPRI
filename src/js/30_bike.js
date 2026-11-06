@@ -134,6 +134,22 @@ const JET_G = new THREE.ConeGeometry(0.075, 0.75, 14, 1, true).translate(0, 0.37
 const JET_MAT = [new THREE.MeshBasicMaterial({ color: '#36c8ff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   new THREE.MeshBasicMaterial({ color: '#e8fbff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })];
 
+// spinning spokes alias into a frozen or backwards wheel at speed (each frame turns them ~80°). Over the spokes sits a
+// motion-blur disc: a blurred spoke sheet with bright streak arcs that turns at a readable rate, fading in with speed.
+let WHEEL_BLUR = null;
+function wheelBlurAssets() {
+  if (WHEEL_BLUR) return WHEEL_BLUR;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), C = N / 2;
+  const g = x.createRadialGradient(C, C, C * 0.28, C, C, C); g.addColorStop(0, 'rgba(150,154,162,0.5)'); g.addColorStop(0.75, 'rgba(176,180,188,0.62)'); g.addColorStop(0.96, 'rgba(120,124,132,0.7)'); g.addColorStop(1, 'rgba(90,92,98,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(C, C, C, 0, 7); x.fill();
+  // streak arcs: a bright head that fades along its tail (the eye reads the direction and the spin)
+  const arc = (a0, len, r0, r1, rgb, a) => { for (let i = 0; i < 24; i++) { const t = i / 24; x.strokeStyle = `rgba(${rgb},${(a * (1 - t) * (1 - t)).toFixed(3)})`; x.lineWidth = (r1 - r0) * C; x.beginPath(); x.arc(C, C, (r0 + r1) / 2 * C, a0 - t * len, a0 - (t + 1 / 24) * len, true); x.stroke(); } };
+  arc(0.3, 1.25, 0.46, 0.62, '255,255,255', 0.75); arc(3.4, 1.0, 0.66, 0.8, '255,255,255', 0.55); arc(1.9, 0.9, 0.34, 0.44, '40,42,48', 0.6); arc(5.0, 0.8, 0.82, 0.9, '40,42,48', 0.5);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  WHEEL_BLUR = { tex, gF: new THREE.RingGeometry(0.06, 0.2, 40, 1).rotateY(Math.PI / 2), gR: new THREE.RingGeometry(0.06, 0.188, 40, 1).rotateY(Math.PI / 2) };
+  for (const k of ['gF', 'gR']) { const uv = WHEEL_BLUR[k].attributes.uv, p = WHEEL_BLUR[k].attributes.position, R = k === 'gF' ? 0.2 : 0.188; for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getZ(i) / R * 0.5 + 0.5, p.getY(i) / R * 0.5 + 0.5); }
+  return WHEEL_BLUR;
+}
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -156,6 +172,9 @@ class BikeRig {
       this.body.add(this.wheelR, this.wheelF);
       const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights);
       if (o.mods && !o.ghost) this.mods = addBikeMods(this, o, low, cast);
+      if (!o.ghost) { const W = wheelBlurAssets(); this.blurMat = new THREE.MeshLambertMaterial({ map: W.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 }); this.blurs = [];
+        for (const [wh, geo] of [[this.wheelF, W.gF], [this.wheelR, W.gR]]) { const grp = new THREE.Group(); for (const sx of [1, -1]) { const m = new THREE.Mesh(geo, this.blurMat); m.position.x = sx * 0.058; m.renderOrder = 2; grp.add(m); } grp.visible = false; this.body.add(grp); this.blurs.push({ grp, wh }); }
+        this.blurAng = Math.random() * 6; }
       if (!o.ghost) { this.jets = []; for (const sx of [-1, 1]) { const j = new THREE.Group(); j.position.set(sx * 0.13, 0.33, -0.95); j.rotation.x = -0.12;
         const outer = new THREE.Mesh(JET_G, JET_MAT[0]), core = new THREE.Mesh(JET_G, JET_MAT[1]); core.scale.set(0.45, 0.55, 0.45); j.add(outer, core); j.visible = false; this.body.add(j); this.jets.push(j); } }
     } else {
@@ -220,7 +239,12 @@ class BikeRig {
     const su = (st.susp || 0) * 0.9, wr = this.model ? WHEEL_R_M : WHEEL_R; this.body.position.y = su + (this.mods ? this.mods.lift : 0); this.wheelR.position.y = wr - su; this.wheelF.position.y = wr - su;
     this.bobV = (this.bobV || 0) + (((su - (this.bob || 0)) * 140) - this.bobV * 10) * Math.min(dt, 0.05); this.bob = (this.bob || 0) + this.bobV * Math.min(dt, 0.05);
     this.riderLag = clamp(this.bob - su, -0.08, 0.08);
-    this.wheelSpin += (st.speed || 0) / WHEEL_R * dt; this.wheelR.rotation.x = this.wheelSpin; this.wheelF.rotation.x = st.pitch < -0.05 ? this.wheelF.rotation.x : this.wheelSpin;
+    const wRate = (st.speed || 0) / WHEEL_R; this.wheelSpin += wRate * dt; this.wheelR.rotation.x = this.wheelSpin; this.wheelF.rotation.x = st.pitch < -0.05 ? this.wheelF.rotation.x : this.wheelSpin;
+    if (this.blurs) {
+      const op = clamp(((st.speed || 0) - 2.5) / 7, 0, 1) * 0.88, cam = typeof GAME !== 'undefined' && GAME && GAME.camera, near = !cam || cam.position.distanceToSquared(this.root.position) < 1600;
+      this.blurMat.opacity = op; this.blurAng += Math.min(wRate, 9 + wRate * 0.12) * dt;
+      for (const b of this.blurs) { b.grp.visible = op > 0.02 && near; if (b.grp.visible) { b.grp.position.copy(b.wh.position); b.grp.rotation.x = b.wh === this.wheelF && st.pitch < -0.05 ? b.grp.rotation.x : this.blurAng; } }
+    }
     this.blob.scale.set(1 - Math.min(0.5, Math.abs(st.lean) * 0.6), 1, 1); this.blob.position.x = -Math.sin(st.lean) * 0.35; this.blob.material.opacity = st.air ? 0.35 : 0.8;
     // torso: tuck forward on straights, sit back for wheelies, look around
     const tuckTarget = st.idle ? 0.12 : st.weightBack ? -0.05 : 0.32 + 0.38 * (st.tuck || 0) + Math.min(0.32, Math.abs(st.lean) * 0.5);   // dives low into corners
@@ -270,7 +294,7 @@ class BikeRig {
     this.weapon.position.copy(h).addScaledVector(dir, 0.06); this.weapon.quaternion.setFromUnitVectors(Z_AXIS, dir).multiply(_wq.setFromAxisAngle(_wv[3].set(1, 0, 0), this.wPitch * 0.6));
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
-  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
+  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
 }
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _wv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], _wq = new THREE.Quaternion();

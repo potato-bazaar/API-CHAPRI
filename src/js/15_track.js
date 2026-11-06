@@ -187,7 +187,7 @@ class Track {
       const k = Math.abs(this.k[i]); const Reff = 1 / Math.max(k, 1e-4) + this.w0[i] * 0.7;
       this.vmax[i] = Math.min(vTop, Math.sqrt(G * 1.0 * cornerMul * Reff));
     }
-    for (const bp of this.bumps) if (bp.type === 'breaker') for (let i = Math.floor((bp.s - 3) / STEP); i <= Math.ceil((bp.s + 3) / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.min(this.vmax[j], bp.triple ? 11 : 12.5); }
+    for (const bp of this.bumps) if (bp.type === 'breaker') for (let i = Math.floor((bp.s - 3) / STEP); i <= Math.ceil((bp.s + 3) / STEP); i++) { const j = ((i % N) + N) % N; this.vmax[j] = Math.min(this.vmax[j], bp.triple ? 13 : 14.5); }
     const b = 7.5;
     for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) { const j = (i + 1) % N; this.vmax[i] = Math.min(this.vmax[i], Math.sqrt(this.vmax[j] ** 2 + 2 * b * STEP)); }
     if (this.roof) for (let i = 0; i < N; i++) { const x = this.wrapD(i * STEP - this.roof.s0); if (x > -30 && x < this.roof.len) this.vmax[i] = Math.max(this.vmax[i], 19); }
