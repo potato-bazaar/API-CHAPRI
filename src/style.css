@@ -437,3 +437,20 @@ kbd { font-family: var(--f-num); }
 @keyframes entrySlam { 0% { scale: 3.2; opacity: 0; filter: blur(6px); } 60% { scale: .92; opacity: 1; filter: none; } 100% { scale: 1; } }
 @keyframes entrySub { from { opacity: 0; translate: 0 .6em; } to { opacity: 1; translate: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .entry.go .entry-title, .entry.go .entry-title .t2 { animation: none; } }
+
+/* Mumbai Underground: section cards, rival speech bubbles, the main-map badge */
+.zone-card { position: absolute; left: 50%; top: 13vh; translate: -50% 0; text-align: center; pointer-events: none; white-space: nowrap; }
+.zone-card.go { animation: zoneIn 2.6s ease-out forwards; }
+.zone-card small { display: block; font-family: var(--f-display); font-weight: 700; font-size: .9rem; letter-spacing: .28em; text-transform: uppercase; color: var(--teal); text-shadow: 0 2px 0 #120814; }
+.zone-card b { display: block; font-family: var(--f-num); font-weight: 700; font-size: clamp(2.1rem, 6vw, 3.8rem); line-height: .92; letter-spacing: .08em; color: #fff; -webkit-text-stroke: 5px #120814; paint-order: stroke fill; text-shadow: 0 3px 0 #120814; }
+.zone-card b::after { content: ''; display: block; height: 3px; margin: .22em auto 0; width: 70%; background: linear-gradient(90deg, transparent, var(--pink), var(--teal), transparent); }
+@keyframes zoneIn { 0% { opacity: 0; transform: translateY(-10px) scale(1.08); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; transform: translateY(-4px); } }
+#speech { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.bubble { position: absolute; translate: -50% -100%; padding: .3em .75em .36em; border-radius: .9em; background: #fff; color: #1b0d22; font-weight: 800; font-size: clamp(.85rem, 2.1vw, 1.12rem); line-height: 1.05; border: 3px solid #1b0d22; box-shadow: 0 3px 0 #1b0d22; white-space: nowrap; animation: bub 2.3s ease-out forwards; }
+.bubble::after { content: ''; position: absolute; left: 50%; top: 100%; margin-left: -8px; border: 8px solid transparent; border-top: 11px solid #1b0d22; }
+.bubble small { display: block; font-size: .66em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pink-deep); }
+.bubble.hot { background: var(--marigold); }
+@keyframes bub { 0% { opacity: 0; transform: scale(.55); } 9% { opacity: 1; transform: scale(1.08); } 15% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+.tcard .tnew { position: absolute; top: .4rem; left: .4rem; padding: .1rem .45rem; border-radius: .4rem; background: var(--pink); color: #fff; font-style: normal; font-weight: 800; font-size: .62rem; letter-spacing: .06em; box-shadow: 0 2px 0 #120814; }
+@media (prefers-reduced-motion: reduce) { .zone-card.go, .bubble { animation-duration: .01s; } }
+.tcard { position: relative; }

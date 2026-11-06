@@ -4,6 +4,17 @@
 // single source of truth for road extrusion, AI lines, checkpoints and minimap.
 const TRACKS = [
   {
+    // the main map: one night run through every kind of Mumbai underworld. Sections are fractions of the lap.
+    id: 'mumbai-underground', name: 'Mumbai Underground', short: 'Underground', main: true,
+    theme: 'city', target: 2100, lapTarget: '95–110 s', time: 'night', laps: 2,
+    blurb: 'Under the metro, through Andheri Tunnel, down the underpass, across the docks, over the broken bridge and out on the salt-pan kachha road.',
+    pts: [[0,0],[150,0],[260,10],[380,50],[470,120],[520,210],[540,300],[548,380],[545,440],[515,468],[480,455],[465,410],[455,350],[440,290],[395,240],[310,222],[40,232],[-30,250],[-100,300],[-180,290],[-230,230],[-220,150],[-160,100],[-100,70],[-78,34],[-42,6]],
+    widths: [[0,13],[0.07,13],[0.09,11],[0.29,11],[0.31,12],[0.355,12],[0.375,14],[0.425,14],[0.445,12],[0.56,12],[0.575,11],[0.68,11],[0.7,10],[0.89,10],[0.915,10.5],[0.975,12.5]],
+    triples: [], shortcuts: 0, kickers: 0, potholes: 5, bigPotholes: 3, mud: 3,
+    bumps: [{ f: 0.955, h: 0.2, len: 2.5, type: 'breaker' }],
+    underground: { metro: [0.985, 0.078], tunnel: [0.087, 0.294], cut: [0.3, 0.432], chevron: [0.362, 0.43], docks: [0.44, 0.566], bridge: [0.579, 0.678], kachha: [0.692, 0.9], market: [0.905, 0.985] },
+  },
+  {
     id: 'mumbai-central', name: 'Mumbai Central Circuit', short: 'Mumbai Central',
     theme: 'city', target: 1750, lapTarget: '60–75 s', time: 'golden',
     blurb: 'Wide city roads under the flyover, chai stalls and the old station dome.',
@@ -67,5 +78,5 @@ const TRACKS = [
     landmark: { f: 0.4, side: -1, dist: 260, kind: 'towers' },
   },
 ];
-// the Championship runs the five circuits only
+// the Championship runs every circuit (not the special stages)
 const CUP_TRACKS = TRACKS.filter(t => !t.special);

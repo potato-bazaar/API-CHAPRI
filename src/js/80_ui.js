@@ -141,9 +141,9 @@ class UI {
     seg('#sMode', Object.entries(MODES).filter(([k]) => k !== 'cup').map(([k, m]) => [k, m.label]), s.mode, v => { s.mode = v; if (MODES[v].track) this.game.previewTrack(MODES[v].track); });
     $('#sModeDesc').textContent = M.desc;
     const tSel = M.track || s.track;
-    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small></button>`).join('');
+    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small>${t.main ? '<em class="tnew">NEW · MAIN MAP</em>' : ''}</button>`).join('');
     $$('[data-track]').forEach(b => b.addEventListener('click', () => { s.track = b.dataset.track; persist(); AUDIO.click(); this.renderSetup(); this.game.previewTrack(s.track); }));
-    const lapOpts = [[1, '1'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
+    const lapOpts = [[1, '1'], [2, '2'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 2, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
     seg('#sLaps', lapOpts, M.fixedLaps || s.laps, v => (s.laps = +v), () => !!M.fixedLaps);
     seg('#sDiff', [['easy', 'Easy 0.8×'], ['normal', 'Normal 1×'], ['hard', 'Hard 1.5×']], s.diff, v => (s.diff = v), () => !M.rivals && !M.police);
     seg('#sTime', [['auto', 'Track default'], ['morning', 'Morning'], ['golden', 'Golden hour'], ['night', 'Night']], s.time, v => { s.time = v; this.game.previewTrack(s.track); });

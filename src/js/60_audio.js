@@ -54,10 +54,10 @@ const AUDIO = {
     if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97 * doppler, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.75, near.boosting); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
     this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
-    this.rain.gain.setTargetAtTime(race.wet ? 0.11 : 0, t, 0.5);
+    this.rain.gain.setTargetAtTime(race.wet ? (race.world && race.world.ugCover ? 0.02 : 0.11) : 0, t, 0.5);
     // tyre voice
     const onRoad = !P.crashed && !P.air && P.v > 3, demand = onRoad ? Math.abs(P.omega * P.v) / Math.max(1, P.gripLat) : 0;
-    const scrub = onRoad ? clamp((demand - 0.55) * 1.6, 0, 0.7) + (P.input.brake > 0.6 && P.v > 9 ? 0.35 : 0) + (P.surf === 1 || P.surf === 2 ? 0.25 : 0) : 0;
+    const scrub = onRoad ? clamp((demand - 0.55) * 1.6, 0, 0.7) + (P.input.brake > 0.6 && P.v > 9 ? 0.35 : 0) + (P.surf === 1 || P.surf === 2 ? 0.25 : P.surf === 5 ? 0.18 : 0) : 0;
     this.scrub.gain.setTargetAtTime(scrub * 0.12 * clamp(P.v / 15, 0.3, 1), t, 0.06); this.scrub.fl.frequency.setTargetAtTime(500 + P.v * 22, t, 0.1);
     const sq = onRoad && !race.wet && P.surf === 0 ? clamp((P.sliding ? 0.8 : 0) + (P.stoppie ? 0.6 : 0) + clamp((demand - 0.9) * 3, 0, 0.5), 0, 1) : 0;
     this.squealB.gain.setTargetAtTime(sq * 0.07, t, 0.05); this.squealB.fl.frequency.setTargetAtTime(1900 + P.v * 18 + (P.sliding ? 300 : 0), t, 0.08);
@@ -112,4 +112,15 @@ const AUDIO = {
   trainHorn(v = 1, delay = 0) { if (!this.on || v < 0.05) return; for (const f of [311, 392]) this.tone('sawtooth', f, f * 0.985, 1.1, 0.07 * v, delay); this.noise(1.2, 900, 0.5, 0.08 * v, 'lowpass', delay); },
   click() { this.tone('triangle', 900, 700, 0.05, 0.12); },
   setMuted(m) { this.muted = m; this.applyVolumes(); },
+  // tunnel echo: engine + effects into a short generated room; only wired up while it's in use
+  setVerb(k) {
+    if (!this.on || k === this._verbK) return; this._verbK = k; const c = this.ctx;
+    if (!this.verb) { if (k <= 0) return; const len = Math.floor(c.sampleRate * 1.25), ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch), pre = Math.floor(c.sampleRate * (0.014 + ch * 0.006)); for (let i = pre; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+      this.verb = c.createConvolver(); this.verb.buffer = ir; this.verbG = c.createGain(); this.verbG.gain.value = 0; this.verb.connect(this.verbG); this.verbG.connect(this.master); this.verbOn = false; }
+    clearTimeout(this._vt);
+    if (k > 0 && !this.verbOn) { this.engG.connect(this.verb); this.sfxG.connect(this.verb); this.verbOn = true; }
+    this.verbG.gain.setTargetAtTime(Math.max(0, k), c.currentTime, 0.35);
+    if (k <= 0 && this.verbOn) this._vt = setTimeout(() => { if (this.verbOn && this._verbK <= 0) { try { this.engG.disconnect(this.verb); this.sfxG.disconnect(this.verb); } catch (e) { } this.verbOn = false; } }, 3000);
+  },
 };

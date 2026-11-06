@@ -127,12 +127,12 @@ const DIFFICULTY = {
   hard: { label: 'Hard', mult: 1.5, pace: 1.0, corner: 1.0, aggr: 1.0, mistakes: 0.1, wobbleRecover: 1 },
 };
 const MODES = {
-  quick: { label: 'Quick Race', desc: '8 riders · 1 / 3 / 5 laps', rivals: true, combat: true, laps: true },
+  quick: { label: 'Quick Race', desc: '8 riders · 1 to 5 laps', rivals: true, combat: true, laps: true },
   rumble: { label: 'Gali Rumble', desc: 'Knockdowns score as much as position', rivals: true, combat: 'force', fixedLaps: 3 },
   elimination: { label: 'Elimination', desc: 'Last rider out at every lap end', rivals: true, combat: true, fixedLaps: 7 },
   timetrial: { label: 'Time Trial', desc: 'Solo laps against your ghost', rivals: false, combat: false, laps: true },
   stunt: { label: 'Stunt Run', desc: 'One lap · stunts score only', rivals: false, combat: false, fixedLaps: 1 },
-  cup: { label: 'Championship', desc: 'All 5 tracks · points carry over', rivals: true, combat: true, laps: true },
+  cup: { label: 'Championship', desc: 'All 6 tracks · points carry over', rivals: true, combat: true, laps: true },
   police: { label: 'Police Express+', desc: 'Solo escape across the night nakabandi · jump the barricades, dodge the bullets, don\'t get caught', rivals: false, combat: 'force', fixedLaps: 2, police: true, track: 'bhaag-chapri', time: 'night' },
 };
 const TIMES = { morning: 'Morning chai', golden: 'Golden hour', night: 'Sodium night' };
@@ -169,12 +169,12 @@ const SAVE_KEY = 'chapri-racer-save-v1';
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 function defaultSave() {
   return {
-    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0,
+    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true },
-    setup: { mode: 'quick', track: 'mumbai-central', laps: 3, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
+    setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },
     streak: 0, wins: 0, races: 0, lastLogin: null, loginDays: 0,
@@ -185,7 +185,7 @@ let SAVE = defaultSave();
 function loadSave() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
+    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.ugV1) { SAVE.setup.track = 'mumbai-underground'; SAVE.setup.laps = 2; if (SAVE.setup.mode === 'police') SAVE.setup.mode = 'quick'; SAVE.ugV1 = true; } if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
   } catch (e) { /* storage blocked: play with defaults */ }
   if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
 }

@@ -106,6 +106,7 @@ class Track {
     for (let k = 0; k < (def.nakas || 0); k++) { const s0 = take(64, 4); if (s0 === null) break; const S = s0 + 34, w = this.get(this.w0, S) / 2; const nk = { s: S, idx: k, w }; this.nakas.push(nk); this.pieceZones.push([s0, s0 + 64]);
       for (const sd of [-1, 1]) { const kk = { s: S - 15, len: 9, h: 1.45, d: sd * w * 0.5, hw: 1.9, side: sd, over: 'naka', naka: nk }; this.kickers.push(kk);
         for (let i = 1; i <= 5; i++) { const x = i * 2.8, t = x / 20; this.coins.push({ s: kk.s + kk.len + x, d: kk.d, h: kk.h + 4.2 * t - 4.9 * t * t + 0.9 }); } } }
+    if (def.underground) this.planUnderground(def.underground, busy);
     if (def.hall) { const s0 = take(64, 6); if (s0 !== null) this.halls.push({ s0, s1: s0 + 64, kind: def.hall }); }
     for (let k = 0; k < (def.kickers || 0); k++) { const s0 = take(48, 4); if (s0 === null) break; const side = k % 2 ? -1 : 1, hw = 1.4, w = this.get(this.w0, s0) / 2;
       const kk = { s: s0 + 6, len: 7, h: 1.15, d: side * Math.max(0, w - hw - 0.6), hw, side, over: def.kickOver || 'autos' }; this.kickers.push(kk);
@@ -119,6 +120,34 @@ class Track {
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
   }
+  // ── Mumbai Underground: authored sections (metres), the tunnel as a hall, the broken metro bridge as a roof run with
+  // one big gap and a tin-sheet launch lip, nitro strips, a burst pipe, a kicker over cable reels in the docks ──
+  planUnderground(U, busy) {
+    const L = this.L, m = (f) => f * L, Z = this.ug = {};
+    for (const k in U) { const [a, b] = U[k]; Z[k] = [m(a), b < a ? m(b) + L : m(b)]; }
+    this.halls.push({ s0: Z.tunnel[0], s1: Z.tunnel[1], kind: 'tunnel' });
+    const [ba, bb] = Z.bridge, len = bb - ba, gap = { x0: len / 2 - 4.5, len: 9 };
+    this.roof = { s0: ba, len, up: 28, h: 6.8, gaps: [gap], style: 'bridge' };
+    this.bumps.push({ s: ba + gap.x0 - 3.5, h: 0.95, len: 7, type: 'ramp', lip: true });
+    for (let i = -2; i <= 2; i++) this.coins.push({ s: ba + gap.x0 + gap.len / 2 + i * 2.6, d: 0, h: this.roof.h + 2.3 - Math.abs(i) * 0.35, abs: true });
+    for (const k of ['metro', 'tunnel', 'cut', 'bridge', 'market']) this.pieceZones.push([Z[k][0] - 6, Z[k][1] + 6]);
+    for (const k of ['tunnel', 'bridge']) busy.push([Z[k][0] - 10, Z[k][1] + 10]);
+    // nitro strips: glowing chevrons on the tarmac, a free kick of speed if you thread them
+    const T = this, tl = Z.tunnel[1] - Z.tunnel[0];
+    this.nitros = [[Z.tunnel[0] + tl * 0.18, 0.28], [Z.tunnel[0] + tl * 0.46, -0.28], [Z.tunnel[0] + tl * 0.78, 0.0], [Z.cut[0] + 30, -0.25], [ba - 46, 0], [Z.kachha[0] + (Z.kachha[1] - Z.kachha[0]) * 0.55, 0.2]]
+      .map(([s, f]) => ({ s, d: f * T.get(T.w0, s), len: 8, hw: 1.0 }));
+    for (const n of this.nitros) for (let i = 0; i < 4; i++) this.coins.push({ s: n.s + n.len + 3 + i * 3, d: n.d, h: 0.95 });
+    // a burst water main pours across the tunnel; the water curtain
+    this.burst = { s: Z.tunnel[0] + tl * 0.62 };
+    // the docks kicker: a plank ramp over cable reels
+    const dk = Z.docks[0] + (Z.docks[1] - Z.docks[0]) * 0.4, w = this.get(this.w0, dk) / 2;
+    const kk = { s: dk, len: 7, h: 1.2, d: -Math.max(0, w - 1.4 - 0.6), hw: 1.4, side: -1, over: 'reels' }; this.kickers.push(kk);
+    for (let i = 1; i <= 6; i++) { const x = i * 2.6, t = x / 20; this.coins.push({ s: kk.s + kk.len + x, d: kk.d, h: kk.h + 3.9 * t - 4.9 * t * t + 0.9 }); }
+  }
+  // which Underground section is at s (or null)
+  zoneAt(s) { const Z = this.ug; if (!Z) return null; for (const k of ['tunnel', 'chevron', 'cut', 'docks', 'bridge', 'kachha', 'market', 'metro']) { const [a, b] = Z[k]; const x = this.wrapD(s - a); if (x >= 0 && x <= b - a) return k; } return null; }
+  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : false; }
+  inTunnel(s) { return this.ug ? this.zoneAt(s) === 'tunnel' : false; }
   roofRaw(s) { const R = this.roof; if (!R) return 0; const x = this.wrapD(s - R.s0); if (x < 0 || x > R.len) return 0;
     for (const g of R.gaps) if (x >= g.x0 && x <= g.x0 + g.len) return 0;
     return R.h * (x < R.up ? x / R.up : x > R.len - R.up ? (R.len - x) / R.up : 1); }

@@ -49,7 +49,7 @@ const WEAPONS = {
   bottle: { uses: 1, slot: 'throw' },
   gutka: { uses: 3, slot: 'throw' },
 };
-const C_EXHALE = col('#bcc3d2'), C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
+const C_EXHALE = col('#bcc3d2'), C_KDUST = col('#9c8a72'), C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
 
 class Combat {
   constructor(race) {
@@ -116,7 +116,7 @@ class Combat {
     if (kind === 'belt') { t.beltHits = (R.raceT - (t.beltT || -9) < 2.5) ? (t.beltHits || 0) + 1 : 1; t.beltT = R.raceT; if (t.beltHits >= 3) { wob += 30; t.beltHits = 0; } if (t.input.back) wob *= 0.3; }
     t.addWobble(wob / t.st.wobbleRes); t.shoveV += side * (kind === 'chain' ? 3.5 : 2.6); t.v *= 0.97;
     if (a.cfg.cop && t.isPlayer && R.police) { R.police.addHeat(6); a.v *= 0.86; }
-    t.rig.react ? t.rig.react('hit', side) : t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT;
+    t.rig.react ? t.rig.react('hit', side) : t.rig.play('hit', side, 0.35); t.lastHitBy = a; t.lastHitT = R.raceT; if (a && a.isPlayer && R.taunts) R.taunts.say(t, 'hit');
     const p = this.riderPos(t, 1.2); for (let i = 0; i < 10; i++) this.stars.emit(p.x, p.y, p.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0.45, 0.6, 1.4, C_STAR, 1, 3, 2);
     AUDIO.dhishoom(a.isPlayer || t.isPlayer ? 1 : this.race.distToPlayer(t));
     if (a.isPlayer || t.isPlayer) R.game.comicPop(({ kick: 'DHAPP!', chain: 'CHHANNN!', belt: 'SATAAK!' })[kind] || 'DHISHOOM!', t, t.isPlayer ? 0.9 : 1.1, t.isPlayer ? '#ff6a3d' : null);
@@ -219,6 +219,8 @@ class Combat {
     while (r._smokeAcc > 1) { r._smokeAcc--; this.smoke.emit(ex, ey, ez, -fx * 2 + (Math.random() - 0.5), 0.6 + Math.random() * 0.5, -fz * 2 + (Math.random() - 0.5), r.boosting ? 1.2 : 0.9, r.boosting ? 0.5 : 0.3, r.boosting ? 2.8 : 1.6, C_SMOKE, r.boosting ? 0.55 : 0.32, 1.2, -0.3); if (r.boosting && Math.random() < 0.5) this.sparks.emit(ex, ey, ez, -fx * 6, 0.3, -fz * 6, 0.18, 0.35, 0.1, C_FIRE, 1, 2, 0); }
     if ((r.sliding || r.stoppie) && r.v > 5) { const tx = base.x - fx * 0.64, tz = base.z - fz * 0.64; for (let i = 0; i < 2; i++) this.smoke.emit(tx + (Math.random() - 0.5) * 0.4, base.y + 0.1, tz + (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 2, 0.8, (Math.random() - 0.5) * 2, 1.3, 0.6, 3.2, C_DUST, 0.45, 1.5, -0.2); }
     if (r.surf === 1 && r.v > 5 && Math.random() < (r.isPlayer ? 0.9 : 0.5)) for (let i = 0; i < 2; i++) this.mud.emit(base.x - fx * 0.7 + (Math.random() - 0.5) * 0.3, base.y + 0.15, base.z - fz * 0.7 + (Math.random() - 0.5) * 0.3, -fx * r.v * 0.18 + (Math.random() - 0.5) * 2.5, 1.5 + Math.random() * 2.5, -fz * r.v * 0.18 + (Math.random() - 0.5) * 2.5, 0.7, 0.12, 0.2, this.race.wet ? C_MUDW : C_MUD, 1, 0.6, 9);
+    if (r.surf === 5 && r.v > 6 && (r.isPlayer || this.race.distToPlayer(r) > 0.1) && Math.random() < 0.7) { const k = clamp(r.v / 22, 0.4, 1.3);   // dust off the kachha road: a rolling cloud behind every bike
+      this.smoke.emit(base.x - fx * 0.8 + (Math.random() - 0.5) * 0.4, base.y + 0.2, base.z - fz * 0.8 + (Math.random() - 0.5) * 0.4, fx * r.v * 0.55 + (Math.random() - 0.5) * 1.5, 0.5 + Math.random() * 0.8, fz * r.v * 0.55 + (Math.random() - 0.5) * 1.5, 1.4 + Math.random() * 0.6, 0.6 * k, 3.2 * k, C_KDUST, 0.32, 1.8, -0.05); }
     if (r.surf === 2 && r.v > 5 && Math.random() < 0.5) this.smoke.emit(base.x - fx * 0.7, base.y + 0.15, base.z - fz * 0.7, -fx * 2 + (Math.random() - 0.5) * 2, 0.7, -fz * 2 + (Math.random() - 0.5) * 2, 1.2, 0.5, 2.6, this.race.wet ? C_MUDW : C_DUST, 0.35, 1.4, -0.1);
     if (this.race.wet && r.isPlayer) for (let i = 0; i < 3; i++) { const sd = (Math.random() - 0.3) * 18, dd = (Math.random() - 0.5) * T.wAt(r.s) * 0.9; const q = T.pos(r.s + sd, dd, this._w2 || (this._w2 = new THREE.Vector3()), 0.03);
       this.smoke.emit(q.x, q.y, q.z, 0, 1.0 + Math.random(), 0, 0.22, 0.06, 0.3, C_WATER, 0.55, 2, 7); }

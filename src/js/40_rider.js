@@ -40,7 +40,7 @@ class Rider {
     const vTopEff = this.vTop * (this.boosting ? 1.17 : 1) * (this.drafting ? 1.06 : 1) * (this.tuck > 0.6 ? 1.02 : 1) * (this.race.wet ? 0.97 : 1);
     // road surface under the wheels: 0 tarmac, 1 kichad (mud), 2 kachha lane
     this.surf = this.air ? 0 : this.surfaceHere(T);
-    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : 1);
+    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : this.surf === 5 ? 0.9 : 1);
     // gears + rpm
     const gt = GEAR_SPLIT.map(f => f * vTopEff * 1.06);
     if (!(this.isPlayer && SAVE.settings.manualGears)) {
@@ -63,7 +63,7 @@ class Rider {
     if (this.boosting) a += 3.3;
     if (this.wheelie) a += 0.3;
     if (this.gripT > 0) a -= 0.8;
-    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4;
+    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4; else if (this.surf === 5) a -= 0.45;
       else if (this.surf === 4) a -= 1.2 + this.v * 0.11;      // water drag: wheels a quarter under
       else if (this.surf === 3) a -= 0.9 + this.v * 0.05; }    // steps
     // stairs: every step edge kicks the suspension
@@ -105,6 +105,7 @@ class Rider {
     // kichad makes the rear step out; the kachha lane chatters the suspension
     if (this.surf === 1 && this.v > 7) { const w = Math.sin(raceT * 2.3 + this.idx * 1.7) + 0.5 * Math.sin(raceT * 5.1 + this.idx); this.psi += w * 0.22 * dt * Math.min(1.5, this.v / 18); this.slide = smooth(this.slide, w * 0.22, 4, dt); }   // a slow, readable fishtail
     if (this.surf === 2 && this.v > 4) this.suspV += (RNG() - 0.5) * 9 * dt * Math.min(1.5, this.v / 12);
+    else if (this.surf === 5 && this.v > 4) this.suspV += (RNG() - 0.5) * 5 * dt * Math.min(1.5, this.v / 12);
     this.roadHits(T, oldS);
     // walls & kerbs
     const hw = this.halfW;
@@ -176,7 +177,7 @@ class Rider {
   surfaceHere(T) {
     if (T.inWater(this.s, this.d)) return 4;
     if (T.stairDir(this.s)) return 3;
-    let surf = T.laneAt(this.s, this.d) ? 2 : 0;
+    let surf = T.laneAt(this.s, this.d) ? 2 : T.ug && T.dirtAt(this.s) ? 5 : 0;   // 5: the salt-pan kachha road
     for (const h of T.hazards) { if (h.type !== 'mud') continue; let ds = this.s - h.s; if (ds > T.L / 2) ds -= T.L; if (ds < -T.L / 2) ds += T.L;
       if (Math.abs(ds) < h.len / 2 && Math.abs(this.d - h.d) < h.hw * (1 - 0.35 * Math.abs(ds) / (h.len / 2))) return 1; }
     return surf;

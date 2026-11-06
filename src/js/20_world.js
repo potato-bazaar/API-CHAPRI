@@ -40,7 +40,7 @@ class World {
   }
   build() {
     const T = this.track, th = this.theme;
-    const B = { road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
+    const B = { dirt: new Batch(), road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
     this.B = B;
     this.buildRoad(B);
     this.buildRoadside(B);
@@ -51,6 +51,7 @@ class World {
     this.buildObstacles(B);
     this.buildShortcuts(B);
     this.buildSetPieces(B);
+    if (this.def.underground) this.buildUnderground(B);
     this.buildSpeedClutter(B);
     this.buildMarkings(B);
     this.whoosh.sort((a, b) => a.s - b.s);
@@ -58,6 +59,7 @@ class World {
     this.buildHazards();
     const add = (b, mat, o) => { const m = b.mesh(mat, o); if (m) { this.group.add(m); this.disposables.push(m.geometry); } return m; };
     this.roadMesh = add(B.road, this.mats.road, { receive: true });
+    if (B.dirt.n) { this.dirtRoadMat = new THREE.MeshLambertMaterial({ map: TEX.dirt, color: '#d9c3a0', vertexColors: true }); this.disposables.push(this.dirtRoadMat); this.dirtRoad = add(B.dirt, this.dirtRoadMat, { receive: true }); }
     add(B.kerb, this.mats.kerb, { receive: true });
     add(B.pave, this.mats.pave, { receive: true });
     add(B.facade, this.mats.facade, { receive: true });
@@ -97,6 +99,12 @@ class World {
       if (Math.abs(y1 - y0) > 1.2) continue;   // rooftop gap edge
       if (T.stairsZone(s0) && T.stairsZone(s1)) continue;   // the seedhi builds its own steps
       // road surface (u: 0 right edge → 1 left edge; v: 12 m per tile)
+      if (T.ug && T.dirtAt(s0) && T.dirtAt(s1)) {   // kachha: one wide earth strip, the edges rough and a little raised
+        const e0 = w0 + 2.6, e1 = w1 + 2.6; T.pos(s0, -e0, pA, -0.02); T.pos(s1, -e1, pB, -0.02); T.pos(s1, e1, pC, -0.02); T.pos(s0, e0, pD, -0.02);
+        B.dirt.quad(pA, pB, pC, pD, white, [[0, s0 / 6], [0, s1 / 6], [e0 / 3, s1 / 6], [e0 / 3, s0 / 6]], UP);
+        for (const side of [-1, 1]) { T.pos(s0, side * e0, pA, -0.02); T.pos(s1, side * e1, pB, -0.02); T.pos(s1, side * (e1 + 1.6), pC, 0.28); T.pos(s0, side * (e0 + 1.6), pD, 0.28); B.dirt.quad(pA, pB, pC, pD, '#b8a080', [[0, s0 / 6], [0, s1 / 6], [0.5, s1 / 6], [0.5, s0 / 6]]); }
+        continue;
+      }
       T.pos(s0, -w0, pA, 0.0); T.pos(s1, -w1, pB, 0.0); T.pos(s1, w1, pC, 0.0); T.pos(s0, w0, pD, 0.0);
       B.road.quad(pA, pB, pC, pD, white, [[0, s0 / 12], [0, s1 / 12], [1, s1 / 12], [1, s0 / 12]], UP);
       const elevated = Math.max(y0, y1) > 1.2;
@@ -131,7 +139,7 @@ class World {
     }
     // pillars under elevated sections
     for (let s = 0; s < T.L; s += 22) {
-      const y = T.yAt(s); if (y < 2.2 || (T.roof && T.roofRaw(s) > 0) || T.stairsZone(s) || (T.rail && Math.abs(T.wrapD(s - T.rail.s)) < 8)) continue;
+      const y = T.yAt(s); if (y < 2.2 || (T.roof && T.roofRaw(s) > 0 && T.roof.style !== 'bridge') || T.stairsZone(s) || (T.rail && Math.abs(T.wrapD(s - T.rail.s)) < 8)) continue;
       const p = T.pos(s, 0, new THREE.Vector3()); const yaw = T.yawAt(s);
       B.props.box(p.x, -0.05, p.z, 2.2, y - 0.85, 1.6, yaw, '#9a8f86');
       B.props.box(p.x, y - 1.6, p.z, T.wAt(s) + 1.2, 0.75, 1.9, yaw, '#8a8079');
@@ -200,7 +208,7 @@ class World {
     const lampEvery = th === 'basti' ? 26 : 32;
     let side = 1;
     for (let s = 12; s < T.L - 6; s += lampEvery) {
-      if (T.hallAt(s)) continue;
+      if (T.hallAt(s) || (this.ugSkip && this.ugSkip(s, 'lamp'))) continue;
       side = -side; const w = T.wAt(s) / 2; const y = T.yAt(s); const yaw = T.yawAt(s); const elevated = y > 1.2;
       const off = elevated ? w + 0.6 : w + (th === 'basti' ? 0.7 : 1.0);
       T.pos(s, side * off, p);
@@ -222,7 +230,7 @@ class World {
     if (th === 'city' || th === 'sea' || th === 'market') {
       for (let s = 28; s < T.L - 10; s += th === 'sea' ? 18 : 46) for (const sd of [-1, 1]) {
         if (RNG() < (th === 'sea' ? 0.15 : 0.45)) continue;
-        const w = T.wAt(s) / 2; if (T.yAt(s) > 1 || T.hallAt(s)) continue;
+        const w = T.wAt(s) / 2; if (T.yAt(s) > 1 || T.hallAt(s) || (this.ugSkip && this.ugSkip(s, 'tree'))) continue;
         const off = w + 0.45 + Math.min(sw - 0.6, th === 'sea' ? 2.5 : 2.3); T.pos(s, sd * off, p);
         if (this.isSea(p.x) && th !== 'sea') continue;
         if (th === 'sea' || RNG() < 0.35) this.palm(B, p.x, p.y, p.z, 7 + RNG() * 4); else this.tree(B, p.x, p.y, p.z, 5 + RNG() * 3);
@@ -240,7 +248,7 @@ class World {
       }
     }
     // parked autos & cycles on the sidewalk
-    if (th !== 'sea') for (let s = 70; s < T.L - 40; s += 140 + RNG() * 80) { const sd = RNG() < 0.5 ? -1 : 1; if (T.yAt(s) > 1 || sw < 2) continue; T.pos(s, sd * (T.wAt(s) / 2 + 1.6), p); this.auto(B, p.x, p.y + 0.18, p.z, T.yawAt(s) + (RNG() < 0.5 ? 0 : Math.PI), RNG() < 0.5 ? 'kaali' : 'cng'); }
+    if (th !== 'sea') for (let s = 70; s < T.L - 40; s += 140 + RNG() * 80) { const sd = RNG() < 0.5 ? -1 : 1; if (T.yAt(s) > 1 || sw < 2 || (this.ugSkip && this.ugSkip(s, 'auto'))) continue; T.pos(s, sd * (T.wAt(s) / 2 + 1.6), p); this.auto(B, p.x, p.y + 0.18, p.z, T.yawAt(s) + (RNG() < 0.5 ? 0 : Math.PI), RNG() < 0.5 ? 'kaali' : 'cng'); }
   }
   isSea(x) { return this.def.sea && x < this.def.sea.x; }
   tree(B, x, y, z, h) { B.props.box(x, y, z, 0.35, h * 0.55, 0.35, RNG() * 3, '#5a3e2a'); const g = ['#3f6b2f', '#4f7d35', '#2f5a28']; for (let i = 0; i < 4; i++) B.props.geom(BLOB, x + (RNG() - 0.5) * 2, y + h * (0.6 + RNG() * 0.3), z + (RNG() - 0.5) * 2, RNG() * 6, 1.6 + RNG(), 1.3 + RNG() * 0.6, 1.6 + RNG(), pick(g)); }
@@ -267,6 +275,7 @@ class World {
       while (s < T.L) {
         const frontage = th === 'basti' ? 4 + RNG() * 4 : th === 'market' ? 6 + RNG() * 6 : 8 + RNG() * 8;
         const sc = s + frontage / 2; const y = T.yAt(sc);
+        if (this.ugSkip && (this.ugSkip(sc, 'building') || this.ugSkip(sc - frontage / 2, 'building') || this.ugSkip(sc + frontage / 2, 'building'))) { s += frontage; continue; }
         const gap = th === 'basti' ? 0.15 : 0.6 + RNG() * 1.2;
         if (RNG() < 0.06 && th !== 'sea') { // alley with barricade
           const w = T.wAt(sc) / 2, p = T.pos(sc, side * (w + 0.45 + sw + 1.2), new THREE.Vector3());
@@ -476,6 +485,7 @@ class World {
       for (let s = 8; s < T.L - 4; s += step * (0.85 + RNG() * 0.3)) {
         k++;
         const w = T.wAt(s) / 2, y = T.yAt(s), yaw = T.yawAt(s);
+        if (this.ugSkip && this.ugSkip(s, 'clutter')) continue;
         if (y > 1.2) { T.pos(s, side * (w + 0.62), p); B.props.box(p.x, p.y + 1.15, p.z, 0.14, 0.3, 0.14, yaw, '#ffc21a'); if (k % 3 === 0) this.whoosh.push({ s, d: side * (w + 0.62), k: 'post' }); continue; }
         if (y > 0.25) continue;
         const off = w + 0.45 + (th === 'basti' ? 0.32 : 0.42); T.pos(s, side * off, p);
@@ -502,7 +512,7 @@ class World {
     const a = new THREE.Vector3(), b = new THREE.Vector3();
     let n = 0;
     for (let s = 18; s < T.L - 12; s += (th === 'basti' ? 11 : 14) * thin) {
-      n++; if (T.yAt(s) > 0.5 || T.hallAt(s)) continue;
+      n++; if (T.yAt(s) > 0.5 || T.hallAt(s) || (this.ugSkip && this.ugSkip(s, 'wires'))) continue;
       const w = T.wAt(s) / 2 + 0.45 + Math.min(sw, 3);
       T.pos(s, -w, a); T.pos(s, w, b); if (this.isSea(a.x - 6) || this.isSea(b.x - 6)) continue;
       const yaw = T.yawAt(s);
@@ -535,7 +545,7 @@ class World {
     const T = this.track, p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
     const white = new THREE.Color('#e6e1d8'), tar = new THREE.Color('#2a262e'), tar2 = new THREE.Color('#3a3540');
     const quadAt = (s0, s1, d0, d1, c) => { T.pos(s0, d0, p[0], 0.012); T.pos(s1, d0, p[1], 0.012); T.pos(s1, d1, p[2], 0.012); T.pos(s0, d1, p[3], 0.012); B.marks.quad(p[0], p[1], p[2], p[3], c, undefined, UP); };
-    const nearBump = (s) => T.bumps.some(b => Math.abs(b.s - s) < b.len + 6) || T.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 2) || T.hazards.some(h => Math.abs(h.s - s) < 4);
+    const nearBump = (s) => (T.ug && T.dirtAt(s)) || T.bumps.some(b => Math.abs(b.s - s) < b.len + 6) || T.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 2) || T.hazards.some(h => Math.abs(h.s - s) < 4);
     // centre dashes: 3 m paint, 4.5 m gap
     for (let s = 0; s < T.L - 3; s += 7.5) { if (T.wAt(s) < 7.2 || nearBump(s)) continue; quadAt(s, s + 3, -0.08, 0.08, white); }
     // zebra crossings on wide sections
@@ -681,17 +691,18 @@ class World {
       T.pos(k.s + k.len, k.d - k.hw, pA, 0); T.pos(k.s + k.len, k.d + k.hw, pB, 0); T.pos(k.s + k.len, k.d + k.hw, pC, k.h); T.pos(k.s + k.len, k.d - k.hw, pD, k.h); B.props.quad(pA, pB, pC, pD, '#5a3c1c');
       for (const x of [k.len * 0.55, k.len * 0.85]) { T.pos(k.s + x, k.d, p, 0); const yaw = T.yawAt(k.s + x); for (let j = 0; j < 3; j++) B.props.box(p.x, p.y + j * 0.32, p.z, k.hw * 1.6, 0.3, 0.55, yaw + (RNG() - 0.5) * 0.1, pick(['#b07a3a', '#c88a4a', '#2f8a3e', '#c8321e'])); }
       T.pos(k.s - 8, k.d, p, 0); this.signBoard(B, 'arrow', p.x, p.y + 1.6, p.z, T.yawAt(k.s) + Math.PI, 1.6, p.y);
-      const dims = k.over === 'autos' ? [0.7, 1.35] : k.over === 'carts' ? [0.6, 1.1] : [0.45, 1.1];
+      const dims = k.over === 'autos' ? [0.7, 1.35] : k.over === 'carts' ? [0.6, 1.1] : k.over === 'reels' ? [0.75, 0.7] : [0.45, 1.1];
       if (k.naka) { T.pos(k.s + k.len, k.d - k.hw, pA, k.h + 0.03); T.pos(k.s + k.len, k.d + k.hw, pB, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d + k.hw, pC, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d - k.hw, pD, k.h + 0.03); B.glow.quad(pA, pB, pC, pD, new THREE.Color('#39ff6a'), undefined, UP); continue; }
       for (const off of [5.5, 10.5, 15.5]) { if (k.over !== 'autos' && off > 14) continue; const s = k.s + k.len + off; T.pos(s, k.d, p); const yaw = T.yawAt(s);
         this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : 'drums', kicker: k });
         if (k.over === 'autos') this.auto(B, p.x, p.y, p.z, yaw + (RNG() - 0.5) * 0.15, RNG() < 0.5 ? 'kaali' : 'cng');
         else if (k.over === 'carts') { B.props.box(p.x, p.y + 0.55, p.z, 1.2, 0.12, 2.2, yaw, '#8a5a32'); for (const sg of [-1, 1]) B.props.geom(WHEEL_G, p.x + Math.sin(yaw) * sg * 0.55, p.y + 0.3, p.z + Math.cos(yaw) * sg * 0.55, yaw, 1.5, 1.5, 1.5, '#2a2a2a');
           for (let i = 0; i < 14; i++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 1, p.y + 0.72 + RNG() * 0.2, p.z + (RNG() - 0.5) * 1.8, RNG() * 6, 0.14, 0.14, 0.14, pick(['#ff7a2f', '#ffd23f', '#d43c2c', '#9be15d'])); }
+        else if (k.over === 'reels') { const l = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)); for (const sg of [-1, 1]) { const q = p.clone().addScaledVector(l, sg * 0.48); B.props.geom(REEL_G, q.x, q.y + 0.7, q.z, yaw, 1, 1, 1, '#9a6a3a'); } B.props.geom(REEL_HUB_G, p.x, p.y + 0.7, p.z, yaw, 0.9, 1, 1, '#1f3a5a'); }
         else for (let i = 0; i < 3; i++) B.props.geom(TANK_G, p.x + (RNG() - 0.5) * 0.5, p.y, p.z + (i - 1) * 0.7, 0, 0.35, 0.9, 0.35, pick(['#1d4fa0', '#c8321e', '#2f8a3e'])); }
     }
     // rooftop run: the road rides on top of a row of buildings; scaffold ramps at both ends; gaps are alleys
-    if (T.roof) { const R = T.roof, cols = ['#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#e6c9a8'];
+    if (T.roof && T.roof.style !== 'bridge') { const R = T.roof, cols = ['#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#e6c9a8'];
       const segs = []; let a = R.up; for (const g of R.gaps) { segs.push([a, g.x0]); a = g.x0 + g.len; } segs.push([a, R.len - R.up]);
       for (const [x0, x1] of segs) for (let x = x0; x < x1 - 0.5; x += 6.5) { const xe = Math.min(x + 6.5, x1), sm = R.s0 + (x + xe) / 2; T.pos(sm, 0, p, 0); p.y = 0; const yaw = T.yawAt(sm), w = T.wAt(sm) + 7;
         B.props.box(p.x, -0.05, p.z, w, R.h - 0.02, xe - x - 0.2, yaw, pick(cols));
@@ -709,7 +720,7 @@ class World {
         for (const sg of [-1, 1]) { T.pos(sA - 2, sg * (T.wAt(sA) / 2 + 0.6), p, 0); this.signBoard(B, 'noentry', p.x, p.y + 1.5, p.z, T.yawAt(sA) + Math.PI, 0.9, p.y + 0.9); } }
     }
     // halls: the road runs through a building
-    for (const h of T.halls) this.buildHall(B, h);
+    for (const h of T.halls) h.kind === 'tunnel' ? this.buildTunnel(B, h) : this.buildHall(B, h);
     this.buildStagePieces(B);
     // railway under the flyover, with a Mumbai local that runs through
     if (T.rail) this.buildRail(B);
@@ -849,6 +860,8 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     this.headlight.intensity = n > 0.5 ? 220 : 0;
     if (this.hazDry) this.hazDry.visible = !wet; if (this.hazWet) this.hazWet.visible = wet;
     if (this.dirtMat) this.dirtMat.color.set(wet ? '#7a6656' : '#ffffff');
+    if (this.dirtRoadMat) this.dirtRoadMat.color.set(wet ? '#8a7560' : '#d9c3a0');
+    if (this.ugMood) this.ugMood(nt, wet);
     if (this.seaMat) { this.seaMat.uniforms.glint.value.set(n > 0.5 ? '#ffcf7a' : M.sunDisc); this.seaMat.uniforms.deep.value.set(n > 0.5 ? '#0b1a30' : '#1b3a5a'); this.seaMat.uniforms.shallow.value.set(n > 0.5 ? '#1a3550' : '#3a6f8a'); }
     return { fog: this.fog, exposure: M.exposure * (wet ? (nt ? 1.05 : 0.94) : 1) };
   }
@@ -856,10 +869,12 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     this.sky.position.copy(camera.position);
     if (this.coinMesh) this.updateCoins(t);
     if (this.updateStage) this.updateStage(dt, t, focus);
+    if (this.ugRT) this.updateUnderground(dt, t, camera, focus);
     if (this.train) { this.trainT += dt; const x = -360 + this.trainT * 30; if (x > 360) { this.trainT = -8 - Math.random() * 10; this.trainDir = -this.trainDir; this.trainHorned = false; }
       this.placeTrain(this.trainDir * Math.max(-400, x)); this.train.visible = this.trainT > 0;
       if (focus && this.trainT > 0 && !this.trainHorned) { const d = this.train.position.distanceTo(focus); if (d < 170) { this.trainHorned = true; AUDIO.trainHorn(clamp(1 - d / 220, 0.2, 1)); } } }
-    if (this.flash > 0) { this.flash = Math.max(0, this.flash - dt); const k = this.flash > 0.3 || (this.flash > 0.1 && this.flash < 0.2) ? 1 : 0.15; this.hemi.intensity = this.hemiBase * (1 + 2.5 * k * Math.min(1, this.flash * 4)); } else if (this.hemiBase) this.hemi.intensity = this.hemiBase;
+    const hm = this.hemiMul ?? 1;   // the Underground dims the sky light inside the tunnel
+    if (this.flash > 0) { this.flash = Math.max(0, this.flash - dt); const k = this.flash > 0.3 || (this.flash > 0.1 && this.flash < 0.2) ? 1 : 0.15; this.hemi.intensity = this.hemiBase * hm * (1 + 2.5 * k * Math.min(1, this.flash * 4)); } else if (this.hemiBase) this.hemi.intensity = this.hemiBase * hm;
     if (this.seaMat) this.seaMat.uniforms.time.value = t;
     if (focus) { // keep the shadow camera on the player
       this.sun.position.copy(focus).addScaledVector(this.sunDir, 120); this.sun.target.position.copy(focus); this.sun.target.updateMatrixWorld();
@@ -883,3 +898,5 @@ const BOLLARD_G = new THREE.CylinderGeometry(0.09, 0.11, 0.85, 7).translate(0, 0
 const BAND_G = new THREE.CylinderGeometry(0.097, 0.1, 0.13, 7);
 const CYCLE_WHEEL = new THREE.TorusGeometry(0.31, 0.025, 4, 14).rotateY(Math.PI / 2);
 const MANHOLE_G = new THREE.CircleGeometry(0.38, 12).rotateX(-Math.PI / 2);
+const REEL_G = new THREE.CylinderGeometry(0.7, 0.7, 0.12, 16).rotateZ(Math.PI / 2).translate(0, 0, 0);   // cable reel flange pair is built from two of these + a hub
+const REEL_HUB_G = new THREE.CylinderGeometry(0.42, 0.42, 1.0, 12).rotateZ(Math.PI / 2);

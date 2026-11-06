@@ -1,6 +1,6 @@
 # Chapri Racer
 
-A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-style bikes, rebadged) through Mumbai lanes, flyovers, markets and Dharavi rooftops. Races have eight riders, plus street fights, jumps, monsoon rain and a comic-book look.
+A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-style bikes, rebadged) through Mumbai's underbelly: a metro station, Andheri Tunnel, an LED hairpin, the docks, a broken bridge and a salt-pan dirt road, plus lanes, flyovers, markets and Dharavi rooftops. Races have eight riders, plus street fights, jumps, monsoon rain and a comic-book look.
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
@@ -23,12 +23,22 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 
 ## What's in it
 
+- **Mumbai Underground (the main map).** A 2.1 km night run under a storm sky, two laps by default. Each section gets a title card the first time you reach it.
+  - **Andheri Metro:** the grid starts under a metro station that straddles the road. A trial-run train shuttles out along the viaduct to a launching gantry and rumbles overhead.
+  - **Andheri Tunnel:** sodium light strips that sweep over the bike, jet fans, lane signals, an engine echo, honking traffic you weave through, and a burst water main you ride through (CHHAPAAK!, water on the lens).
+  - **Subway Cut and LED Hairpin:** graffiti retaining walls, two overbridges, then a hairpin lined with a scrolling pink and cyan chevron wall.
+  - **Dock 7:** container stacks, ship-to-shore cranes with moving trolleys, floodlight towers, black water and a berthed ship.
+  - **Adhoora Pul:** the unfinished metro bridge. Hit the tin lip and jump the gap in slow motion (UDAAN!) under a tower crane, or fall in.
+  - **Namak Khet:** a salt-pan kachha road with dust, fences, pylons, floodlight poles, ground fog and a broken-down HORN OK PLEASE truck.
+  - **Lokhandwala:** market neon and chasing festoon bulbs back to the finish.
+  - Nitro strips on the tarmac give anyone who threads them a kick of speed and boost. Shaving past traffic scores a PEEP PEEP! near miss.
+- **Rival taunts.** On every track, rivals now and then shout Hinglish lines in speech bubbles when they pass you, when you pass them, or when you hit them.
 - **Police Express+.** A solo escape mode on its own night stage, **Bhaag Chapri Bhaag**.
   - Finish 2 laps before the BUSTED meter fills. Police bikes with sirens and lathis chase you.
   - Nakabandi checkpoints have full-width barricades. You can jump the big yellow ramps or smash through.
   - Riflemen telegraph each shot with a red laser, so you can swerve to dodge.
   - The stage also has a long staircase to ride up and down, a flooded nala, and stray dogs that dash across.
-- **Five tracks.** Mumbai Central, Crawford Market, Dharavi Lanes, Bandstand Rush and Sion Flyover. Hazards include potholes, kichad (mud), triple speed-breakers and kachha shortcut lanes.
+- **Five more tracks.** Mumbai Central, Crawford Market, Dharavi Lanes, Bandstand Rush and Sion Flyover. Hazards include potholes, kichad (mud), triple speed-breakers and kachha shortcut lanes. The Championship runs all six.
 - **Set pieces:**
   - plank ramps over autos and carts, with coin arcs;
   - ride-through market and parking halls;
@@ -92,10 +102,10 @@ npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
 | `00_core` | Config, builds, upgrades, mods, save data, stats |
 | `05_textures` | Procedural canvas textures |
 | `10_tracks`, `15_track` | Track definitions; centreline, widths, elevation, hazards, shortcuts, set pieces, racing line |
-| `18_batch`, `20_world`, `21_stage` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights) |
+| `18_batch`, `20_world`, `21_stage`, `22_underground` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights); the Mumbai Underground set pieces (metro, tunnel, cut, LED hairpin, docks, broken bridge, salt pans, market neon) |
 | `28_bikemodel`, `30_bike`, `32_bikemods` | Bike GLB loading, paint and finishes, rig, visual mods |
 | `29_ridermodel`, `31_cloth`, `40_rider` | Skinned rider and IK, shirt cloth, rider physics and AI |
-| `45_race`, `46_police`, `50_combat` | Race flow, scoring, coins, style-move scheduling; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); weapons, particles, tyre spray |
+| `45_race`, `46_police`, `47_underground`, `50_combat` | Race flow, scoring, coins, style-move scheduling; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); Underground runtime (traffic, nitro, burst main, UDAAN slow-mo, metro rumble, tunnel echo, section cards) and rival taunts; weapons, particles, tyre spray |
 | `55_speedfx`, `56_reflect`, `57_comic`, `58_entry` | Speed lines and lens rain; wet-road mirror; glow and comic post pass; the winner's entry cutscene |
 | `60_audio`, `62_music` | Engine and SFX synthesis; procedural music |
 | `70_hud`, `80_ui`, `85_input`, `90_main` | HUD, menus, garage, input, game loop and camera |
@@ -110,7 +120,7 @@ npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
 These use Playwright Chromium. Run `npx playwright install chromium` once, then run them from the repo root after `npm run build`. Screenshots land in `tools/` and are git-ignored.
 
 ```bash
-node tools/t17.mjs mumbai-central 1                          # fast-forward a full race, report errors and crashes
+node tools/t17.mjs mumbai-underground 2                      # fast-forward a full race, report errors and crashes
 node tools/t31.mjs dharavi-lanes 2                           # jumps, rooftop falls, coins and crash spots
 node tools/t32.mjs look sion-flyover golden monsoon 10       # in-race screenshot
 node tools/t33.mjs                                           # garage close-ups of mod combinations

@@ -50,6 +50,8 @@ class Race {
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
     const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
     if (M.police) this.police = new PoliceOps(this);
+    if (T0.ug) this.ug = new UGOps(this);
+    this.taunts = new Taunts(this);
     this.prevSliding = false; this.splatShown = 0; this.contactT = new Map(); this.coinState = new Uint8Array(this.track.coins.length); this.coinsGot = 0; this.world.resetCoins && this.world.resetCoins();
   }
   distToPlayer(r) { if (!r) return 0.3; const dd = Math.abs((r.dist ?? 0) - this.player.dist) + Math.abs((r.d ?? 0) - this.player.d); return clamp(1 - dd / 40, 0, 1) * 0.8; }
@@ -81,12 +83,14 @@ class Race {
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
     this.combat.update(dt, this.raceT);
     if (this.stage) this.stage.update(dt);
+    if (this.ug) this.ug.update(dt);
     if (this.police) this.police.update(dt);
     this.collectCoins();
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
     if (this.state === 'racing' || this.state === 'finished') this.recordGhost();
     this.syncVisuals(dt);
+    this.taunts.update(dt, this.game.camera);
   }
   interactions(dt) {
     const R = this.riders;
@@ -140,8 +144,9 @@ class Race {
           else this.hud.callout(chained ? 'DOUBLE OVERTAKE' : 'OVERTAKE', `+${pts}`, 'good');
           this.game.comicPop(chained ? 'ZOOOM ZOOOM!' : 'ZOOOM!', r, 0.85, '#7df9ff');
           if (Math.random() < 0.45) { P.rig.gesture(Math.random() < 0.6 ? 'lookback' : 'wave', r.d > P.d ? 1 : -1); P.swagT = Math.max(P.swagT, 4); }
+          this.taunts.say(r, 'passed');
         }
-      } else if (!this.aheadSet.has(r) && ahead) this.aheadSet.add(r);
+      } else if (!this.aheadSet.has(r) && ahead) { this.aheadSet.add(r); if (!r.crashed && !P.crashed && !r.finished && r.invuln <= 0) this.taunts.say(r, 'overtook'); }
       // near misses
       const dd = Math.abs(r.dist - P.dist), dl = Math.abs(r.d - P.d);
       if (dd < 0.7 && dl > 0.78 && dl < 1.05 && Math.abs(r.v - P.v) > 2.5 && !r.crashed && !P.crashed) {
@@ -288,7 +293,7 @@ class Race {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
-  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); }
+  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); }
 }
 function buildStatsStock() { const b = BUILDS[0]; return { build: b, top: 100, acc: 1, lean: 45, grip: 1, brake: 1, wobbleRes: 1, zeroTo100: 7.8, boostFill: 1, wheelieEase: 0, lvls: {} }; }
 function makeGhost(rig) { const m = new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.32, depthWrite: false }); rig.root.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = false; } }); rig.blob.visible = false; }

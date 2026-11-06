@@ -48,16 +48,20 @@ class SpeedFX {
   }
   // rain on the lens: slanted streaks + fat drops that slide and get blown sideways at speed
   rainOnly(dt) { this.cleared = false; const ctx = this.ctx; ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.drawRain(dt, 0); }
+  // a sheet of water hits the lens (the burst main in the tunnel): a burst of fat drops, even in dry weather
+  lensSplash(k = 1) { if (REDUCED_MOTION) return; this.splashT = 1.8; this.drops = this.drops || []; for (let i = 0; i < Math.round(16 * k); i++) this.drops.push({ x: Math.random(), y: Math.random() * 0.9, r: (8 + Math.random() * 20) * this.res * 1.4, t: Math.random() * 0.1, life: 0.8 + Math.random() * 1.3, sp: 0.5 + Math.random() }); }
   drawRain(dt, speed) {
-    if (!this.game.wet || REDUCED_MOTION) return; const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height, k = this.res;
-    if (!this.rs) { this.rs = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), l: 0.04 + Math.random() * 0.08, v: 1.4 + Math.random() * 1.2, a: 0.15 + Math.random() * 0.3 })); this.drops = []; }
+    this.splashT = Math.max(0, (this.splashT || 0) - dt); const dryDrops = !this.game.wet && this.drops && this.drops.length > 0;
+    if ((!this.game.wet && !dryDrops) || REDUCED_MOTION) return; const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height, k = this.res;
+    if (!this.rs) { this.rs = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), l: 0.04 + Math.random() * 0.08, v: 1.4 + Math.random() * 1.2, a: 0.15 + Math.random() * 0.3 })); this.drops = this.drops || []; }
     const slant = 0.18 + speed * 0.012;
     ctx.lineCap = 'round'; ctx.strokeStyle = '#e8efff';
-    for (const r of this.rs) { r.y += r.v * dt * (1 + speed * 0.02); r.x -= slant * r.v * dt * 0.6; if (r.y > 1.1 || r.x < -0.1) { r.y = -0.1 - Math.random() * 0.2; r.x = Math.random() * 1.2; }
+    const covered = !!(this.game.world && this.game.world.ugCover), raining = this.game.wet && !covered;
+    if (raining) for (const r of this.rs) { r.y += r.v * dt * (1 + speed * 0.02); r.x -= slant * r.v * dt * 0.6; if (r.y > 1.1 || r.x < -0.1) { r.y = -0.1 - Math.random() * 0.2; r.x = Math.random() * 1.2; }
       ctx.globalAlpha = r.a; ctx.lineWidth = (1.2 + r.a * 2) * k * 1.6; ctx.beginPath(); ctx.moveTo(r.x * W, r.y * H); ctx.lineTo((r.x + slant * r.l) * W, (r.y - r.l) * H); ctx.stroke(); }
     // drops on the lens: they splat in, then the wind pushes them out from the vanishing point (with a wet trail) or they slide down
     const vpx = this._vpx ?? 0.5, vpy = this._vpy ?? 0.45, wind = clamp((speed - 8) / 18, 0, 1.25);
-    if (this.drops.length < 28 && Math.random() < dt * (5 + speed * 0.28)) this.drops.push({ x: Math.random(), y: Math.random() * 0.85, r: (5 + Math.random() * 15) * k * 1.4, t: 0, life: 1.0 + Math.random() * 1.8, sp: 0.5 + Math.random() });
+    if (raining && this.drops.length < 28 && Math.random() < dt * (5 + speed * 0.28)) this.drops.push({ x: Math.random(), y: Math.random() * 0.85, r: (5 + Math.random() * 15) * k * 1.4, t: 0, life: 1.0 + Math.random() * 1.8, sp: 0.5 + Math.random() });
     for (let i = this.drops.length - 1; i >= 0; i--) { const d = this.drops[i]; d.t += dt;
       let ox = d.x - vpx, oy = (d.y - vpy) * 0.6; const ol = Math.hypot(ox, oy) || 1; ox /= ol; oy /= ol;
       const vx = ox * wind * 0.55 * d.sp, vy = oy * wind * 0.55 * d.sp + 0.02 + d.t * 0.035 * (1 - wind * 0.5);

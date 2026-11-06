@@ -109,6 +109,7 @@ class Game {
     if (this.race && (this.state === 'race' || this.state === 'results')) { const P = this.race.player, T = this.race.track; v = P.v; yaw = T.yawAt(P.s) + P.psi; base = T.pos(P.s, P.d, this._w, P.y - T.yAt(P.s)); }
     else if (this.menuRig) yaw = this.menuRig.root.rotation.y;
     this.rain.position.set(base.x, base.y - 3, base.z); this.rain.rotation.y = yaw;
+    this.rain.visible = !(this.world && this.world.ugCover);   // no rain inside Andheri Tunnel
     const U = this.rain.material.uniforms; U.uYOff.value = (U.uYOff.value + 24 * dt) % 1800; U.uZOff.value = (U.uZOff.value + v * dt) % 5000; U.uV.value = v;
     this.renderer.getDrawingBufferSize(U.uRes.value); U.uW.value = 1.1 * this.renderer.getPixelRatio();
   }
@@ -244,7 +245,7 @@ class Game {
     else if (this.state === 'paused' && this.race) { if (inp.pause) this.resume(); }
     else this.menuFrame(dt, inp);
     if (this.state !== 'race' && this.fx) { if (this.wet && this.state !== 'paused') this.fx.rainOnly(dt); else this.fx.clear(); }
-    if (this.wet && this.state !== 'paused' && !REDUCED_MOTION) { this.boltT = (this.boltT ?? 6) - dt; if (this.boltT < 0) { this.boltT = 10 + Math.random() * 16; const el = $('#lightning'); el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); if (this.world) this.world.flash = 0.45; AUDIO.thunder && AUDIO.thunder(0.4 + Math.random() * 1.2); } }
+    if (this.wet && this.state !== 'paused' && !REDUCED_MOTION && !(this.world && this.world.ugRT)) { this.boltT = (this.boltT ?? 6) - dt; if (this.boltT < 0) { this.boltT = 10 + Math.random() * 16; const el = $('#lightning'); el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); if (this.world) this.world.flash = 0.45; AUDIO.thunder && AUDIO.thunder(0.4 + Math.random() * 1.2); } }
     this.updateRain(dt);
     const focus = this.race ? this.race.track.pos(this.race.player.s, this.race.player.d, this._w) : this.menuRig ? this.menuRig.root.position : null;
     if (this.world) this.world.update(dt, this.t, this.camera, focus);
@@ -289,7 +290,7 @@ class Game {
     const acc = dt > 0 ? (P.v - (this._pv ?? P.v)) / dt : 0; this._pv = P.v; this.accSm = smooth(this.accSm || 0, clamp(acc, -14, 9), 5, dt);
     const spring = clamp(this.accSm * 0.07, -0.45, 0.6) + fx.boostAmt * 0.35;
     // engine + road vibration that grows with speed (stronger on kerbs, lighter with reduced motion)
-    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.003 + 0.008 * vN * vN + onKerb * 0.014 + (P.surf === 2 || P.surf === 3 ? 0.012 : 0) + fx.boostAmt * 0.007) * (P.crashed ? 0 : 1);
+    const onKerb = Math.abs(P.d) > P.halfW - 0.45 ? 1 : 0; const vib = REDUCED_MOTION || P.air ? 0 : (0.003 + 0.008 * vN * vN + onKerb * 0.014 + (P.surf === 2 || P.surf === 3 ? 0.012 : P.surf === 5 ? 0.008 : 0) + fx.boostAmt * 0.007) * (P.crashed ? 0 : 1);
     const vy = (Math.sin(this.t * 61) + Math.sin(this.t * 37.3) * 0.6) * vib, vr = Math.sin(this.t * 47.1) * vib * 0.5;
     if (this.camMode === 2) { // helmet cam
       cam.position.set(rp.x + fx2 * 0.05, rp.y + 1.6 - P.tuck * 0.15 + vy - fx.dip * 0.3, rp.z + fz * 0.05);
