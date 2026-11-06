@@ -293,15 +293,16 @@ class BikeRig {
       if (A.t >= A.dur) { this.anim = null; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
         if (this.queued) { const [n, sd] = this.queued; this.queued = null; this.play(n, sd, GESTURES[n]); } }
     }
-    if (st.celebrate) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
+    if (st.celebrate && !this.free) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
+    if (this.free) { const fr = this.free; this.torsoG.rotation.set(fr.torsoX, fr.torsoY || 0, fr.torsoZ || 0); this.headG.rotation.set(fr.headX || 0, fr.headY || 0, fr.headZ || 0); armLTarget = fr.hands.l; armRTarget = fr.hands.r; }
     if (st.crashed) { this.torsoG.rotation.x = -0.6; armLTarget = new THREE.Vector3(0.6, 1.4, 0.1); armRTarget = new THREE.Vector3(-0.6, 1.4, 0.1); }
     if (this.rm) {
-      this.rm.setWind(st.speed || 0, this.t);
+      const wind = this.free ? this.free.wind || 0 : st.speed || 0; this.rm.setWind(wind, this.t);
       // far-away riders re-pose less often (the bike's lean and pitch still move every frame)
       const cam = typeof GAME !== 'undefined' && GAME && GAME.camera; const far = cam ? cam.position.distanceToSquared(this.root.position) : 0;
       this._poseN = (this._poseN || 0) + 1; const every = far > 3600 ? 4 : far > 625 ? 2 : 1;
       if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); }
-      if (far < 4900) this.rm.cloth.step(dt, st.speed || 0, far > 900);
+      if (far < 4900) this.rm.cloth.step(dt, wind, far > 900);
       return;
     }
     this.weapon.rotation.x = this.wPitch;

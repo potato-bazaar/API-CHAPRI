@@ -69,6 +69,7 @@ function riderHairMat(color, low) {
 }
 
 // ── small helpers for posing bones in world space ──
+const _AXF = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 const _rq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()], _rv = Array.from({ length: 10 }, () => new THREE.Vector3());
 const _rm0 = new THREE.Matrix4(), _rm1 = new THREE.Matrix4();
 const _ik = Array.from({ length: 14 }, () => new THREE.Vector3()), _pq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
@@ -158,11 +159,13 @@ class RiderModel {
   pose(rig, armLT, armRT, crashed) {
     const B = this.b, V = _rv, F = RIDER_FIT, R = this.root;
     for (const [n, q] of this.bind) n.quaternion.copy(q);
-    const ln = rig.leanNow || 0; R.position.y = this.baseY + (rig.riderLag || 0) * 0.8; R.position.x = this.baseX + clamp(ln, -0.9, 0.9) * 0.1;
+    const ln = rig.leanNow || 0, fr = rig.free;   // fr: off the bike (standing / walking): root position + facing in bike space, feet targets
+    if (fr) { R.position.copy(fr.pos); R.rotation.set(0, fr.yaw, 0); }
+    else { R.position.y = this.baseY + (rig.riderLag || 0) * 0.8; R.position.x = this.baseX + clamp(ln, -0.9, 0.9) * 0.1; if (this.baseZ === undefined) this.baseZ = R.position.z; R.position.z = this.baseZ; if (R.rotation.y) R.rotation.set(0, 0, 0); }
     const parent = R.parent, px = R.position.x, py = R.position.y, pz = R.position.z, sc = R.scale.x;
     R.parent = null; R.position.set(0, 0, 0); R.scale.set(1, 1, 1); R.updateMatrixWorld(true);
     const toModel = (v) => v.set((v.x - px) / sc, (v.y - py) / sc, (v.z - pz) / sc);
-    const AX = _AXES, q = _pq[0], qa = _pq[1];
+    const AX = fr ? _AXF.map((a, i) => a.copy(_AXES[i]).applyQuaternion(R.quaternion)) : _AXES, q = _pq[0], qa = _pq[1];   // the rider's own axes
     try {
       const turn = (bone, pitch, roll, yaw) => { q.setFromAxisAngle(AX[0], pitch); if (roll) q.premultiply(qa.setFromAxisAngle(AX[2], roll)); if (yaw) q.premultiply(qa.setFromAxisAngle(AX[1], yaw)); rotBoneWorld(bone, q); };
       // spine: base riding lean + tuck, lean into corners, twist for swings
@@ -177,6 +180,11 @@ class RiderModel {
       for (const s of SIDES) {
         const sg = s === 'l' ? 1 : -1, leg = s === 'l' ? rig.legL : rig.legR;
         const hip = wpos(B['thigh_' + s], V[0]);
+        if (fr) {   // standing / walking: feet where the director puts them, knees forward
+          const tgt = toModel(V[1].copy(fr.feet[s])), pole = V[3].copy(hip).addScaledVector(AX[2], 1.2).addScaledVector(AX[0], sg * 0.12).addScaledVector(AX[1], -0.2);
+          this.ik(B['thigh_' + s], B['calf_' + s], B['foot_' + s], tgt, pole, this.ax['leg_' + s]);
+          alignBone(B['foot_' + s], this.ax['foot_' + s].aim, this.ax['foot_' + s].up, _rv[8].copy(_FOOT_AIM).applyQuaternion(R.quaternion), AX[1]); continue;
+        }
         const tgt = toModel(V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
         if (leg.rotation.x || leg.rotation.z) { const d = V[2].subVectors(tgt, hip).applyEuler(leg.rotation); tgt.copy(hip).add(d); }
         const inside = Math.sign(ln) === sg ? Math.min(1, Math.abs(ln) * 1.6) : 0;   // chapri style: knees flung wide, the inside one even more
@@ -189,7 +197,7 @@ class RiderModel {
         const sg = s === 'l' ? 1 : -1, t = s === 'l' ? armLT : armRT; const onBars = !crashed && Math.abs(Math.abs(t.x) - MODEL_FIT.grip[0]) < 0.12 && t.y < 1.2;
         const tgt = toModel(V[1].set(t.x + (onBars ? F.wrist[0] : 0), t.y + (onBars ? F.wrist[1] : 0), t.z + (onBars ? F.wrist[2] : 0)));
         const sh = wpos(B['upperarm_' + s], V[0]);
-        const pole = V[3].set(sg * 0.55, -0.5, -0.25).add(sh);
+        const pole = V[3].set(sg * 0.55, -0.5, fr ? -0.4 : -0.25); if (fr) pole.applyQuaternion(R.quaternion); pole.add(sh);
         this.ik(B['upperarm_' + s], B['lowerarm_' + s], B['hand_' + s], tgt, pole, this.ax['arm_' + s]);
         if (onBars) alignBone(B['hand_' + s], this.ax['hand_' + s].aim, this.ax['hand_' + s].palm, _HAND_AIM[s], _HAND_PALM[s]);
       }

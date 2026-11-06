@@ -420,3 +420,20 @@ kbd { font-family: var(--f-num); }
 .city.rain-tog.on { background: linear-gradient(180deg, #3f6fd8, #2a4fb0); box-shadow: inset 0 0 0 2px #9cc2ff, 0 0 16px rgba(63, 140, 255, .8); }
 /* profile avatar: a live portrait of your rider */
 .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* ── winner's entry: letterbox bars, a title that slams in, a skip hint ── */
+.entry { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+.entry-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.entry-bar.top { top: 0; transform: translateY(-100%); } .entry-bar.bot { bottom: 0; transform: translateY(100%); }
+.entry.on .entry-bar { transform: none; }
+.entry-title { position: absolute; left: max(4vw, 16px); top: 24vh; display: flex; flex-direction: column; align-items: flex-start; text-align: left; opacity: 0; transform-origin: 20% 50%; }
+.entry-title .t1 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: clamp(3.2rem, 12vw, 9rem); line-height: .9; color: var(--marigold); letter-spacing: .02em;
+  -webkit-text-stroke: .045em #160a12; paint-order: stroke fill; text-shadow: .06em .06em 0 var(--pink), .11em .11em 0 #160a12, 0 0 .5em rgba(255, 194, 26, .55); rotate: -4deg; }
+.entry-title .t2 { margin-top: .4rem; padding: .15em .7em; background: var(--pink); color: #fff; font-family: var(--f-num); font-weight: 600; font-size: clamp(1.1rem, 3.2vw, 2rem); letter-spacing: .12em; box-shadow: .18em .18em 0 #160a12; rotate: -2deg; }
+.entry.go .entry-title { opacity: 1; animation: entrySlam .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+.entry.go .entry-title .t2 { animation: entrySub .5s .25s both; }
+.entry.out .entry-title, .entry.out .entry-bar { opacity: 0; transition: opacity .45s; }
+.entry-skip { position: absolute; right: 1.2rem; bottom: calc(11vh + .6rem); color: rgba(255, 255, 255, .7); font-family: var(--f-num); font-size: 1.1rem; letter-spacing: .08em; }
+@keyframes entrySlam { 0% { scale: 3.2; opacity: 0; filter: blur(6px); } 60% { scale: .92; opacity: 1; filter: none; } 100% { scale: 1; } }
+@keyframes entrySub { from { opacity: 0; translate: 0 .6em; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .entry.go .entry-title, .entry.go .entry-title .t2 { animation: none; } }

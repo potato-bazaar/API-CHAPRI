@@ -43,7 +43,7 @@ class Race {
     const pv = new THREE.Vector3();
     this.riders.forEach(r => { r.swagT = (r.isPlayer ? 5 : 9) + RNG() * 8; r.rig.onPuff = (mark, k) => { if (!r.isPlayer && this.distToPlayer(r) < 0.2) return; mark.getWorldPosition(pv); const yaw = r.rig.root.rotation.y;
       const out = k >= 1 ? 1.1 + Math.random() * 0.6 : 0.1, rx = -Math.cos(yaw), rz = Math.sin(yaw), keep = k >= 1 ? 0.9 : 0.85;   // exhale: blown out to his right, then it streams back
-      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.14 : 0.05, k >= 1 ? 0.95 + Math.random() * 0.4 : 0.35, C_SMOKE, k >= 1 ? 0.5 : 0.3, 1.6, -0.12); }; });
+      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.2 : 0.05, k >= 1 ? 1.3 + Math.random() * 0.5 : 0.35, k >= 1 ? C_EXHALE : C_SMOKE, k >= 1 ? 0.72 : 0.3, 1.6, -0.12); }; });
     // time trial ghost
     this.ghostRec = []; this.ghostRecLap = []; this.ghost = null;
     if (this.mode === 'timetrial' && SAVE.ghosts[this.def.id]) { this.ghost = { data: SAVE.ghosts[this.def.id], rig: new BikeRig({ ...look, ghost: true, lod: true }) }; makeGhost(this.ghost.rig); this.group.add(this.ghost.rig.root); }
@@ -74,8 +74,8 @@ class Race {
     if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
     for (let i = 0; i < steps; i++) {
-      for (const r of this.riders) if (!r.isPlayer || DEBUG.autopilot) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
-      for (const r of this.riders) { if (r.eliminated) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
+      for (const r of this.riders) if ((!r.isPlayer || DEBUG.autopilot) && !r.cinematic) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
+      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
       this.interactions(h);
     }
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
@@ -92,9 +92,9 @@ class Race {
     const R = this.riders;
     for (const r of R) r.drafting = false;
     for (let i = 0; i < R.length; i++) {
-      const a = R[i]; if (a.eliminated) continue;
+      const a = R[i]; if (a.eliminated || a.cinematic) continue;
       for (let j = i + 1; j < R.length; j++) {
-        const b = R[j]; if (b.eliminated) continue;
+        const b = R[j]; if (b.eliminated || b.cinematic) continue;
         const dd = b.dist - a.dist, dl = b.d - a.d;
         // slipstream: within ~1.5 bike lengths behind, nearly in line
         if (Math.abs(dl) < 0.8) { if (dd > 0.6 && dd < 3.6) a.drafting = true; else if (-dd > 0.6 && -dd < 3.6) b.drafting = true; }
@@ -190,7 +190,10 @@ class Race {
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
-    setTimeout(() => this.game.showResults(this), 3600);
+    // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results
+    const won = this.police ? !this.police.busted : MODES[this.mode].rivals && pos === 1;
+    if (won && this.player.rig.rm && (!DEBUG.autopilot || URLP.get('entry')) && SAVE.settings.entry !== false) this.game.startEntry(this, this.police ? 'BACH GAYA!' : 'FIRST!');
+    else setTimeout(() => this.game.showResults(this), 3600);
   }
   onCrash(r, reason) {
     const R = this; if (r.isPlayer || this.distToPlayer(r) > 0.5) this.game.comicPop(r.isPlayer ? 'DHADAAM!' : 'DHADAAM!', r, r.isPlayer ? 1.25 : 0.9, r.isPlayer ? '#ff6a3d' : null);

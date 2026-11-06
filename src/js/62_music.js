@@ -1,6 +1,7 @@
-// ───────────────────────── MUSIC: original chapri DJ beats, synthesised live (no files) ─────────────────────────
-// Dhol + tabla + four-on-the-floor kick, a tumbi riff and a "been"-style lead in E Phrygian dominant
-// (E F G# A B C D). Menu = laid-back groove; race = full dhinchak that climbs with speed, boost and the final lap.
+// ───────────────────────── MUSIC: original tunes, synthesised live (no files) ─────────────────────────
+// Two styles. South Indian mass (default): parai + thavil koothu groove, a nadaswaram hook, brass and guitar stabs,
+// theatre whistles and crowd "HEY!"s, plus a hero-entry theme for the winner. Dhinchak DJ: dhol + tabla + kick, a tumbi
+// riff and a "been"-style lead in E Phrygian dominant. Menu = laid back; race climbs with speed, boost and the final lap.
 const MUSIC = {
   on: false, mode: 'off', level: 0, step: 0, bar: 0, nextT: 0, timer: null, song: 0,
   init() {
@@ -18,17 +19,22 @@ const MUSIC = {
   setMode(m) {
     if (!this.on || m === this.mode) { this.mode = m; return; }
     const was = this.mode; this.mode = m; this.applyVolume();
-    if (m === 'race' || (m === 'menu' && was === 'off')) { this.step = 0; this.bar = 0; this.nextT = this.c.currentTime + 0.08; this.song = (this.song + 1) % SONGS.length; }
+    if (m === 'race' || m === 'entry' || (m === 'menu' && was === 'off')) { this.step = 0; this.bar = 0; this.ebar = 0; this.nextT = this.c.currentTime + 0.08; this.song = (this.song + 1) % 6; }
     this.tone.frequency.setTargetAtTime(m === 'pause' ? 700 : 18000, this.c.currentTime, 0.15);
   },
   // 0 = countdown build, 1 = racing, 2 = boost / final lap (everything in)
   setLevel(l) { this.level = l; },
-  get bpm() { return this.mode === 'race' ? 128 : 98; },
+  get bpm() { return this.mode === 'entry' ? 146 : this.mass ? (this.mode === 'race' ? 152 : 112) : this.mode === 'race' ? 128 : 98; },
+  // South Indian mass style (default) or the original dhinchak set; 'entry' is the winner's hero-entry theme
+  get mass() { return (SAVE.settings.musicStyle || 'mass') === 'mass'; },
   tick() {
     if (!this.on || this.mode === 'off' || document.hidden) return;
     const c = this.c; if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
     const sixteenth = 60 / this.bpm / 4; this.dly.delayTime.setTargetAtTime(sixteenth * 3, c.currentTime, 0.05);
-    while (this.nextT < c.currentTime + 0.12) { this.playStep(this.nextT, this.step, this.bar); this.nextT += sixteenth * (this.step % 2 ? 0.92 : 1.08); this.step++; if (this.step === 16) { this.step = 0; this.bar = (this.bar + 1) % 8; } }
+    const swing = this.mass || this.mode === 'entry' ? 0.03 : 0.08;
+    while (this.nextT < c.currentTime + 0.12) {
+      if (this.mode === 'entry') this.playEntry(this.nextT, this.step, this.ebar); else if (this.mass) this.playMass(this.nextT, this.step, this.bar); else this.playStep(this.nextT, this.step, this.bar);
+      this.nextT += sixteenth * (this.step % 2 ? 1 - swing : 1 + swing); this.step++; if (this.step === 16) { this.step = 0; this.bar = (this.bar + 1) % 8; this.ebar = this.ebar >= 13 ? 6 : this.ebar + 1; } }
   },
   playStep(t, s, bar) {
     const S = SONGS[this.song % SONGS.length], race = this.mode === 'race', L = race ? this.level : 0.6, root = S.roots[bar];
@@ -75,8 +81,73 @@ const MUSIC = {
     o.type = 'sawtooth'; o.frequency.value = f; lfo.frequency.value = 6.5; lg.gain.value = f * 0.012; lfo.connect(lg); lg.connect(o.frequency);
     bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 2.5; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.03); g.gain.setValueAtTime(v, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(bp); bp.connect(g); g.connect(this.bus); g.connect(this.dly); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); },
+  // ── South Indian mass: parai/thappu + thavil koothu groove, nadaswaram hook, brass + guitar stabs, whistles, crowd "HEY!" ──
+  playMass(t, s, bar) {
+    const S = MASS[this.song % MASS.length], race = this.mode === 'race', L = race ? this.level : 0.7, root = S.root + S.roots[bar], st = 60 / this.bpm / 4;
+    if (L <= 0) {   // countdown: urumi growl, thavil ticks, a drone; tension, no groove yet
+      if (s === 0 && bar % 2 === 0) this.urumi(t, 0.5, st * 14); if (s % 4 === 0) this.thavil(t, 'ta', 0.22 + (s === 12 ? 0.15 : 0)); if (s === 0) this.drone(t, noteHz(root - 12), st * 16, 0.06); return; }
+    if (S.parai[s] === 2) this.parai(t, 'dhum', race ? 0.8 : 0.55); else if (S.parai[s] === 1) this.parai(t, 'ta', race ? 0.5 : 0.35);
+    if (S.thavil[s]) this.thavil(t, S.thavil[s] === 2 ? 'dhi' : 'ta', race ? 0.42 : 0.3);
+    if (race && L >= 1 && s % 4 === 0) this.kick(t, 0.85);
+    if (race && L >= 1 && (s === 4 || s === 12)) this.clap(t, 0.5);
+    if (race && L >= 2 && s % 2 === 1) this.hat(t, 0.13);
+    if (S.bass[s]) this.bass(t, noteHz(root - 12 + S.bass[s] - 1), race ? 0.5 : 0.36, 0.14);
+    // the hook: nadaswaram on bars 1-4 and 5-8 (every other phrase when not flying), brass doubling it when flying
+    const half = bar >= 4 ? 1 : 0, ph = S.hook[(bar % 4)] || [], hookOn = race ? (L >= 2 || bar % 8 < 4) : bar % 8 >= 4;
+    const n = ph[s]; if (hookOn && n !== undefined && n !== null && n !== '-') { let k = s + 1; while (k < 16 && ph[k] === '-') k++; const dur = (k - s) * st;
+      this.nadaswaram(t, noteHz(S.root + 12 + n + (half && S.lift ? S.lift : 0)), dur, race ? 0.13 : 0.1); if (race && L >= 2) this.brass(t, [noteHz(S.root + n + (half ? S.lift : 0))], Math.min(dur, st * 1.5), 0.05); }
+    // stabs: the "da-da-da" chord hits
+    if (race && S.stab[s] && L >= 1) { const f = noteHz(root); this.brass(t, [f, f * 1.5, f * 2], st * 0.9, 0.06); this.guitar(t, f / 2, st * 0.9, 0.05); }
+    if (race && L >= 2 && s % 2 === 0 && !S.stab[s]) this.guitar(t, noteHz(root - 12), st * 0.6, 0.025);   // palm-muted chug under it
+    // whistles + crowd shouts when it's flying; a thavil roll into every 4th bar
+    if (race && L >= 1 && bar % 4 === 0 && s === 0) this.whistle(t, 0.09);
+    if (race && L >= 2 && (bar === 3 || bar === 7) && (s === 12 || s === 14)) this.hey(t, 0.32);
+    if (bar % 4 === 3 && s >= 12) { this.thavil(t, 'ta', 0.32 + (s - 12) * 0.05); this.thavil(t + st / 2, 'ta', 0.28); }
+    if (race && L >= 1 && bar === 0 && s === 0) this.crash(t, 0.16);
+  },
+  // the winner's entry: big drum hits and a whistle, the nadaswaram call, a thavil roll + "HEY!", then the full hook on loop
+  playEntry(t, s, b) {
+    const S = MASS[0], root = S.root, st = 60 / this.bpm / 4;
+    if (b < 2) { if (s === 0 || s === 10) this.boom(t, 1); if (b === 0 && s === 4) this.whistle(t, 0.14); if (s === 8 && b === 1) this.whistle(t, 0.1);
+      if (b === 1 && s === 0) this.nadaswaram(t, noteHz(root + 12), st * 6, 0.16, noteHz(root + 19)); if (b === 0 && s === 0) this.urumi(t, 0.6, st * 12); return; }
+    if (b < 4) { this.thavil(t, s % 4 === 0 ? 'dhi' : 'ta', 0.2 + (b - 2) * 0.12 + s * 0.012); if (s % 4 === 0) this.parai(t, 'dhum', 0.7); if (b === 3 && (s === 12 || s === 14)) this.hey(t, 0.42); if (b === 3 && s === 0) this.riser(1.6); return; }
+    this.level = 2; const save = this.mode; this.mode = 'race'; this.playMass(t, s, (b - 4) % 8); this.mode = save;
+    if ((b - 4) % 2 === 1 && (s === 12 || s === 14)) this.hey(t, 0.36); if (s === 0 && (b - 4) % 4 === 0) this.whistle(t, 0.1);
+  },
+  parai(t, k, v) { if (k === 'dhum') { this.osc('sine', 120, t, 0.24, v, null, 62); this.nz(t, 0.05, 420, 1.1, v * 0.55); } else { this.nz(t, 0.05, 1900, 1.3, v * 0.9); this.osc('triangle', 330, t, 0.04, v * 0.3); } },
+  thavil(t, k, v) { if (k === 'dhi') { this.osc('sine', 190, t, 0.2, v * 1.1, null, 150); this.nz(t, 0.04, 900, 2, v * 0.4); } else { this.osc('sine', 520, t, 0.06, v * 0.7, null, 380); this.nz(t, 0.025, 3600, 3, v * 0.6); } },
+  boom(t, v) { this.osc('sine', 72, t, 1.1, v, null, 38); this.osc('sine', 110, t, 0.5, v * 0.5, null, 55); this.nz(t, 0.3, 300, 0.7, v * 0.45, 'lowpass'); this.nz(t, 1.4, 5200, 0.4, v * 0.12, 'highpass'); },
+  urumi(t, v, dur) { // friction drum: a growling, bending low voice
+    const c = this.c, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(85, t); o.frequency.linearRampToValueAtTime(150, t + dur * 0.45); o.frequency.linearRampToValueAtTime(95, t + dur); lfo.frequency.value = 11; lg.gain.value = 9; lfo.connect(lg); lg.connect(o.frequency);
+    lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 4; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v * 0.5, t + 0.08); g.gain.setValueAtTime(v * 0.5, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); },
+  drone(t, f, dur, v) { for (const m of [1, 1.5, 2]) { const c = this.c, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f * m; lp.type = 'lowpass'; lp.frequency.value = 700; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v / m, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); o.stop(t + dur + 0.05); } },
+  nadaswaram(t, f, dur, v, fTo) { // loud double reed: bright saw + square through two nasal formants, a scooped attack (gamaka) and wide vibrato
+    const c = this.c, o = c.createOscillator(), o2 = c.createOscillator(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), sh = this._shaper || (this._shaper = (() => { const w = c.createWaveShaper(), cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 256 - 1; cv[i] = Math.tanh(x * 2.2); } w.curve = cv; return w; })());
+    o.type = 'sawtooth'; o2.type = 'square'; o.frequency.setValueAtTime(f * 0.94, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05); if (fTo) o.frequency.exponentialRampToValueAtTime(fTo, t + dur * 0.8);
+    o2.frequency.setValueAtTime(f * 0.94, t); o2.frequency.exponentialRampToValueAtTime(f, t + 0.05); if (fTo) o2.frequency.exponentialRampToValueAtTime(fTo, t + dur * 0.8);
+    lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.018, t + Math.min(0.25, dur * 0.6)); lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    f1.type = 'bandpass'; f1.frequency.value = 1150; f1.Q.value = 2.2; f2.type = 'peaking'; f2.frequency.value = 2600; f2.gain.value = 9; f2.Q.value = 1.5;
+    const pre = c.createGain(); pre.gain.value = 0.6; o.connect(pre); o2.connect(pre); pre.connect(f1); f1.connect(f2); f2.connect(g);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.025); g.gain.setValueAtTime(v, t + Math.max(0.03, dur - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.03);
+    g.connect(this.bus); g.connect(this.dly); o.start(t); o2.start(t); lfo.start(t); o.stop(t + dur + 0.08); o2.stop(t + dur + 0.08); lfo.stop(t + dur + 0.08); },
+  brass(t, fs, dur, v) { const c = this.c; for (const f of fs) for (const dt of [-6, 6]) { const o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = dt;
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t); lp.frequency.exponentialRampToValueAtTime(3200, t + 0.03); lp.frequency.exponentialRampToValueAtTime(900, t + dur); this.env(g, t, 0.01, v, dur); o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); o.stop(t + dur + 0.05); } },
+  guitar(t, f, dur, v) { const c = this.c, o = c.createOscillator(), o2 = c.createOscillator(), w = this._gshape || (this._gshape = (() => { const ws = c.createWaveShaper(), cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 256 - 1; cv[i] = Math.tanh(x * 6); } ws.curve = cv; return ws; })()), lp = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sawtooth'; o2.type = 'sawtooth'; o.frequency.value = f; o2.frequency.value = f * 1.498; const pre = c.createGain(); pre.gain.value = 0.5; o.connect(pre); o2.connect(pre);
+    const sh = c.createWaveShaper(); sh.curve = w.curve; pre.connect(sh); lp.type = 'lowpass'; lp.frequency.value = 2400; sh.connect(lp); lp.connect(g); this.env(g, t, 0.004, v, dur); g.connect(this.bus); o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05); },
+  whistle(t, v) { // a two-finger theatre whistle: up, hold, swoop down
+    const c = this.c, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(1900, t); o.frequency.exponentialRampToValueAtTime(3100, t + 0.09); o.frequency.setValueAtTime(3100, t + 0.32); o.frequency.exponentialRampToValueAtTime(2200, t + 0.5);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.04); g.gain.setValueAtTime(v, t + 0.38); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); o.connect(g); g.connect(this.bus); o.start(t); o.stop(t + 0.6);
+    this.nz(t, 0.5, 3000, 4, v * 0.15); },
+  hey(t, v) { // a crowd shouting "HEY!": detuned voices through an "e" vowel, with a breathy "h"
+    const c = this.c; this.nz(t, 0.06, 1800, 0.8, v * 0.35, 'highpass');
+    for (let i = 0; i < 6; i++) { const f = 150 + Math.random() * 90, o = c.createOscillator(), a = c.createBiquadFilter(), b = c.createBiquadFilter(), g = c.createGain(), tt = t + 0.02 + Math.random() * 0.03;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.12, tt); o.frequency.exponentialRampToValueAtTime(f * 0.88, tt + 0.22); a.type = 'bandpass'; a.frequency.value = 560; a.Q.value = 5; b.type = 'bandpass'; b.frequency.value = 1900; b.Q.value = 7;
+      const mix = c.createGain(); mix.gain.value = 1; o.connect(a); o.connect(b); a.connect(mix); b.connect(mix); mix.connect(g); this.env(g, tt, 0.02, v * 0.5, 0.2); g.connect(this.bus); o.start(tt); o.stop(tt + 0.3); } },
   // stingers
-  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01; for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
+  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01; if (this.mass) { const f = noteHz(50); this.brass(t, [f, f * 1.5, f * 2], 0.3, 0.09); this.whistle(t + 0.05, 0.08); return; } for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
   riser(dur = 1.6) { if (!this.on) return; const c = this.c, t = c.currentTime, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s.buffer = AUDIO.noiseBuf; fl.type = 'bandpass'; fl.Q.value = 3;
     fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(6000, t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.1);
     s.connect(fl); fl.connect(g); g.connect(this.bus); s.start(t); s.stop(t + dur + 0.2); },
@@ -97,4 +168,24 @@ const SONGS = [
     dhol: [2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 1, 1], tabla: [0, 'na', 0, 'ge', 0, 'na', 'na', 0, 0, 'na', 0, 'ge', 0, 'na', 0, 'na'],
     bass: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 4, 0, 0, 1], roots: [40, 41, 40, 38, 40, 41, 43, 40],
     riff: [0, 4, 7, 8, 7, 4, null, 8, 12, null, 8, 7, 4, null, 1, 0], lead: [12, null, null, 13, 12, 10, null, 8, 7, null, 8, 10, 12, null, null, null], lift: 7 },
+];
+// Mass songs: 16 steps per bar. parai: 2 = dhum (low), 1 = ta (slap) in a 3-3-2 koothu feel. thavil: 1 = ta, 2 = dhi.
+// hook: 4 bars of nadaswaram (semitones above root; '-' holds, null rests), heroic repeated notes. stab: chord hits.
+// Scale: Mayamalavagowla-style double-harmonic (0 1 4 5 7 8 11). All tunes here are original.
+const MASS = [
+  { name: 'Gethu Entry', root: 50, roots: [0, 0, 0, 0, 5, 5, 7, 0], lift: 0,
+    parai: [2, 0, 0, 2, 0, 0, 2, 0, 1, 0, 1, 2, 0, 0, 1, 1], thavil: [0, 1, 0, 1, 2, 0, 1, 0, 0, 1, 0, 1, 2, 0, 1, 1],
+    bass: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 8, 0], stab: [1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    hook: [[0, 0, 0, null, 0, 0, 0, null, 4, '-', 5, '-', 7, '-', '-', '-'], [8, '-', 7, '-', 5, '-', 4, '-', 5, 4, 1, '-', 0, '-', '-', null],
+      [7, 7, 7, null, 7, 7, 7, null, 8, '-', 11, '-', 12, '-', '-', '-'], [13, '-', 12, '-', 11, '-', 8, '-', 7, '-', 8, 7, 4, '-', 0, null]] },
+  { name: 'Kuthu Kalakki', root: 45, roots: [0, 0, 5, 5, 0, 0, 7, 7], lift: 5,
+    parai: [2, 0, 1, 2, 0, 1, 2, 0, 2, 0, 1, 2, 0, 1, 2, 1], thavil: [1, 1, 0, 1, 2, 0, 1, 1, 0, 1, 1, 0, 2, 1, 0, 1],
+    bass: [1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 5, 0, 0], stab: [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+    hook: [[12, '-', 11, 12, '-', 8, 7, '-', 8, '-', 7, 5, 4, '-', '-', null], [5, 5, 5, null, 7, 7, 7, null, 8, 7, 5, 4, 1, '-', 0, null],
+      [12, '-', 13, 12, '-', 11, 12, '-', 16, '-', 13, 12, 11, '-', '-', null], [8, 8, 8, null, 7, 7, 7, null, 5, 4, 1, '-', 0, '-', '-', null]] },
+  { name: 'Thara Local', root: 52, roots: [0, 0, 1, 1, 0, 0, 5, 7], lift: 7,
+    parai: [2, 0, 0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 1, 0], thavil: [0, 1, 1, 0, 2, 0, 0, 1, 1, 0, 1, 0, 2, 1, 1, 1],
+    bass: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 4, 0, 0, 1], stab: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+    hook: [[0, '-', 1, '-', 4, '-', 5, '-', 7, 7, 7, null, 7, 8, 7, null], [5, '-', 4, '-', 5, 7, 5, 4, 1, '-', '-', '-', 0, '-', '-', null],
+      [7, '-', 8, '-', 11, '-', 12, '-', 12, 12, 12, null, 12, 13, 12, null], [11, '-', 8, '-', 7, 8, 7, 5, 4, '-', 1, '-', 0, '-', '-', null]] },
 ];

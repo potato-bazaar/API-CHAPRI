@@ -39,6 +39,13 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - planar wet-road reflections and glow on lamps and neon (Medium and High quality);
   - the comic-book post effect: ink outlines, halftone and pop-up sound words;
   - time-of-day moods.
+- **Ride feel.**
+  - Road-relative steering assist: left/right sets where the bike points off the road, and it follows the curve when you let go. It can be turned off in Settings.
+  - Walls are glancing hits with sparks, bikes lean on each other instead of sticking, and breakers become small hops at speed.
+  - A spring-rigged chase camera that swings into turns, slides on lane changes and dips on landings and gear shifts.
+  - Motion-blurred wheels, monsoon tyre spray, wind-blown drops on the lens, and tyre scrub / squeal / wet-hiss sounds.
+- **Rider swagger.** On calm straights the rider smokes, combs his pompadour, twirls his moustache, dips his shades, scratches his head or throws a two-finger salute. He looks back after overtakes, and shakes a fist at whoever hits him. The Rider smokes switch in Settings turns smoking off.
+- **Winner's entry.** Win a race (or escape the police) and the bike power-slides to the kerb in slow motion. The rider kills the engine, swings off, lights up behind a cupped hand and walks at the camera while FIRST! slams in. Tap to skip.
 - **Riders.** Skinned riders with IK posing and a verlet-cloth open shirt over a baniyan. The default rider has an athletic build, a sculpted brown pompadour, gold aviators, stubble, gold chains and a watch, and a tropical hibiscus shirt. Hair moves in the wind. The home screen uses studio rim lights, and the profile picture is a live portrait of your rider.
 - **Boost.** A "⚡ BOOST!" banner, an electric-blue speedometer with a BOOST bar, blue exhaust jets, neon speed lines and radial blur.
 - **Garage.** Builds, performance upgrades, 18 paints, and visual mods:
@@ -46,7 +53,10 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - Mota or racing tyres;
   - crash guard with fog lamps, café cowl, or the full bulky kit;
   - gloss, matte, metal-flake or chrome finish.
-- **Music.** Original procedural chapri music (Web Audio), with the beat level following the race.
+- **Music.** Original music generated live with Web Audio, in two styles you pick in Settings:
+  - South mass (default): parai and thavil koothu grooves, a nadaswaram hook, brass and guitar stabs, theatre whistles and crowd "HEY!"s, plus a hero-entry theme for the winner.
+  - Dhinchak DJ: dhol, tabla and a tumbi riff.
+  The intensity follows the race.
 
 ![Police Express+](docs/police-express.jpg)
 
@@ -64,6 +74,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | `?rider=basic` | Built-in primitive rider instead of the GLB |
 | `?autopilot&track=dharavi-lanes&weather=monsoon&time=night&laps=1` | Watch an AI-driven race |
 | `?autopilot&mode=police&nobust` | Watch a Police Express+ run that can't end in an arrest |
+| `?autopilot&entry=1` | Let an autopilot win play the winner's entry |
 
 ## Build
 
@@ -84,8 +95,8 @@ npm run build        # src/ + assets/*.glb  ->  dist/chapri-racer.html
 | `18_batch`, `20_world`, `21_stage` | Batched city geometry: roads, buildings, halls, rooftops, railway, sky, lighting, moods; stage pieces (staircase, nala, nakabandi, festive lights) |
 | `28_bikemodel`, `30_bike`, `32_bikemods` | Bike GLB loading, paint and finishes, rig, visual mods |
 | `29_ridermodel`, `31_cloth`, `40_rider` | Skinned rider and IK, shirt cloth, rider physics and AI |
-| `45_race`, `46_police`, `50_combat` | Race flow, scoring, coins; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); weapons, particles |
-| `55_speedfx`, `56_reflect`, `57_comic` | Speed lines and lens rain; wet-road mirror; glow and comic post pass |
+| `45_race`, `46_police`, `50_combat` | Race flow, scoring, coins, style-move scheduling; stage runtime (barricades, dogs, water) and Police Express+ (cops, busted meter, riflemen); weapons, particles, tyre spray |
+| `55_speedfx`, `56_reflect`, `57_comic`, `58_entry` | Speed lines and lens rain; wet-road mirror; glow and comic post pass; the winner's entry cutscene |
 | `60_audio`, `62_music` | Engine and SFX synthesis; procedural music |
 | `70_hud`, `80_ui`, `85_input`, `90_main` | HUD, menus, garage, input, game loop and camera |
 

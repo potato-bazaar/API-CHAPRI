@@ -49,7 +49,7 @@ const WEAPONS = {
   bottle: { uses: 1, slot: 'throw' },
   gutka: { uses: 3, slot: 'throw' },
 };
-const C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
+const C_EXHALE = col('#bcc3d2'), C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
 
 class Combat {
   constructor(race) {

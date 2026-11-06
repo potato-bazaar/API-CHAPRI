@@ -426,6 +426,23 @@ kbd { font-family: var(--f-num); }
 .city.rain-tog.on { background: linear-gradient(180deg, #3f6fd8, #2a4fb0); box-shadow: inset 0 0 0 2px #9cc2ff, 0 0 16px rgba(63, 140, 255, .8); }
 /* profile avatar: a live portrait of your rider */
 .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* ── winner's entry: letterbox bars, a title that slams in, a skip hint ── */
+.entry { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+.entry-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.entry-bar.top { top: 0; transform: translateY(-100%); } .entry-bar.bot { bottom: 0; transform: translateY(100%); }
+.entry.on .entry-bar { transform: none; }
+.entry-title { position: absolute; left: max(4vw, 16px); top: 24vh; display: flex; flex-direction: column; align-items: flex-start; text-align: left; opacity: 0; transform-origin: 20% 50%; }
+.entry-title .t1 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: clamp(3.2rem, 12vw, 9rem); line-height: .9; color: var(--marigold); letter-spacing: .02em;
+  -webkit-text-stroke: .045em #160a12; paint-order: stroke fill; text-shadow: .06em .06em 0 var(--pink), .11em .11em 0 #160a12, 0 0 .5em rgba(255, 194, 26, .55); rotate: -4deg; }
+.entry-title .t2 { margin-top: .4rem; padding: .15em .7em; background: var(--pink); color: #fff; font-family: var(--f-num); font-weight: 600; font-size: clamp(1.1rem, 3.2vw, 2rem); letter-spacing: .12em; box-shadow: .18em .18em 0 #160a12; rotate: -2deg; }
+.entry.go .entry-title { opacity: 1; animation: entrySlam .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+.entry.go .entry-title .t2 { animation: entrySub .5s .25s both; }
+.entry.out .entry-title, .entry.out .entry-bar { opacity: 0; transition: opacity .45s; }
+.entry-skip { position: absolute; right: 1.2rem; bottom: calc(11vh + .6rem); color: rgba(255, 255, 255, .7); font-family: var(--f-num); font-size: 1.1rem; letter-spacing: .08em; }
+@keyframes entrySlam { 0% { scale: 3.2; opacity: 0; filter: blur(6px); } 60% { scale: .92; opacity: 1; filter: none; } 100% { scale: 1; } }
+@keyframes entrySub { from { opacity: 0; translate: 0 .6em; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .entry.go .entry-title, .entry.go .entry-title .t2 { animation: none; } }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -520,6 +537,13 @@ kbd { font-family: var(--f-num); }
     <div class="store-body" id="storeBody"></div>
     <p class="store-note">Everything here is bought with coins you earn on track. Cosmetics change your look, never your speed.</p>
   </section>
+
+  <!-- WINNER'S ENTRY (letterbox + title over the cutscene) -->
+  <div id="entry" class="entry" hidden aria-live="polite">
+    <div class="entry-bar top"></div><div class="entry-bar bot"></div>
+    <div class="entry-title"><span id="entryTitle" class="t1">FIRST!</span><span id="entrySub" class="t2"></span></div>
+    <span class="entry-skip">Tap to skip ▸</span>
+  </div>
 
   <!-- RACE HUD -->
   <section id="hud" class="screen">
@@ -2764,6 +2788,7 @@ function riderHairMat(color, low) {
 }
 
 // ── small helpers for posing bones in world space ──
+const _AXF = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 const _rq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()], _rv = Array.from({ length: 10 }, () => new THREE.Vector3());
 const _rm0 = new THREE.Matrix4(), _rm1 = new THREE.Matrix4();
 const _ik = Array.from({ length: 14 }, () => new THREE.Vector3()), _pq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
@@ -2853,11 +2878,13 @@ class RiderModel {
   pose(rig, armLT, armRT, crashed) {
     const B = this.b, V = _rv, F = RIDER_FIT, R = this.root;
     for (const [n, q] of this.bind) n.quaternion.copy(q);
-    const ln = rig.leanNow || 0; R.position.y = this.baseY + (rig.riderLag || 0) * 0.8; R.position.x = this.baseX + clamp(ln, -0.9, 0.9) * 0.1;
+    const ln = rig.leanNow || 0, fr = rig.free;   // fr: off the bike (standing / walking): root position + facing in bike space, feet targets
+    if (fr) { R.position.copy(fr.pos); R.rotation.set(0, fr.yaw, 0); }
+    else { R.position.y = this.baseY + (rig.riderLag || 0) * 0.8; R.position.x = this.baseX + clamp(ln, -0.9, 0.9) * 0.1; if (this.baseZ === undefined) this.baseZ = R.position.z; R.position.z = this.baseZ; if (R.rotation.y) R.rotation.set(0, 0, 0); }
     const parent = R.parent, px = R.position.x, py = R.position.y, pz = R.position.z, sc = R.scale.x;
     R.parent = null; R.position.set(0, 0, 0); R.scale.set(1, 1, 1); R.updateMatrixWorld(true);
     const toModel = (v) => v.set((v.x - px) / sc, (v.y - py) / sc, (v.z - pz) / sc);
-    const AX = _AXES, q = _pq[0], qa = _pq[1];
+    const AX = fr ? _AXF.map((a, i) => a.copy(_AXES[i]).applyQuaternion(R.quaternion)) : _AXES, q = _pq[0], qa = _pq[1];   // the rider's own axes
     try {
       const turn = (bone, pitch, roll, yaw) => { q.setFromAxisAngle(AX[0], pitch); if (roll) q.premultiply(qa.setFromAxisAngle(AX[2], roll)); if (yaw) q.premultiply(qa.setFromAxisAngle(AX[1], yaw)); rotBoneWorld(bone, q); };
       // spine: base riding lean + tuck, lean into corners, twist for swings
@@ -2872,6 +2899,11 @@ class RiderModel {
       for (const s of SIDES) {
         const sg = s === 'l' ? 1 : -1, leg = s === 'l' ? rig.legL : rig.legR;
         const hip = wpos(B['thigh_' + s], V[0]);
+        if (fr) {   // standing / walking: feet where the director puts them, knees forward
+          const tgt = toModel(V[1].copy(fr.feet[s])), pole = V[3].copy(hip).addScaledVector(AX[2], 1.2).addScaledVector(AX[0], sg * 0.12).addScaledVector(AX[1], -0.2);
+          this.ik(B['thigh_' + s], B['calf_' + s], B['foot_' + s], tgt, pole, this.ax['leg_' + s]);
+          alignBone(B['foot_' + s], this.ax['foot_' + s].aim, this.ax['foot_' + s].up, _rv[8].copy(_FOOT_AIM).applyQuaternion(R.quaternion), AX[1]); continue;
+        }
         const tgt = toModel(V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
         if (leg.rotation.x || leg.rotation.z) { const d = V[2].subVectors(tgt, hip).applyEuler(leg.rotation); tgt.copy(hip).add(d); }
         const inside = Math.sign(ln) === sg ? Math.min(1, Math.abs(ln) * 1.6) : 0;   // chapri style: knees flung wide, the inside one even more
@@ -2884,7 +2916,7 @@ class RiderModel {
         const sg = s === 'l' ? 1 : -1, t = s === 'l' ? armLT : armRT; const onBars = !crashed && Math.abs(Math.abs(t.x) - MODEL_FIT.grip[0]) < 0.12 && t.y < 1.2;
         const tgt = toModel(V[1].set(t.x + (onBars ? F.wrist[0] : 0), t.y + (onBars ? F.wrist[1] : 0), t.z + (onBars ? F.wrist[2] : 0)));
         const sh = wpos(B['upperarm_' + s], V[0]);
-        const pole = V[3].set(sg * 0.55, -0.5, -0.25).add(sh);
+        const pole = V[3].set(sg * 0.55, -0.5, fr ? -0.4 : -0.25); if (fr) pole.applyQuaternion(R.quaternion); pole.add(sh);
         this.ik(B['upperarm_' + s], B['lowerarm_' + s], B['hand_' + s], tgt, pole, this.ax['arm_' + s]);
         if (onBars) alignBone(B['hand_' + s], this.ax['hand_' + s].aim, this.ax['hand_' + s].palm, _HAND_AIM[s], _HAND_PALM[s]);
       }
@@ -3269,15 +3301,16 @@ class BikeRig {
       if (A.t >= A.dur) { this.anim = null; if (this.cig) this.cig.visible = false; if (this.rm && this.rm.shades) { this.rm.shades.position.y = this.rm.shades.userData.y0; this.rm.shades.rotation.x = 0; }
         if (this.queued) { const [n, sd] = this.queued; this.queued = null; this.play(n, sd, GESTURES[n]); } }
     }
-    if (st.celebrate) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
+    if (st.celebrate && !this.free) { armRTarget = new THREE.Vector3(-0.35, 1.95, 0.0); }
+    if (this.free) { const fr = this.free; this.torsoG.rotation.set(fr.torsoX, fr.torsoY || 0, fr.torsoZ || 0); this.headG.rotation.set(fr.headX || 0, fr.headY || 0, fr.headZ || 0); armLTarget = fr.hands.l; armRTarget = fr.hands.r; }
     if (st.crashed) { this.torsoG.rotation.x = -0.6; armLTarget = new THREE.Vector3(0.6, 1.4, 0.1); armRTarget = new THREE.Vector3(-0.6, 1.4, 0.1); }
     if (this.rm) {
-      this.rm.setWind(st.speed || 0, this.t);
+      const wind = this.free ? this.free.wind || 0 : st.speed || 0; this.rm.setWind(wind, this.t);
       // far-away riders re-pose less often (the bike's lean and pitch still move every frame)
       const cam = typeof GAME !== 'undefined' && GAME && GAME.camera; const far = cam ? cam.position.distanceToSquared(this.root.position) : 0;
       this._poseN = (this._poseN || 0) + 1; const every = far > 3600 ? 4 : far > 625 ? 2 : 1;
       if (this._poseN % every === 0 || this.anim || st.crashed) { this.rm.pose(this, armLTarget, armRTarget, !!st.crashed); this.placeWeapon(); this.placeCig(); }
-      if (far < 4900) this.rm.cloth.step(dt, st.speed || 0, far > 900);
+      if (far < 4900) this.rm.cloth.step(dt, wind, far > 900);
       return;
     }
     this.weapon.rotation.x = this.wPitch;
@@ -3856,7 +3889,7 @@ class Race {
     const pv = new THREE.Vector3();
     this.riders.forEach(r => { r.swagT = (r.isPlayer ? 5 : 9) + RNG() * 8; r.rig.onPuff = (mark, k) => { if (!r.isPlayer && this.distToPlayer(r) < 0.2) return; mark.getWorldPosition(pv); const yaw = r.rig.root.rotation.y;
       const out = k >= 1 ? 1.1 + Math.random() * 0.6 : 0.1, rx = -Math.cos(yaw), rz = Math.sin(yaw), keep = k >= 1 ? 0.9 : 0.85;   // exhale: blown out to his right, then it streams back
-      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.14 : 0.05, k >= 1 ? 0.95 + Math.random() * 0.4 : 0.35, C_SMOKE, k >= 1 ? 0.5 : 0.3, 1.6, -0.12); }; });
+      this.combat.smoke.emit(pv.x, pv.y, pv.z, Math.sin(yaw) * r.v * keep + rx * out + (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.3, Math.cos(yaw) * r.v * keep + rz * out + (Math.random() - 0.5) * 0.3, 0.9 + Math.random() * 0.5, k >= 1 ? 0.2 : 0.05, k >= 1 ? 1.3 + Math.random() * 0.5 : 0.35, k >= 1 ? C_EXHALE : C_SMOKE, k >= 1 ? 0.72 : 0.3, 1.6, -0.12); }; });
     // time trial ghost
     this.ghostRec = []; this.ghostRecLap = []; this.ghost = null;
     if (this.mode === 'timetrial' && SAVE.ghosts[this.def.id]) { this.ghost = { data: SAVE.ghosts[this.def.id], rig: new BikeRig({ ...look, ghost: true, lod: true }) }; makeGhost(this.ghost.rig); this.group.add(this.ghost.rig.root); }
@@ -3887,8 +3920,8 @@ class Race {
     if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
     for (let i = 0; i < steps; i++) {
-      for (const r of this.riders) if (!r.isPlayer || DEBUG.autopilot) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
-      for (const r of this.riders) { if (r.eliminated) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
+      for (const r of this.riders) if ((!r.isPlayer || DEBUG.autopilot) && !r.cinematic) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
+      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
       this.interactions(h);
     }
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
@@ -3905,9 +3938,9 @@ class Race {
     const R = this.riders;
     for (const r of R) r.drafting = false;
     for (let i = 0; i < R.length; i++) {
-      const a = R[i]; if (a.eliminated) continue;
+      const a = R[i]; if (a.eliminated || a.cinematic) continue;
       for (let j = i + 1; j < R.length; j++) {
-        const b = R[j]; if (b.eliminated) continue;
+        const b = R[j]; if (b.eliminated || b.cinematic) continue;
         const dd = b.dist - a.dist, dl = b.d - a.d;
         // slipstream: within ~1.5 bike lengths behind, nearly in line
         if (Math.abs(dl) < 0.8) { if (dd > 0.6 && dd < 3.6) a.drafting = true; else if (-dd > 0.6 && -dd < 3.6) b.drafting = true; }
@@ -4003,7 +4036,10 @@ class Race {
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
-    setTimeout(() => this.game.showResults(this), 3600);
+    // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results
+    const won = this.police ? !this.police.busted : MODES[this.mode].rivals && pos === 1;
+    if (won && this.player.rig.rm && (!DEBUG.autopilot || URLP.get('entry')) && SAVE.settings.entry !== false) this.game.startEntry(this, this.police ? 'BACH GAYA!' : 'FIRST!');
+    else setTimeout(() => this.game.showResults(this), 3600);
   }
   onCrash(r, reason) {
     const R = this; if (r.isPlayer || this.distToPlayer(r) > 0.5) this.game.comicPop(r.isPlayer ? 'DHADAAM!' : 'DHADAAM!', r, r.isPlayer ? 1.25 : 0.9, r.isPlayer ? '#ff6a3d' : null);
@@ -4288,7 +4324,7 @@ const WEAPONS = {
   bottle: { uses: 1, slot: 'throw' },
   gutka: { uses: 3, slot: 'throw' },
 };
-const C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
+const C_EXHALE = col('#bcc3d2'), C_STAR = col('#ffd23f'), C_SPIT = col('#8a1a12'), C_GLASS = col('#c8f0ff'), C_SMOKE = col('#d8dce8'), C_DUST = col('#b0a69a'), C_FIRE = col('#ffb347'), C_WATER = col('#cfe0ff'), C_MUD = col('#6b4a2b'), C_MUDW = col('#4a3018'), C_GRIT = col('#5b5650');
 
 class Combat {
   constructor(race) {
@@ -4806,6 +4842,153 @@ const COMIC = {
   },
 };
 
+// ===== 58_entry.js =====
+// ───────────────────────── WINNER'S ENTRY: a mass-hero finish ─────────────────────────
+// Win a race (or get away from the police) and the bike power-slides to a stop at the kerb in slow motion. The rider
+// kills the engine, swings off like a film star, lights a cigarette behind a cupped hand, blows the smoke out and walks
+// at the camera while the title slams in over the entry theme. Tap, click or press any key to skip to the results.
+const _ev = Array.from({ length: 8 }, () => new THREE.Vector3());
+const ENTRY_END = 9.2;
+class HeroEntry {
+  constructor(game, race, title) {
+    this.g = game; this.R = race; this.title = title; const P = this.P = race.player, T = race.track, rig = this.rig = P.rig;
+    this.t = 0; this.ts = 1; this.done = false; this.shot = -1;
+    P.cinematic = true; Object.assign(P.input, { throttle: 0, brake: 0, rear: 0, boost: false, back: false }); P.boosting = false; P.wheelie = false; P.stoppie = false; P.pitch = 0; P.air = false; P.wobble = 0;
+    rig.anim = null; rig.queued = null; if (rig.cig) rig.cig.visible = false;
+    // the skid: carry on along the road, slide to the kerb on the side he's already on, end side-on with the bike's left
+    // (the side-stand side, where he gets off) facing the pavement
+    this.v0 = Math.max(P.v, 9); this.dist0 = P.dist; this.d0 = P.d; this.psi0 = P.psi; this.lean0 = P.lean;
+    this.sg = P.d >= 0 ? 1 : -1; this.dEnd = this.sg * Math.max(0.6, T.wAt(P.s) / 2 - 1.15); this.D = clamp(this.v0 * 0.85, 9, 24);
+    const sEnd = ((this.dist0 + this.D) % T.L + T.L) % T.L, yawR = T.yawAt(sEnd), a = T.pos(sEnd, this.dEnd, _ev[0]).clone(), b = T.pos(sEnd, this.dEnd + this.sg, _ev[1]).clone(), pave = b.sub(a).normalize();
+    const leftOf = (psi) => Math.cos(yawR + psi) * pave.x - Math.sin(yawR + psi) * pave.z;   // body +x in the world, dotted with the pavement direction
+    this.psiEnd = leftOf(1.25) > leftOf(-1.25) ? 1.25 : -1.25;
+    // props: a brass lighter for the left hand
+    const lg = this.lighter = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.04, 0.012), new THREE.MeshStandardMaterial({ color: '#d4a62a', metalness: 1, roughness: 0.25, envMap: BIKE_MODEL.env || null }));
+    this.flame = new THREE.Group(); const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.035, 10, 1, true).translate(0, 0.0175, 0), new THREE.MeshBasicMaterial({ color: '#ffb02e', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })),
+      f2 = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.018, 8, 1, true).translate(0, 0.009, 0), new THREE.MeshBasicMaterial({ color: '#fff4cc', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.flame.add(f1, f2); this.flame.position.y = 0.022; lg.add(body, this.flame); lg.visible = false; rig.body.add(lg); this.disposables = [body.geometry, body.material, f1.geometry, f1.material, f2.geometry, f2.material];
+    this.free = { pos: new THREE.Vector3(), yaw: 0, torsoX: 0.4, headX: 0, headY: 0, feet: { l: new THREE.Vector3(), r: new THREE.Vector3() }, hands: { l: new THREE.Vector3(), r: new THREE.Vector3() }, wind: 0 };
+    // UI: letterbox, title, skip
+    this.el = $('#entry'); this.el.hidden = false; this.el.classList.remove('go', 'out'); void this.el.offsetWidth; this.el.classList.add('on');
+    $('#entryTitle').textContent = title; $('#entrySub').textContent = title === 'FIRST!' ? `PEHLA NUMBER · ${SAVE.name}` : `POLICE KO CHAKMA · ${SAVE.name}`;
+    $('#hud').classList.remove('show'); this.g.fx.clear();
+    this.skip = (e) => { if (this.t > 0.4) this.finish(); };
+    setTimeout(() => { addEventListener('keydown', this.skip); addEventListener('pointerdown', this.skip); }, 50);
+    MUSIC.setMode('entry'); AUDIO.squeal && AUDIO.squeal(1.2);
+    this.g.comicPop('SKRRRRT!', P, 1.2, '#ffd23f');
+  }
+  // seated reference pose (bike-body space), read once the rig has posed at least once
+  seat() {
+    const rm = this.rig.rm, G = this.rig.fit.grip, F = RIDER_FIT;
+    return { pos: _ev[2].set(rm.baseX, rm.baseY, rm.baseZ ?? rm.root.position.z), feetL: _ev[3].set(F.ankle[0], F.ankle[1], F.ankle[2]), feetR: _ev[4].set(-F.ankle[0], F.ankle[1], F.ankle[2]), gripL: _ev[5].set(G[0], G[1], G[2]), gripR: _ev[6].set(-G[0], G[1], G[2]) };
+  }
+  // the director: dt is real time; the world (and the story) run at this.ts
+  update(dt) {
+    if (this.done) return; const P = this.P, R = this.R, T = R.track, rig = this.rig; this.t += dt * this.ts; const t = this.t;
+    // slow motion through the heart of the slide, and for the exhale
+    this.ts = t < 0.25 ? lerp(1, 0.4, t / 0.25) : t < 1.35 ? 0.4 : t < 1.7 ? lerp(0.4, 1, (t - 1.35) / 0.35) : t > 4.45 && t < 4.95 ? 0.55 : 1;
+    // ── 1. the slide (0 – 1.9 s) ──
+    if (t < 1.9) {
+      const u = clamp(t / 1.75, 0, 1), p = 1 - (1 - u) * (1 - u), turn = u * u * (3 - 2 * u);
+      P.dist = this.dist0 + this.D * p; P.s = ((P.dist % T.L) + T.L) % T.L; P.d = lerp(this.d0, this.dEnd, p); P.psi = lerp(this.psi0, this.psiEnd, turn);
+      P.v = this.v0 * (1 - u) * (1 - u * 0.3); P.lean = lerp(this.lean0 * (1 - u), Math.sign(this.psiEnd) * 0.55, Math.sin(Math.PI * u) * 0.9); P.sliding = u < 0.85 && P.v > 2;
+      P.rpm = lerp(P.rpm, 2200, Math.min(1, dt * 3)); P.y = T.gy(P.s, P.d); P.slide = 0;
+      if (Math.random() < 0.6 && P.v > 3) R.combat.sparks.emit(...this.wpos(-0.2, 0.05, -0.62, 0), (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 0.25, 0.1, 0.04, C_FIRE, 1, 1.5, 9);
+    } else { P.v = 0; P.sliding = false; P.lean = smooth(P.lean, 0.06, 4, dt); P.rpm = smooth(P.rpm, 1500, 4, dt); }
+    if (t > 2.0 && !P.engineOff) { P.engineOff = true; AUDIO.tone('square', 90, 40, 0.18, 0.12); }   // key off
+    // ── 2. off the bike, 3. light up, 4. the walk ──
+    if (t > 1.95) { if (!rig.free) rig.free = this.free; this.pose(t, dt); }
+    // keep riders and cops from driving through the shot
+    const me = rig.root.position; for (const r of R.riders) if (r !== P && !r.eliminated) { const q = r.rig.root.position; if (Math.hypot(q.x - me.x, q.z - me.z) < 11) r.rig.root.visible = false; }
+    this.camera(t, dt);
+    if (t > 4.5 && !this.titled) { this.titled = true; this.el.classList.add('go'); MUSIC.hey && MUSIC.on && MUSIC.hey(MUSIC.c.currentTime + 0.02, 0.45); MUSIC.whistle && MUSIC.on && MUSIC.whistle(MUSIC.c.currentTime + 0.1, 0.12); }
+    if (t > ENTRY_END - 0.5) this.el.classList.add('out');
+    if (t > ENTRY_END) this.finish();
+  }
+  // world position of a bike-body-space point
+  wpos(x, y, z, k) { const v = _ev[7 - (k || 0)].set(x, y, z); this.rig.root.updateMatrixWorld(true); this.rig.body.localToWorld(v); return [v.x, v.y, v.z]; }
+  pose(t, dt) {
+    const fr = this.free, rig = this.rig, S = this.seat(), F = RIDER_FIT, face = rig.rm.face;
+    const ss = (a, b) => _ss(a, b, t), L = (a, b, k) => a.clone().lerp(b, k);
+    // where he'll stand and which way he'll face: the pavement side, looking up the road (body space)
+    if (!this.spot) { rig.root.updateMatrixWorld(true); const T = this.R.track, sNow = this.P.s, fw = T.pos(sNow + 1, this.P.d + this.sg * 0.0, _ev[0]).clone().sub(T.pos(sNow, this.P.d, _ev[1])).normalize();
+      const o = rig.body.worldToLocal(rig.root.position.clone()), w = rig.body.worldToLocal(rig.root.position.clone().add(fw)); const dir = w.sub(o); dir.y = 0; dir.normalize();
+      this.walkDir = dir; this.faceYaw = Math.atan2(dir.x, dir.z); this.spot = new THREE.Vector3(0.6, 0, -0.12); this.walk0 = 5.0; }
+    const yawW = this.faceYaw, lat = (y) => _ev[0].set(Math.cos(y), 0, -Math.sin(y)), fwd = (y) => _ev[1].set(Math.sin(y), 0, Math.cos(y));
+    const upright = -F.baseLean + 0.05, ankle = 0.08;
+    let pos, yaw, fl, fR, hl, hr, torsoX, headX = 0, headY = 0, torsoY = 0, wind = 1.5;
+    if (t < 3.35) {   // ── dismount: weight left, right leg high over the seat, step down, stand and turn ──
+      const u = (t - 1.95) / 1.4;
+      const k1 = _ss(0, 0.25, u), k2 = _ss(0.25, 0.55, u), k3 = _ss(0.55, 0.8, u), k4 = _ss(0.8, 1, u);
+      const p0 = S.pos.clone(), p1 = p0.clone().add(_ev[0].set(0.12, 0.02, 0)), p2 = p0.clone().add(_ev[0].set(0.3, 0.1, -0.05)), p3 = new THREE.Vector3(0.55, 0.0, -0.17), p4 = this.spot.clone();
+      pos = p0.lerp(p1, k1).lerp(p2, k2).lerp(p3, k3).lerp(p4, k4);
+      yaw = lerp(0.5 * k2, yawW, k3 * 0.7 + k4 * 0.3);
+      const gL = new THREE.Vector3(0.36, ankle, -0.15), feetDone = (pp, y) => [pp.clone().addScaledVector(lat(y), 0.12).addScaledVector(fwd(y), 0.02).setY(ankle), pp.clone().addScaledVector(lat(y), -0.12).addScaledVector(fwd(y), -0.03).setY(ankle)];
+      const [eL, eR] = feetDone(this.spot, yawW);
+      fl = S.feetL.clone().lerp(gL, k1).lerp(eL, k4);
+      const over = new THREE.Vector3(0.02, 1.08, -0.52), down = new THREE.Vector3(0.52, ankle, -0.32);
+      fR = S.feetR.clone().lerp(over, k2).lerp(down, k3).lerp(eR, k4); if (k2 > 0 && k3 < 1) fR.y += Math.sin(Math.PI * k2) * 0.15;
+      hl = S.gripL.clone(); hr = S.gripR.clone(); const side = (y, sx) => pos.clone().addScaledVector(lat(y), sx * 0.27).addScaledVector(fwd(y), 0.05).setY(0.88);
+      hr = hr.lerp(side(yaw, -1), k3); hl = hl.lerp(side(yaw, 1), k4);
+      torsoX = lerp(rig.tuck || 0.4, upright + 0.12, k2) + (upright - (upright + 0.12)) * k4; headX = 0.3 * k4; headY = -0.3 * k2 * (1 - k4);
+    } else if (t < this.walk0) {   // ── light up: cigarette to the lips, cupped lighter, head down to the flame, then blow it out to the side ──
+      pos = this.spot.clone(); yaw = yawW; [fl, fR] = [pos.clone().addScaledVector(lat(yaw), 0.13).addScaledVector(fwd(yaw), 0.04).setY(ankle), pos.clone().addScaledVector(lat(yaw), -0.12).addScaledVector(fwd(yaw), -0.05).setY(ankle)];
+      const lip = face.mouth.clone().addScaledVector(fwd(yaw), 0.03).add(_ev[2].set(0, -0.055, 0)).addScaledVector(lat(yaw), -0.035);
+      const cup = face.mouth.clone().addScaledVector(fwd(yaw), 0.07).add(_ev[2].set(0, -0.085, 0)).addScaledVector(lat(yaw), 0.02);
+      const sideR = pos.clone().addScaledVector(lat(yaw), -0.32).addScaledVector(fwd(yaw), 0.1).setY(0.86), sideL = pos.clone().addScaledVector(lat(yaw), 0.26).addScaledVector(fwd(yaw), 0.02).setY(0.86);
+      const up = ss(3.35, 3.6), lit = ss(3.6, 3.7) * (1 - ss(4.25, 4.35)), away = ss(4.3, 4.55), drop = ss(4.6, 4.9);
+      hr = sideR.clone().lerp(lip, up * (1 - drop)); hl = sideL.clone().lerp(cup, up * (1 - away));
+      headX = 0.3 + 0.16 * up * (1 - away) - 0.32 * ss(4.4, 4.55) * (1 - ss(4.85, 5.0)); headY = -0.35 * ss(4.45, 4.6) * (1 - ss(4.85, 5.0)); torsoX = upright;
+      this.lighter.visible = up > 0.6 && away < 0.7; this.flame.visible = lit > 0.5; this.flame.scale.setScalar(0.8 + Math.random() * 0.4);
+      if (rig.cig) { rig.cig.visible = t > 3.45; rig.cig.children[0].material.color.setRGB(1, lit > 0.5 ? 0.75 : 0.35, 0.1); }
+      if (t > 4.45 && t < 4.85 && rig.onPuff) for (let i = 0; i < 2; i++) rig.onPuff(rig.rm.marks.mouth, 1.6);
+    } else {   // ── the walk: slow and wide, right hand down with the smoke, left arm swinging, eyes on the lens ──
+      const tw = t - this.walk0, v = 0.85, dist = v * tw, ph = dist / 0.21;
+      pos = this.spot.clone().addScaledVector(this.walkDir, dist); yaw = yawW; const LA = lat(yaw).clone(), FW = fwd(yaw).clone();
+      pos.addScaledVector(LA, Math.sin(ph) * 0.03); pos.y = 0.012 * Math.cos(ph * 2);
+      const foot = (sx, phi) => this.spot.clone().addScaledVector(this.walkDir, dist).addScaledVector(LA, sx * 0.13).addScaledVector(FW, Math.sin(phi) * 0.21).setY(ankle + Math.max(0, Math.cos(phi)) * 0.09);
+      fl = foot(1, ph); fR = foot(-1, ph + Math.PI);
+      hl = pos.clone().addScaledVector(LA, 0.27).addScaledVector(FW, -0.14 * Math.sin(ph)).setY(0.86 + 0.03 * Math.abs(Math.cos(ph)));
+      hr = pos.clone().addScaledVector(LA, -0.33).addScaledVector(FW, 0.1).setY(0.84);
+      torsoX = upright - 0.04; torsoY = 0.12 * Math.sin(ph); headX = 0.28; headY = -torsoY * 0.8; wind = 3.5;
+      if (rig.cig) rig.cig.visible = true; if (rig.onPuff && Math.random() < 0.3) rig.onPuff(rig.cig.children[0], 0.3);
+    }
+    fr.pos.copy(pos); fr.yaw = yaw; fr.feet.l.copy(fl); fr.feet.r.copy(fR); fr.hands.l.copy(hl); fr.hands.r.copy(hr); fr.torsoX = torsoX; fr.torsoY = torsoY; fr.headX = headX; fr.headY = headY; fr.wind = wind;
+    // the lighter rides in the left fist
+    if (this.lighter.visible) { const h = rig.rm.hand('l'), e = rig.rm.elbow('l'); const d = _ev[3].subVectors(h, e).normalize(); this.lighter.position.copy(h).addScaledVector(d, 0.07); this.lighter.quaternion.identity(); }
+  }
+  // four shots: the slide from low in front, the dismount from the pavement, a low hero close-up, a dolly back ahead of the walk
+  camera(t, dt) {
+    const cam = this.g.camera, rig = this.rig; rig.root.updateMatrixWorld(true);
+    const P = this.P, T = this.R.track, sg = this.sg;
+    if (this.shot < 0) { // fixed anchors in the world at the stop point
+      const sEnd = ((this.dist0 + this.D) % T.L + T.L) % T.L; this.stopW = T.pos(sEnd, this.dEnd, new THREE.Vector3(), 0); this.stopW.y = T.gy(sEnd, this.dEnd);
+      this.roadF = T.pos(sEnd + 1, this.dEnd, new THREE.Vector3()).sub(T.pos(sEnd, this.dEnd, _ev[0])).normalize(); this.paveW = T.pos(sEnd, this.dEnd + sg, new THREE.Vector3()).sub(T.pos(sEnd, this.dEnd, _ev[0])).normalize(); this.shot = 0; }
+    const rp = rig.root.position, F = this.roadF, Pv = this.paveW, up = (v, h) => v.y += h;
+    const riderW = this.rig.free ? rig.body.localToWorld(this.free.pos.clone()) : rp.clone();
+    let pos = _ev[4], look = _ev[5], fov = 50;
+    // compositions keep the rider on the right third once the title is up (it sits on the left)
+    const third = (amt) => { const fw = _ev[6].subVectors(look, pos).normalize(), rt = fw.cross(_ev[7].set(0, 1, 0)).normalize(); look.addScaledVector(rt, -amt); };
+    if (t < 1.95) { const k = _ss(0, 1.9, t); pos.copy(rp).addScaledVector(F, lerp(6.5, 4.2, k)).addScaledVector(Pv, -lerp(1.8, 1.3, k)); pos.y = this.stopW.y + lerp(0.5, 0.75, k); look.copy(rp); look.y += 0.7; fov = lerp(48, 42, k); }   // low, on the road side, tracking the slide
+    else if (t < 3.35) { pos.copy(this.stopW).addScaledVector(F, 3.2).addScaledVector(Pv, 1.6); pos.y += 1.2; look.copy(riderW).addScaledVector(Pv, -0.15); look.y += 1.0; fov = 44; }
+    else if (t < this.walk0) { const k = _ss(3.35, 5.0, t); pos.copy(riderW).addScaledVector(F, lerp(1.55, 1.3, k)).addScaledVector(Pv, lerp(0.6, 0.4, k)); pos.y += 1.32; look.copy(riderW); look.y += 1.6; fov = lerp(36, 32, k); third(0.3 * _ss(4.3, 4.7, t)); }
+    else { const k = _ss(this.walk0, ENTRY_END, t); pos.copy(riderW).addScaledVector(F, lerp(3.6, 2.6, k)).addScaledVector(Pv, 0.3); pos.y += lerp(0.9, 1.05, k); look.copy(riderW); look.y += lerp(1.2, 1.4, k); fov = lerp(42, 36, k); third(lerp(0.7, 0.5, k)); }
+    const sh = this.t < 1.9 ? Math.max(0, 1 - t / 1.9) * 0.02 : 0; pos.x += Math.sin(this.g.t * 37) * sh; pos.y += Math.sin(this.g.t * 53) * sh;
+    cam.position.copy(pos); cam.lookAt(look); cam.fov = fov; cam.updateProjectionMatrix(); this.g.camLook.copy(look);
+    // at night the bike's headlight becomes the film key light: up and to one side of the lens, on the hero (no new light, no recompiles)
+    const hl = this.g.world && this.g.world.headlight; if (hl && hl.intensity > 0) { const rt = _ev[6].subVectors(look, pos).normalize().cross(_ev[7].set(0, 1, 0)).normalize();
+      hl.position.copy(pos).addScaledVector(rt, 1.2); hl.position.y += 1.4; if (t < 1.95) hl.position.copy(rp).addScaledVector(F, 6).add(_ev[7].set(0, 2.2, 0));
+      hl.target.position.copy(t < 1.95 ? rp : riderW); hl.target.position.y += t < 1.95 ? 0.6 : 1.2; hl.target.updateMatrixWorld(); hl.angle = 0.42; hl.distance = 40; if (this.hlI0 === undefined) this.hlI0 = hl.intensity; hl.intensity = t < 1.95 ? 45 : 11; }
+  }
+  finish() {
+    if (this.done) return; this.done = true; removeEventListener('keydown', this.skip); removeEventListener('pointerdown', this.skip);
+    this.el.classList.remove('on', 'go', 'out'); this.el.hidden = true; this.lighter.visible = false;
+    this.g.entry = null; this.dispose(); this.g.showResults(this.R);
+  }
+  dispose() { const hl = this.g.world && this.g.world.headlight; if (hl && this.hlI0 !== undefined) { hl.intensity = this.hlI0; hl.angle = 0.5; hl.distance = 70; }
+    if (this.lighter.parent) this.lighter.parent.remove(this.lighter); this.disposables.forEach(d => d.dispose()); }
+}
+
 // ===== 60_audio.js =====
 // ───────────────────────── AUDIO (Web Audio synthesis, no files) ─────────────────────────
 const AUDIO = {
@@ -4854,7 +5037,7 @@ const AUDIO = {
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
     if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
-    const P = race.player; const vol = P.crashed ? 0.15 : 1;
+    const P = race.player; const vol = P.engineOff ? 0 : P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
     // dragon / lambi pipe: backfire pops when you snap off the throttle at high revs
     const thr = P.crashed ? 0 : P.input.throttle; if ((ex === 'dragon' || ex === 'long') && (this._thr || 0) > 0.7 && thr < 0.2 && P.rpm > 5200) for (let i = 0; i < (ex === 'dragon' ? 3 : 2); i++) { this.noise(0.05, 900 + Math.random() * 600, 1.5, 0.35, 'bandpass', i * 0.07 + Math.random() * 0.03); this.tone('square', 120, 60, 0.05, 0.1, i * 0.07); }
@@ -4924,9 +5107,10 @@ const AUDIO = {
 };
 
 // ===== 62_music.js =====
-// ───────────────────────── MUSIC: original chapri DJ beats, synthesised live (no files) ─────────────────────────
-// Dhol + tabla + four-on-the-floor kick, a tumbi riff and a "been"-style lead in E Phrygian dominant
-// (E F G# A B C D). Menu = laid-back groove; race = full dhinchak that climbs with speed, boost and the final lap.
+// ───────────────────────── MUSIC: original tunes, synthesised live (no files) ─────────────────────────
+// Two styles. South Indian mass (default): parai + thavil koothu groove, a nadaswaram hook, brass and guitar stabs,
+// theatre whistles and crowd "HEY!"s, plus a hero-entry theme for the winner. Dhinchak DJ: dhol + tabla + kick, a tumbi
+// riff and a "been"-style lead in E Phrygian dominant. Menu = laid back; race climbs with speed, boost and the final lap.
 const MUSIC = {
   on: false, mode: 'off', level: 0, step: 0, bar: 0, nextT: 0, timer: null, song: 0,
   init() {
@@ -4944,17 +5128,22 @@ const MUSIC = {
   setMode(m) {
     if (!this.on || m === this.mode) { this.mode = m; return; }
     const was = this.mode; this.mode = m; this.applyVolume();
-    if (m === 'race' || (m === 'menu' && was === 'off')) { this.step = 0; this.bar = 0; this.nextT = this.c.currentTime + 0.08; this.song = (this.song + 1) % SONGS.length; }
+    if (m === 'race' || m === 'entry' || (m === 'menu' && was === 'off')) { this.step = 0; this.bar = 0; this.ebar = 0; this.nextT = this.c.currentTime + 0.08; this.song = (this.song + 1) % 6; }
     this.tone.frequency.setTargetAtTime(m === 'pause' ? 700 : 18000, this.c.currentTime, 0.15);
   },
   // 0 = countdown build, 1 = racing, 2 = boost / final lap (everything in)
   setLevel(l) { this.level = l; },
-  get bpm() { return this.mode === 'race' ? 128 : 98; },
+  get bpm() { return this.mode === 'entry' ? 146 : this.mass ? (this.mode === 'race' ? 152 : 112) : this.mode === 'race' ? 128 : 98; },
+  // South Indian mass style (default) or the original dhinchak set; 'entry' is the winner's hero-entry theme
+  get mass() { return (SAVE.settings.musicStyle || 'mass') === 'mass'; },
   tick() {
     if (!this.on || this.mode === 'off' || document.hidden) return;
     const c = this.c; if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.05;
     const sixteenth = 60 / this.bpm / 4; this.dly.delayTime.setTargetAtTime(sixteenth * 3, c.currentTime, 0.05);
-    while (this.nextT < c.currentTime + 0.12) { this.playStep(this.nextT, this.step, this.bar); this.nextT += sixteenth * (this.step % 2 ? 0.92 : 1.08); this.step++; if (this.step === 16) { this.step = 0; this.bar = (this.bar + 1) % 8; } }
+    const swing = this.mass || this.mode === 'entry' ? 0.03 : 0.08;
+    while (this.nextT < c.currentTime + 0.12) {
+      if (this.mode === 'entry') this.playEntry(this.nextT, this.step, this.ebar); else if (this.mass) this.playMass(this.nextT, this.step, this.bar); else this.playStep(this.nextT, this.step, this.bar);
+      this.nextT += sixteenth * (this.step % 2 ? 1 - swing : 1 + swing); this.step++; if (this.step === 16) { this.step = 0; this.bar = (this.bar + 1) % 8; this.ebar = this.ebar >= 13 ? 6 : this.ebar + 1; } }
   },
   playStep(t, s, bar) {
     const S = SONGS[this.song % SONGS.length], race = this.mode === 'race', L = race ? this.level : 0.6, root = S.roots[bar];
@@ -5001,8 +5190,73 @@ const MUSIC = {
     o.type = 'sawtooth'; o.frequency.value = f; lfo.frequency.value = 6.5; lg.gain.value = f * 0.012; lfo.connect(lg); lg.connect(o.frequency);
     bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 2.5; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.03); g.gain.setValueAtTime(v, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(bp); bp.connect(g); g.connect(this.bus); g.connect(this.dly); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); },
+  // ── South Indian mass: parai/thappu + thavil koothu groove, nadaswaram hook, brass + guitar stabs, whistles, crowd "HEY!" ──
+  playMass(t, s, bar) {
+    const S = MASS[this.song % MASS.length], race = this.mode === 'race', L = race ? this.level : 0.7, root = S.root + S.roots[bar], st = 60 / this.bpm / 4;
+    if (L <= 0) {   // countdown: urumi growl, thavil ticks, a drone; tension, no groove yet
+      if (s === 0 && bar % 2 === 0) this.urumi(t, 0.5, st * 14); if (s % 4 === 0) this.thavil(t, 'ta', 0.22 + (s === 12 ? 0.15 : 0)); if (s === 0) this.drone(t, noteHz(root - 12), st * 16, 0.06); return; }
+    if (S.parai[s] === 2) this.parai(t, 'dhum', race ? 0.8 : 0.55); else if (S.parai[s] === 1) this.parai(t, 'ta', race ? 0.5 : 0.35);
+    if (S.thavil[s]) this.thavil(t, S.thavil[s] === 2 ? 'dhi' : 'ta', race ? 0.42 : 0.3);
+    if (race && L >= 1 && s % 4 === 0) this.kick(t, 0.85);
+    if (race && L >= 1 && (s === 4 || s === 12)) this.clap(t, 0.5);
+    if (race && L >= 2 && s % 2 === 1) this.hat(t, 0.13);
+    if (S.bass[s]) this.bass(t, noteHz(root - 12 + S.bass[s] - 1), race ? 0.5 : 0.36, 0.14);
+    // the hook: nadaswaram on bars 1-4 and 5-8 (every other phrase when not flying), brass doubling it when flying
+    const half = bar >= 4 ? 1 : 0, ph = S.hook[(bar % 4)] || [], hookOn = race ? (L >= 2 || bar % 8 < 4) : bar % 8 >= 4;
+    const n = ph[s]; if (hookOn && n !== undefined && n !== null && n !== '-') { let k = s + 1; while (k < 16 && ph[k] === '-') k++; const dur = (k - s) * st;
+      this.nadaswaram(t, noteHz(S.root + 12 + n + (half && S.lift ? S.lift : 0)), dur, race ? 0.13 : 0.1); if (race && L >= 2) this.brass(t, [noteHz(S.root + n + (half ? S.lift : 0))], Math.min(dur, st * 1.5), 0.05); }
+    // stabs: the "da-da-da" chord hits
+    if (race && S.stab[s] && L >= 1) { const f = noteHz(root); this.brass(t, [f, f * 1.5, f * 2], st * 0.9, 0.06); this.guitar(t, f / 2, st * 0.9, 0.05); }
+    if (race && L >= 2 && s % 2 === 0 && !S.stab[s]) this.guitar(t, noteHz(root - 12), st * 0.6, 0.025);   // palm-muted chug under it
+    // whistles + crowd shouts when it's flying; a thavil roll into every 4th bar
+    if (race && L >= 1 && bar % 4 === 0 && s === 0) this.whistle(t, 0.09);
+    if (race && L >= 2 && (bar === 3 || bar === 7) && (s === 12 || s === 14)) this.hey(t, 0.32);
+    if (bar % 4 === 3 && s >= 12) { this.thavil(t, 'ta', 0.32 + (s - 12) * 0.05); this.thavil(t + st / 2, 'ta', 0.28); }
+    if (race && L >= 1 && bar === 0 && s === 0) this.crash(t, 0.16);
+  },
+  // the winner's entry: big drum hits and a whistle, the nadaswaram call, a thavil roll + "HEY!", then the full hook on loop
+  playEntry(t, s, b) {
+    const S = MASS[0], root = S.root, st = 60 / this.bpm / 4;
+    if (b < 2) { if (s === 0 || s === 10) this.boom(t, 1); if (b === 0 && s === 4) this.whistle(t, 0.14); if (s === 8 && b === 1) this.whistle(t, 0.1);
+      if (b === 1 && s === 0) this.nadaswaram(t, noteHz(root + 12), st * 6, 0.16, noteHz(root + 19)); if (b === 0 && s === 0) this.urumi(t, 0.6, st * 12); return; }
+    if (b < 4) { this.thavil(t, s % 4 === 0 ? 'dhi' : 'ta', 0.2 + (b - 2) * 0.12 + s * 0.012); if (s % 4 === 0) this.parai(t, 'dhum', 0.7); if (b === 3 && (s === 12 || s === 14)) this.hey(t, 0.42); if (b === 3 && s === 0) this.riser(1.6); return; }
+    this.level = 2; const save = this.mode; this.mode = 'race'; this.playMass(t, s, (b - 4) % 8); this.mode = save;
+    if ((b - 4) % 2 === 1 && (s === 12 || s === 14)) this.hey(t, 0.36); if (s === 0 && (b - 4) % 4 === 0) this.whistle(t, 0.1);
+  },
+  parai(t, k, v) { if (k === 'dhum') { this.osc('sine', 120, t, 0.24, v, null, 62); this.nz(t, 0.05, 420, 1.1, v * 0.55); } else { this.nz(t, 0.05, 1900, 1.3, v * 0.9); this.osc('triangle', 330, t, 0.04, v * 0.3); } },
+  thavil(t, k, v) { if (k === 'dhi') { this.osc('sine', 190, t, 0.2, v * 1.1, null, 150); this.nz(t, 0.04, 900, 2, v * 0.4); } else { this.osc('sine', 520, t, 0.06, v * 0.7, null, 380); this.nz(t, 0.025, 3600, 3, v * 0.6); } },
+  boom(t, v) { this.osc('sine', 72, t, 1.1, v, null, 38); this.osc('sine', 110, t, 0.5, v * 0.5, null, 55); this.nz(t, 0.3, 300, 0.7, v * 0.45, 'lowpass'); this.nz(t, 1.4, 5200, 0.4, v * 0.12, 'highpass'); },
+  urumi(t, v, dur) { // friction drum: a growling, bending low voice
+    const c = this.c, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(85, t); o.frequency.linearRampToValueAtTime(150, t + dur * 0.45); o.frequency.linearRampToValueAtTime(95, t + dur); lfo.frequency.value = 11; lg.gain.value = 9; lfo.connect(lg); lg.connect(o.frequency);
+    lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 4; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v * 0.5, t + 0.08); g.gain.setValueAtTime(v * 0.5, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); },
+  drone(t, f, dur, v) { for (const m of [1, 1.5, 2]) { const c = this.c, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f * m; lp.type = 'lowpass'; lp.frequency.value = 700; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v / m, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); o.stop(t + dur + 0.05); } },
+  nadaswaram(t, f, dur, v, fTo) { // loud double reed: bright saw + square through two nasal formants, a scooped attack (gamaka) and wide vibrato
+    const c = this.c, o = c.createOscillator(), o2 = c.createOscillator(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), sh = this._shaper || (this._shaper = (() => { const w = c.createWaveShaper(), cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 256 - 1; cv[i] = Math.tanh(x * 2.2); } w.curve = cv; return w; })());
+    o.type = 'sawtooth'; o2.type = 'square'; o.frequency.setValueAtTime(f * 0.94, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05); if (fTo) o.frequency.exponentialRampToValueAtTime(fTo, t + dur * 0.8);
+    o2.frequency.setValueAtTime(f * 0.94, t); o2.frequency.exponentialRampToValueAtTime(f, t + 0.05); if (fTo) o2.frequency.exponentialRampToValueAtTime(fTo, t + dur * 0.8);
+    lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.018, t + Math.min(0.25, dur * 0.6)); lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    f1.type = 'bandpass'; f1.frequency.value = 1150; f1.Q.value = 2.2; f2.type = 'peaking'; f2.frequency.value = 2600; f2.gain.value = 9; f2.Q.value = 1.5;
+    const pre = c.createGain(); pre.gain.value = 0.6; o.connect(pre); o2.connect(pre); pre.connect(f1); f1.connect(f2); f2.connect(g);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.025); g.gain.setValueAtTime(v, t + Math.max(0.03, dur - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.03);
+    g.connect(this.bus); g.connect(this.dly); o.start(t); o2.start(t); lfo.start(t); o.stop(t + dur + 0.08); o2.stop(t + dur + 0.08); lfo.stop(t + dur + 0.08); },
+  brass(t, fs, dur, v) { const c = this.c; for (const f of fs) for (const dt of [-6, 6]) { const o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = dt;
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t); lp.frequency.exponentialRampToValueAtTime(3200, t + 0.03); lp.frequency.exponentialRampToValueAtTime(900, t + dur); this.env(g, t, 0.01, v, dur); o.connect(lp); lp.connect(g); g.connect(this.bus); o.start(t); o.stop(t + dur + 0.05); } },
+  guitar(t, f, dur, v) { const c = this.c, o = c.createOscillator(), o2 = c.createOscillator(), w = this._gshape || (this._gshape = (() => { const ws = c.createWaveShaper(), cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 256 - 1; cv[i] = Math.tanh(x * 6); } ws.curve = cv; return ws; })()), lp = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sawtooth'; o2.type = 'sawtooth'; o.frequency.value = f; o2.frequency.value = f * 1.498; const pre = c.createGain(); pre.gain.value = 0.5; o.connect(pre); o2.connect(pre);
+    const sh = c.createWaveShaper(); sh.curve = w.curve; pre.connect(sh); lp.type = 'lowpass'; lp.frequency.value = 2400; sh.connect(lp); lp.connect(g); this.env(g, t, 0.004, v, dur); g.connect(this.bus); o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05); },
+  whistle(t, v) { // a two-finger theatre whistle: up, hold, swoop down
+    const c = this.c, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(1900, t); o.frequency.exponentialRampToValueAtTime(3100, t + 0.09); o.frequency.setValueAtTime(3100, t + 0.32); o.frequency.exponentialRampToValueAtTime(2200, t + 0.5);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.04); g.gain.setValueAtTime(v, t + 0.38); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); o.connect(g); g.connect(this.bus); o.start(t); o.stop(t + 0.6);
+    this.nz(t, 0.5, 3000, 4, v * 0.15); },
+  hey(t, v) { // a crowd shouting "HEY!": detuned voices through an "e" vowel, with a breathy "h"
+    const c = this.c; this.nz(t, 0.06, 1800, 0.8, v * 0.35, 'highpass');
+    for (let i = 0; i < 6; i++) { const f = 150 + Math.random() * 90, o = c.createOscillator(), a = c.createBiquadFilter(), b = c.createBiquadFilter(), g = c.createGain(), tt = t + 0.02 + Math.random() * 0.03;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.12, tt); o.frequency.exponentialRampToValueAtTime(f * 0.88, tt + 0.22); a.type = 'bandpass'; a.frequency.value = 560; a.Q.value = 5; b.type = 'bandpass'; b.frequency.value = 1900; b.Q.value = 7;
+      const mix = c.createGain(); mix.gain.value = 1; o.connect(a); o.connect(b); a.connect(mix); b.connect(mix); mix.connect(g); this.env(g, tt, 0.02, v * 0.5, 0.2); g.connect(this.bus); o.start(tt); o.stop(tt + 0.3); } },
   // stingers
-  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01; for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
+  hornStab() { if (!this.on || this.mode !== 'race') return; const t = this.c.currentTime + 0.01; if (this.mass) { const f = noteHz(50); this.brass(t, [f, f * 1.5, f * 2], 0.3, 0.09); this.whistle(t + 0.05, 0.08); return; } for (const n of [64, 68, 71, 76]) this.osc('sawtooth', noteHz(n), t, 0.22, 0.07); },
   riser(dur = 1.6) { if (!this.on) return; const c = this.c, t = c.currentTime, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s.buffer = AUDIO.noiseBuf; fl.type = 'bandpass'; fl.Q.value = 3;
     fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(6000, t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.1);
     s.connect(fl); fl.connect(g); g.connect(this.bus); s.start(t); s.stop(t + dur + 0.2); },
@@ -5023,6 +5277,26 @@ const SONGS = [
     dhol: [2, 0, 1, 0, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 1, 1], tabla: [0, 'na', 0, 'ge', 0, 'na', 'na', 0, 0, 'na', 0, 'ge', 0, 'na', 0, 'na'],
     bass: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 4, 0, 0, 1], roots: [40, 41, 40, 38, 40, 41, 43, 40],
     riff: [0, 4, 7, 8, 7, 4, null, 8, 12, null, 8, 7, 4, null, 1, 0], lead: [12, null, null, 13, 12, 10, null, 8, 7, null, 8, 10, 12, null, null, null], lift: 7 },
+];
+// Mass songs: 16 steps per bar. parai: 2 = dhum (low), 1 = ta (slap) in a 3-3-2 koothu feel. thavil: 1 = ta, 2 = dhi.
+// hook: 4 bars of nadaswaram (semitones above root; '-' holds, null rests), heroic repeated notes. stab: chord hits.
+// Scale: Mayamalavagowla-style double-harmonic (0 1 4 5 7 8 11). All tunes here are original.
+const MASS = [
+  { name: 'Gethu Entry', root: 50, roots: [0, 0, 0, 0, 5, 5, 7, 0], lift: 0,
+    parai: [2, 0, 0, 2, 0, 0, 2, 0, 1, 0, 1, 2, 0, 0, 1, 1], thavil: [0, 1, 0, 1, 2, 0, 1, 0, 0, 1, 0, 1, 2, 0, 1, 1],
+    bass: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 8, 0], stab: [1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    hook: [[0, 0, 0, null, 0, 0, 0, null, 4, '-', 5, '-', 7, '-', '-', '-'], [8, '-', 7, '-', 5, '-', 4, '-', 5, 4, 1, '-', 0, '-', '-', null],
+      [7, 7, 7, null, 7, 7, 7, null, 8, '-', 11, '-', 12, '-', '-', '-'], [13, '-', 12, '-', 11, '-', 8, '-', 7, '-', 8, 7, 4, '-', 0, null]] },
+  { name: 'Kuthu Kalakki', root: 45, roots: [0, 0, 5, 5, 0, 0, 7, 7], lift: 5,
+    parai: [2, 0, 1, 2, 0, 1, 2, 0, 2, 0, 1, 2, 0, 1, 2, 1], thavil: [1, 1, 0, 1, 2, 0, 1, 1, 0, 1, 1, 0, 2, 1, 0, 1],
+    bass: [1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 5, 0, 0], stab: [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+    hook: [[12, '-', 11, 12, '-', 8, 7, '-', 8, '-', 7, 5, 4, '-', '-', null], [5, 5, 5, null, 7, 7, 7, null, 8, 7, 5, 4, 1, '-', 0, null],
+      [12, '-', 13, 12, '-', 11, 12, '-', 16, '-', 13, 12, 11, '-', '-', null], [8, 8, 8, null, 7, 7, 7, null, 5, 4, 1, '-', 0, '-', '-', null]] },
+  { name: 'Thara Local', root: 52, roots: [0, 0, 1, 1, 0, 0, 5, 7], lift: 7,
+    parai: [2, 0, 0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 1, 0], thavil: [0, 1, 1, 0, 2, 0, 0, 1, 1, 0, 1, 0, 2, 1, 1, 1],
+    bass: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 4, 0, 0, 1], stab: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+    hook: [[0, '-', 1, '-', 4, '-', 5, '-', 7, 7, 7, null, 7, 8, 7, null], [5, '-', 4, '-', 5, 7, 5, 4, 1, '-', '-', '-', 0, '-', '-', null],
+      [7, '-', 8, '-', 11, '-', 12, '-', 12, 12, 12, null, 12, 13, 12, null], [11, '-', 8, '-', 7, 8, 7, 5, 4, '-', 1, '-', 0, '-', '-', null]] },
 ];
 
 // ===== 70_hud.js =====
@@ -5308,7 +5582,8 @@ class UI {
       <div class="set-row"><label for="setName">Rider name</label><input id="setName" type="text" maxlength="16" value="${SAVE.name.replace(/"/g, '')}"></div>
       <div class="set-row"><label for="setSfx">Effects volume</label><input id="setSfx" type="range" min="0" max="1" step="0.05" value="${S.sfx}"></div>
       <div class="set-row"><label for="setEng">Engine volume</label><input id="setEng" type="range" min="0" max="1" step="0.05" value="${S.engine}"></div>
-      <div class="set-row"><label for="setMusic">Music volume<br><small class="muted">Original chapri DJ beats</small></label><input id="setMusic" type="range" min="0" max="1" step="0.05" value="${S.music ?? 0.6}"></div>
+      <div class="set-row"><label for="setMusic">Music volume<br><small class="muted">Original, made live in the game</small></label><input id="setMusic" type="range" min="0" max="1" step="0.05" value="${S.music ?? 0.6}"></div>
+      <div class="set-row"><label>Music style<br><small class="muted">South mass: nadaswaram, thavil, whistles</small></label><div class="seg" id="setMS">${[['mass', 'South mass'], ['dhinchak', 'Dhinchak DJ']].map(([k, n]) => `<button type="button" data-ms="${k}" class="${(S.musicStyle || 'mass') === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Camera</label><div class="seg" id="setCam">${['Chase', 'Far', 'Helmet'].map((n, i) => `<button type="button" data-cam="${i}" class="${S.camera === i ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Graphics quality<br><small class="muted">Auto picks a tier from a short benchmark${S.detected ? ` (picked ${S.detected})` : ''}</small></label><div class="seg" id="setQ">${['auto', 'low', 'medium', 'high'].map(q => `<button type="button" data-q="${q}" class="${S.quality === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('')}</div></div>
       ${tog('setComic', 'Comic-book style', S.comic, 'Ink outlines, halftone shading and DHISHOOM pop-ups. Off on Low graphics')}
@@ -5324,6 +5599,7 @@ class UI {
     $('#setSfx').addEventListener('input', (e) => { S.sfx = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $('#setEng').addEventListener('input', (e) => { S.engine = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $('#setMusic').addEventListener('input', (e) => { S.music = +e.target.value; AUDIO.applyVolumes(); persist(); });
+    $$('[data-ms]').forEach(b => b.addEventListener('click', () => { S.musicStyle = b.dataset.ms; persist(); this.renderSettings(); }));
     $$('[data-cam]').forEach(b => b.addEventListener('click', () => { S.camera = +b.dataset.cam; persist(); this.renderSettings(); }));
     $$('[data-q]').forEach(b => b.addEventListener('click', () => { S.quality = b.dataset.q; persist(); this.renderSettings(); this.game.applyQuality(true); }));
     const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration', setSA: 'steerAssist', setSmoke: 'smoking' };
@@ -5605,7 +5881,9 @@ class Game {
     if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
-  endRace() { if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
+  startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
+  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
@@ -5683,7 +5961,7 @@ class Game {
     this.updateRain(dt);
     const focus = this.race ? this.race.track.pos(this.race.player.s, this.race.player.d, this._w) : this.menuRig ? this.menuRig.root.position : null;
     if (this.world) this.world.update(dt, this.t, this.camera, focus);
-    if (this.world && this.race) { const hl = this.world.headlight; if (hl.intensity > 0) { const P = this.race.player, T = this.race.track; const yaw = T.yawAt(P.s) + P.psi; T.pos(P.s, P.d, hl.position, P.y - T.yAt(P.s) + 1.0); hl.target.position.set(hl.position.x + Math.sin(yaw) * 20, hl.position.y - 1.2, hl.position.z + Math.cos(yaw) * 20); hl.target.updateMatrixWorld(); } }
+    if (this.world && this.race && !this.entry) { const hl = this.world.headlight; if (hl.intensity > 0) { const P = this.race.player, T = this.race.track; const yaw = T.yawAt(P.s) + P.psi; T.pos(P.s, P.d, hl.position, P.y - T.yAt(P.s) + 1.0); hl.target.position.set(hl.position.x + Math.sin(yaw) * 20, hl.position.y - 1.2, hl.position.z + Math.cos(yaw) * 20); hl.target.updateMatrixWorld(); } }
     AUDIO.update(this.state === 'race' || this.state === 'results' ? this.race : null, dt);
     this.renderRefl(dt);
     if (this.postOn()) { const M = this.world && this.world.mood, glow = (M ? M.night : 0) > 0.5 || this.wet; this.comic.setLook(glow ? 0.75 : 0.32, glow ? 0.76 : 0.88, this.comicOn());
@@ -5709,9 +5987,9 @@ class Game {
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
-    R.update(dt);
+    R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
-    if (R.state === 'finished') { this.fx.clear(); this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
+    if (R.state === 'finished') { this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
     const cp = this.camera.position; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < 1.6) r.rig.root.visible = false; }
   }

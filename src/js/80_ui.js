@@ -167,7 +167,8 @@ class UI {
       <div class="set-row"><label for="setName">Rider name</label><input id="setName" type="text" maxlength="16" value="${SAVE.name.replace(/"/g, '')}"></div>
       <div class="set-row"><label for="setSfx">Effects volume</label><input id="setSfx" type="range" min="0" max="1" step="0.05" value="${S.sfx}"></div>
       <div class="set-row"><label for="setEng">Engine volume</label><input id="setEng" type="range" min="0" max="1" step="0.05" value="${S.engine}"></div>
-      <div class="set-row"><label for="setMusic">Music volume<br><small class="muted">Original chapri DJ beats</small></label><input id="setMusic" type="range" min="0" max="1" step="0.05" value="${S.music ?? 0.6}"></div>
+      <div class="set-row"><label for="setMusic">Music volume<br><small class="muted">Original, made live in the game</small></label><input id="setMusic" type="range" min="0" max="1" step="0.05" value="${S.music ?? 0.6}"></div>
+      <div class="set-row"><label>Music style<br><small class="muted">South mass: nadaswaram, thavil, whistles</small></label><div class="seg" id="setMS">${[['mass', 'South mass'], ['dhinchak', 'Dhinchak DJ']].map(([k, n]) => `<button type="button" data-ms="${k}" class="${(S.musicStyle || 'mass') === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Camera</label><div class="seg" id="setCam">${['Chase', 'Far', 'Helmet'].map((n, i) => `<button type="button" data-cam="${i}" class="${S.camera === i ? 'on' : ''}">${n}</button>`).join('')}</div></div>
       <div class="set-row"><label>Graphics quality<br><small class="muted">Auto picks a tier from a short benchmark${S.detected ? ` (picked ${S.detected})` : ''}</small></label><div class="seg" id="setQ">${['auto', 'low', 'medium', 'high'].map(q => `<button type="button" data-q="${q}" class="${S.quality === q ? 'on' : ''}">${q[0].toUpperCase() + q.slice(1)}</button>`).join('')}</div></div>
       ${tog('setComic', 'Comic-book style', S.comic, 'Ink outlines, halftone shading and DHISHOOM pop-ups. Off on Low graphics')}
@@ -183,6 +184,7 @@ class UI {
     $('#setSfx').addEventListener('input', (e) => { S.sfx = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $('#setEng').addEventListener('input', (e) => { S.engine = +e.target.value; AUDIO.applyVolumes(); persist(); });
     $('#setMusic').addEventListener('input', (e) => { S.music = +e.target.value; AUDIO.applyVolumes(); persist(); });
+    $$('[data-ms]').forEach(b => b.addEventListener('click', () => { S.musicStyle = b.dataset.ms; persist(); this.renderSettings(); }));
     $$('[data-cam]').forEach(b => b.addEventListener('click', () => { S.camera = +b.dataset.cam; persist(); this.renderSettings(); }));
     $$('[data-q]').forEach(b => b.addEventListener('click', () => { S.quality = b.dataset.q; persist(); this.renderSettings(); this.game.applyQuality(true); }));
     const map = { setComic: 'comic', setWA: 'wheelieAssist', setMG: 'manualGears', setTilt: 'tilt', setVib: 'vibration', setSA: 'steerAssist', setSmoke: 'smoking' };

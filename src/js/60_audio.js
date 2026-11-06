@@ -45,7 +45,7 @@ const AUDIO = {
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
     if (!race) { this.siren(0); this.setEngine(this.eng, 1800, 0.1, 0.4, false); this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
-    const P = race.player; const vol = P.crashed ? 0.15 : 1;
+    const P = race.player; const vol = P.engineOff ? 0 : P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
     // dragon / lambi pipe: backfire pops when you snap off the throttle at high revs
     const thr = P.crashed ? 0 : P.input.throttle; if ((ex === 'dragon' || ex === 'long') && (this._thr || 0) > 0.7 && thr < 0.2 && P.rpm > 5200) for (let i = 0; i < (ex === 'dragon' ? 3 : 2); i++) { this.noise(0.05, 900 + Math.random() * 600, 1.5, 0.35, 'bandpass', i * 0.07 + Math.random() * 0.03); this.tone('square', 120, 60, 0.05, 0.1, i * 0.07); }

@@ -168,7 +168,9 @@ class Game {
     if (G.sm > 1 / 42 && k > 0.7) k = Math.max(0.7, k - 0.15); else if (G.sm < 1 / 56 && k < 1) k = Math.min(1, k + 0.1); else return;
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
-  endRace() { if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
+  startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
+  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
@@ -246,7 +248,7 @@ class Game {
     this.updateRain(dt);
     const focus = this.race ? this.race.track.pos(this.race.player.s, this.race.player.d, this._w) : this.menuRig ? this.menuRig.root.position : null;
     if (this.world) this.world.update(dt, this.t, this.camera, focus);
-    if (this.world && this.race) { const hl = this.world.headlight; if (hl.intensity > 0) { const P = this.race.player, T = this.race.track; const yaw = T.yawAt(P.s) + P.psi; T.pos(P.s, P.d, hl.position, P.y - T.yAt(P.s) + 1.0); hl.target.position.set(hl.position.x + Math.sin(yaw) * 20, hl.position.y - 1.2, hl.position.z + Math.cos(yaw) * 20); hl.target.updateMatrixWorld(); } }
+    if (this.world && this.race && !this.entry) { const hl = this.world.headlight; if (hl.intensity > 0) { const P = this.race.player, T = this.race.track; const yaw = T.yawAt(P.s) + P.psi; T.pos(P.s, P.d, hl.position, P.y - T.yAt(P.s) + 1.0); hl.target.position.set(hl.position.x + Math.sin(yaw) * 20, hl.position.y - 1.2, hl.position.z + Math.cos(yaw) * 20); hl.target.updateMatrixWorld(); } }
     AUDIO.update(this.state === 'race' || this.state === 'results' ? this.race : null, dt);
     this.renderRefl(dt);
     if (this.postOn()) { const M = this.world && this.world.mood, glow = (M ? M.night : 0) > 0.5 || this.wet; this.comic.setLook(glow ? 0.75 : 0.32, glow ? 0.76 : 0.88, this.comicOn());
@@ -272,9 +274,9 @@ class Game {
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
-    R.update(dt);
+    R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
-    if (R.state === 'finished') { this.fx.clear(); this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
+    if (R.state === 'finished') { this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
     const cp = this.camera.position; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < 1.6) r.rig.root.visible = false; }
   }
