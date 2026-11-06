@@ -7,7 +7,10 @@
     "build": "node tools/build.mjs",
     "build:bike": "node tools/model/build-model.mjs",
     "build:rider": "node tools/model/build-rider.mjs",
-    "test:race": "node tools/t17.mjs mumbai-central 1"
+    "test": "vitest run",
+    "test:race": "npm run build && node tools/t17.mjs mumbai-central 1",
+    "test:all": "npm test && npm run test:race",
+    "golden:capture": "node tests/golden/capture.mjs"
   },
   "license": "UNLICENSED",
   "dependencies": {

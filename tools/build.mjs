@@ -1,8 +1,8 @@
 import fs from 'fs';
 import zlib from 'zlib';
+import { readGameJs } from './build-order.mjs';
 const root = new URL('../', import.meta.url).pathname;
-const order = ['00_core', '05_textures', '10_tracks', '15_track', '18_batch', '20_world', '21_stage', '22_underground', '23_street', '28_bikemodel', '29_ridermodel', '30_bike', '31_cloth', '32_bikemods', '40_rider', '45_race', '46_police', '47_underground', '48_street', '50_combat', '55_speedfx', '56_reflect', '57_comic', '58_entry', '60_audio', '62_music', '70_hud', '80_ui', '85_input', '90_main'];
-const js = order.map(f => `// ===== ${f}.js =====\n` + fs.readFileSync(root + 'src/js/' + f + '.js', 'utf8')).join('\n');
+const js = readGameJs(root);
 const css = fs.readFileSync(root + 'src/style.css', 'utf8');
 const tpl = fs.readFileSync(root + 'src/template.html', 'utf8');
 const glb = fs.existsSync(root + 'assets/rx100.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/rx100.glb'), { level: 9 }).toString('base64') : '';
