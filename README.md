@@ -112,6 +112,12 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - At light throttle the engine 4-strokes (every other firing goes weak), which gives the RX "ring-ding-ding".
   - Snapping the throttle shut at high revs makes the louder pipes crackle and pop.
   - The nearest rival is heard through their own silencer, with Doppler shift.
+  - **Throttle takeover:** the engine is the loudest thing in the mix.
+    - At full throttle it sits about 15 dB over the song.
+    - Each stab of the throttle punches in harder and brighter for a moment.
+    - The song dips about 7 dB while you're on the gas (and when you rev on the start line, or during the garage rev demo), then comes back when you lift.
+    - The engine bus cuts the sub-rumble that phone speakers can't play and lifts the 2–3 kHz bite they can.
+    - A limiter after the compressor keeps the louder mix from clipping.
 - **Smoothness.** A race frame on a phone-sized screen costs about 30% less than before the November audit:
   - the wet-road mirror only draws layer 1 (the world, all lights, and bike/rider parts bigger than about 20 cm), not ink outlines, particles, glows or tiny parts;
   - each racing rig welds its fixed parts that share a material into one mesh;

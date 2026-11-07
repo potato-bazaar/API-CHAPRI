@@ -45,8 +45,14 @@ const AUDIO = {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); } catch (e) { return; }
     const c = this.ctx;
-    this.master = c.createGain(); const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; this.master.connect(comp); comp.connect(c.destination);
-    this.sfxG = c.createGain(); this.sfxG.connect(this.master); this.engG = c.createGain(); this.engG.connect(this.master);
+    this.master = c.createGain(); const comp = c.createDynamicsCompressor(); comp.threshold.value = -13; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18;
+    const lim = c.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08;   // the engine is loud now: never let the sum clip
+    this.master.connect(comp); comp.connect(lim); lim.connect(c.destination);
+    this.sfxG = c.createGain(); this.sfxG.connect(this.master); this.engG = c.createGain();
+    // engine bus: cut the sub rumble phone speakers can't play (it only pumps the compressor) and lift the 2–3 kHz bite they can
+    const eHP = c.createBiquadFilter(); eHP.type = 'highpass'; eHP.frequency.value = 65; eHP.Q.value = 0.7;
+    const ePres = c.createBiquadFilter(); ePres.type = 'peaking'; ePres.frequency.value = 2300; ePres.Q.value = 0.8; ePres.gain.value = 4.5;
+    this.engG.connect(eHP); eHP.connect(ePres); ePres.connect(this.master);
     this.applyVolumes();
     const len = c.sampleRate * 2; this.noiseBuf = c.createBuffer(1, len, c.sampleRate); const ch = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
     this.eng = this.makeEngine(); this.riv = this.makeEngine();
@@ -57,7 +63,7 @@ const AUDIO = {
     this.on = true;
     MUSIC.init(); if (GAME && GAME.musicMode) MUSIC.setMode(GAME.musicMode);
   },
-  applyVolumes() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfxG.gain.value = SAVE.settings.sfx * m; this.engG.gain.value = SAVE.settings.engine * 0.55 * m; MUSIC.applyVolume(); },
+  applyVolumes() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfxG.gain.value = SAVE.settings.sfx * m; this.engG.gain.value = SAVE.settings.engine * 1.15 * m; MUSIC.applyVolume(); },   // engine bus ×2 from before: the throttle is the star of the mix
   noiseBed(type, f, g0, q) { const c = this.ctx; const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true; src.playbackRate.value = 0.9 + Math.random() * 0.2; const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = c.createGain(); g.gain.value = g0; src.connect(fl); fl.connect(g); g.connect(this.sfxG); src.start(0, Math.random() * 1.5); g.fl = fl; return g; },
   // an engine voice: pulses → (left/right for twin pipes) → powerband peak → tone lowpass → saturation → level
   makeEngine() {
@@ -85,9 +91,12 @@ const AUDIO = {
     const rN = clamp((rpm - 1500) / 8900, 0, 1), f = Math.max(10, rpm / 60) * rate;
     const band = V.band ? clamp((rpm - V.band[0]) / (V.band[1] - V.band[0]), 0, 1) * (0.3 + 0.7 * thr) : 0;
     if (V.band) { e.peak.frequency.setTargetAtTime(V.band[2] * (0.9 + 0.2 * rN), t, 0.05); e.peak.gain.setTargetAtTime(V.band[3] * band, t, 0.06); } else e.peak.gain.setTargetAtTime(0, t, 0.1);
-    e.tone.frequency.setTargetAtTime(Math.min(16000, V.tone * (0.5 + 0.5 * thr) * (0.75 + 0.6 * rN) + (boost ? 1800 : 0)), t, 0.05);
+    // twisting the grip open hits hard: a short punch of extra level and bite on every throttle stab
+    const dtE = Math.min(0.1, Math.max(0, t - (e.lastT || t))); e.lastT = t; e.punch = (e.punch || 0) * Math.exp(-dtE / 0.28);
+    if (thr > 0.6 && (e.thrLo ?? 1) < 0.35) e.punch = 1; e.thrLo = thr < 0.35 ? thr : thr > 0.6 ? 1 : (e.thrLo ?? 1);
+    e.tone.frequency.setTargetAtTime(Math.min(16000, V.tone * (0.5 + 0.5 * thr) * (0.75 + 0.6 * rN) + (boost ? 1800 : 0) + e.punch * 2600), t, 0.03);
     const lowK = V.band ? V.low + (1 - V.low) * band : 1, rateK = 1 / (0.6 + 0.4 * Math.sqrt(f / 25));   // a pulse train gets louder as it speeds up; keep that, but tamed
-    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (0.45 + 0.55 * thr) * 1.15, t, 0.05);
+    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (0.2 + 0.8 * Math.pow(thr, 1.5)) * (1 + 0.55 * e.punch) * 2.1, t, 0.03);   // closed → open is ~+14 dB; part throttle stays well under full
     // throttle snapped shut at high revs → a burst of pops
     if (V.pops && (e.thr || 0) > 0.7 && thr < 0.2 && rpm > 5200) e.popUntil = t + 0.22 + V.pops * 0.07; e.thr = thr;
     if (vol < 0.01) { e.next = 0; return; }
@@ -114,12 +123,16 @@ const AUDIO = {
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
     if (!race) { this.siren(0); const dm = this.demo && this.demoRpm(dt), mex = (GAME && GAME.menuExhaust) || (typeof SAVE !== 'undefined' && SAVE.build ? modsFor(SAVE.build).exhaust : 'stock');
-      if (dm) this.setEngine(this.eng, dm[0], dm[1], 0.95, false, dm[2]); else this.setEngine(this.eng, 1500 + Math.sin(t * 2.1) * 90, 0.04, 0.4, false, mex);
+      if (dm) this.setEngine(this.eng, dm[0], dm[1], 0.95, false, dm[2]); else this.setEngine(this.eng, 1500 + Math.sin(t * 2.1) * 90, 0.04, 0.22, false, mex);   // a quiet idle under the menu song
+      this._take = smooth(this._take || 0, dm ? dm[1] * 0.85 : 0, dm && dm[1] ? 9 : 2.5, dt); MUSIC.engineDuck(this._take);   // the garage rev demo takes over too
       this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
     const P = race.player; const vol = P.engineOff ? 0 : P.crashed ? 0.15 : 1;
-    const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock'; this.setEngine(this.eng, P.rpm, P.crashed ? 0 : P.input.throttle, vol, P.boosting, ex);
+    const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock', thrP = P.crashed || P.engineOff ? 0 : P.input.throttle; this.setEngine(this.eng, P.rpm, thrP, vol, P.boosting, ex);
+    // throttle takeover: the song dips under the engine while you're on the gas (and when you rev on the start line)
+    const rk = clamp((P.rpm - 1500) / 8900, 0, 1); this._take = smooth(this._take || 0, thrP * (0.45 + 0.55 * rk) * (race.state === 'racing' || race.state === 'countdown' ? 1 : 0.3), thrP > (this._take || 0) ? 9 : 2.5, dt);
+    MUSIC.engineDuck(this._take);
     let near = null, nd = 1e9; for (const r of race.riders) { if (r === P || r.eliminated) continue; const d = Math.abs(r.dist - P.dist) + Math.abs(r.d - P.d) * 2; if (d < nd) { nd = d; near = r; } }
-    if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.75, near.boosting, (near.rig && near.rig.o && near.rig.o.mods && near.rig.o.mods.exhaust) || 'stock', doppler); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
+    if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.55, near.boosting, (near.rig && near.rig.o && near.rig.o.mods && near.rig.o.mods.exhaust) || 'stock', doppler); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
     this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? (race.world && race.world.ugCover ? 0.02 : 0.11) : 0, t, 0.5);

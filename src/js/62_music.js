@@ -66,7 +66,7 @@ const MUSIC = {
   on: false, mode: 'off', level: 0, step: 0, bar: 0, nextT: 0, timer: null, song: 0,
   init() {
     if (this.on || !AUDIO.ctx) return; const c = AUDIO.ctx; this.c = c;
-    this.out = c.createGain(); this.out.gain.value = 0; this.out.connect(AUDIO.master);
+    this.out = c.createGain(); this.out.gain.value = 0; this.side = c.createGain(); this.out.connect(this.side); this.side.connect(AUDIO.master);   // side: dips under the throttle
     this.tone = c.createBiquadFilter(); this.tone.type = 'lowpass'; this.tone.frequency.value = 18000; this.tone.Q.value = 0.7; this.tone.connect(this.out);
     this.bus = c.createGain(); this.bus.gain.value = 0.9; this.bus.connect(this.tone);
     // tumbi / lead echo (dotted eighth)
@@ -76,6 +76,8 @@ const MUSIC = {
     this.on = true; this.applyVolume(); if (this.mode !== 'off') this.songFor(this.mode, 'off');   // the game may already be on the menu when sound unlocks
     this.timer = setInterval(() => this.tick(), 25);
   },
+  // 0 = full song, 1 = flat out: the song drops ~9 dB so the engine takes over
+  engineDuck(k) { if (!this.on || !this.side) return; this.side.gain.setTargetAtTime(1 - 0.65 * clamp(k, 0, 1), this.c.currentTime, 0.06); },
   applyVolume() { if (!this.on) return; const v = AUDIO.muted ? 0 : (SAVE.settings.music ?? 0.6) * 0.75; this.out.gain.setTargetAtTime(this.mode === 'off' ? 0 : v, this.c.currentTime, 0.3); },
   setMode(m) {
     if (!this.on || m === this.mode) { this.mode = m; return; }
