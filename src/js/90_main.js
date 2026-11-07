@@ -500,8 +500,13 @@ class Game {
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
     let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0;
     if (this.state === 'garage') {
-      if (!(this.ui.dragT > 0)) this.ui.garageYaw += dt * 0.25; else this.ui.dragT -= dt;
-      const a = yaw + this.ui.garageYaw, rr = 3.6 * (1 + pk * 0.55); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + 1.35 + pk * 0.3, p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + 0.75, p.z);
+      const U = this.ui; U.exFocus = Math.max(0, (U.exFocus || 0) - dt);
+      if (U.garageYawTo != null) { const d = wrapAngle(U.garageYawTo - U.garageYaw); U.garageYaw += d * Math.min(1, dt * 3.5); if (Math.abs(d) < 0.01) U.garageYawTo = null; U.dragT = Math.max(U.dragT || 0, 1); }
+      else if (!(U.dragT > 0)) U.garageYaw += dt * 0.25; else U.dragT -= dt;
+      // silencer demo: swing round to the right-rear quarter and move in on the pipe while it revs
+      const ek = sstep(clamp(U.exFocus / 0.6, 0, 1)), a = yaw + U.garageYaw, rr = 3.6 * (1 + pk * 0.55);
+      target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + 1.35 + pk * 0.3, p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + 0.75, p.z);
+      if (ek > 0) { rig.root.updateMatrixWorld(); target.lerp(rig.body.localToWorld(new THREE.Vector3(-2.6 * (1 + pk * 0.35), 1.0 + pk * 0.25, -2.25 * (1 + pk * 0.35))), ek); look.lerp(rig.body.localToWorld(new THREE.Vector3(-0.12, 0.42, -0.42)), ek); }
       shift = pk * 0.27; fovAdd = pk * 14;
     } else if (this.state === 'store') {
       // the wardrobe camera turns to what you're shopping for: the back for the waistband, the face for hair and shades

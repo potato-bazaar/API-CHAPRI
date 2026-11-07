@@ -110,12 +110,20 @@ class UI {
     $$('[data-up]').forEach(btn => btn.addEventListener('click', () => { const id = btn.dataset.up; const lvl = (SAVE.upgrades[b.id] || {})[id] || 0; const cost = upgradeCost(b, lvl); if (SAVE.coins < cost || SAVE.parts < 1) return; SAVE.coins -= cost; SAVE.parts -= 1; SAVE.upgrades[b.id] = Object.assign({}, SAVE.upgrades[b.id], { [id]: lvl + 1 }); persist(); AUDIO.pickup(); this.renderGarage(); }));
     // custom mods: bought once, fitted to any owned bike
     const md = modsFor(b.id), ownMod = (slot, it) => it.cost === 0 || SAVE.ownedMods[slot + ':' + it.id] || (slot === 'finish' && it.id === 'chrome' && b.chrome);
-    $('#mods').innerHTML = Object.entries(MODS).map(([slot, S]) => `<div class="mod-row"><span>${S.label}</span><div class="chips">${S.items.map(it => `<button type="button" class="chip ${md[slot] === it.id ? 'on' : ''} ${ownMod(slot, it) ? '' : 'locked'}" data-mod="${slot}:${it.id}">${it.name}${ownMod(slot, it) ? '' : `<small>${coinI}${fmtNum(it.cost)}</small>`}</button>`).join('')}</div></div>`).join('');
+    GAME.menuExhaust = md.exhaust;   // the garage idles on the silencer of the bike you're looking at
+    $('#mods').innerHTML = Object.entries(MODS).map(([slot, S]) => `<div class="mod-row"><span>${S.label}${slot === 'exhaust' ? '<button type="button" class="rev-btn" data-rev aria-label="Hear the fitted silencer">▶ Rev</button>' : ''}</span><div class="chips">${S.items.map(it => `<button type="button" class="chip ${md[slot] === it.id ? 'on' : ''} ${ownMod(slot, it) ? '' : 'locked'}" data-mod="${slot}:${it.id}">${it.name}${ownMod(slot, it) ? '' : `<small>${coinI}${fmtNum(it.cost)}</small>`}</button>`).join('')}</div></div>`).join('');
     $('#modNote').textContent = this.modNote || (owned ? 'Tap a part to fit it. Parts you buy fit every bike you own.' : 'Unlock this build to fit parts.');
+    const rev = (id) => { AUDIO.revDemo(id); if (typeof OST !== 'undefined') OST.duck(0.3, 5); this.garageYawTo = -2.25; this.exFocus = 4.2; this.dragT = 4.2; };   // blip, blip, full pull, snap off — with the camera on the pipe
+    $('[data-rev]').addEventListener('click', (e) => { e.stopPropagation(); rev(md.exhaust); });
     $$('[data-mod]').forEach(btn => btn.addEventListener('click', async () => { const [slot, id] = btn.dataset.mod.split(':'); const it = modItem(slot, id);
-      if (!owned) { this.modNote = 'Unlock this build first.'; this.renderGarage(); return; }
+      if (slot === 'exhaust') rev(id);   // hear any silencer, bought or not
+      if (!owned) { this.modNote = slot === 'exhaust' ? `${it.name}: ${it.note || ''}. Unlock this build to fit it.` : 'Unlock this build first.'; this.renderGarage(); return; }
       if (!ownMod(slot, it)) { if (SAVE.coins < it.cost) { this.modNote = `${it.name} costs ${fmtNum(it.cost)} coins. Win races to earn more.`; AUDIO.warn(); this.renderGarage(); return; }
-        if (!(await this.confirm(`Buy ${it.name}?`, `${it.note ? it.note + ". " : ""}Spend ${fmtNum(it.cost)} coins? It fits every bike you own.`, 'Buy'))) return;
+        // try it on while you decide: the bike wears the part until you buy or cancel
+        const prev = SAVE.mods[b.id]; SAVE.mods[b.id] = Object.assign({}, md, { [slot]: id }); this.game.refreshMenuRig(b.id);
+        const yes = await this.confirm(`Buy ${it.name}?`, `${it.note ? it.note + ". " : ""}Spend ${fmtNum(it.cost)} coins? It fits every bike you own.`, 'Buy');
+        SAVE.mods[b.id] = prev; if (!prev) delete SAVE.mods[b.id];
+        if (!yes) { this.game.refreshMenuRig(b.id); return; }
         SAVE.coins -= it.cost; SAVE.ownedMods[slot + ':' + id] = true; AUDIO.pickup(); this.game.showScreen('garage'); }
       else AUDIO.click();
       SAVE.mods[b.id] = Object.assign({}, md, { [slot]: id }); persist(); this.modNote = `${MODS[slot].label}: ${it.name}${it.note ? ' — ' + it.note : ''}`; this.renderGarage(); this.game.refreshMenuRig(b.id); }));

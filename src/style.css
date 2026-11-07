@@ -672,3 +672,8 @@ kbd { font-family: var(--f-num); }
 .share-modal .modal-body { display: grid; justify-items: center; gap: .9rem; }
 .share-img { display: block; height: min(64vh, 40rem); aspect-ratio: 9 / 16; max-width: 100%; object-fit: contain; border-radius: 14px; background: #140a1a; box-shadow: 0 8px 0 rgba(0, 0, 0, .35); }
 .share-btns { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; }
+
+/* garage: hear the fitted silencer */
+.mod-row > span { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.rev-btn { padding: .12rem .6rem; border-radius: 99px; border: 1px solid rgba(255, 194, 26, .55); background: rgba(255, 194, 26, .1); color: var(--marigold); font: 800 .75rem var(--f-display); letter-spacing: .06em; cursor: pointer; text-transform: uppercase; }
+.rev-btn:hover { background: rgba(255, 194, 26, .22); }

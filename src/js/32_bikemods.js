@@ -6,7 +6,8 @@ function modMats(low) {
   const k = low ? 'l' : 's'; if (MOD_MAT[k]) return MOD_MAT[k];
   const env = BIKE_MODEL.env, std = (o) => low ? new THREE.MeshLambertMaterial({ color: o.color, side: o.side || THREE.FrontSide }) : new THREE.MeshStandardMaterial(Object.assign({ envMap: env, envMapIntensity: 1.2 }, o));
   MOD_MAT[k] = {
-    chrome: std({ color: '#f1f2f6', metalness: 1, roughness: 0.14 }),
+    chrome: std({ color: '#cdd1d9', metalness: 1, roughness: 0.24, envMapIntensity: 0.75 }),   // a touch duller than mirror so it doesn't bloom to white
+    blued: low ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.95, roughness: 0.26, envMap: env, envMapIntensity: 1.1 }),   // heat-blued chamber
     black: std({ color: '#1c1c20', metalness: 0.35, roughness: 0.5 }),
     rubber: std({ color: '#151515', metalness: 0, roughness: 0.9 }),
     smoke: low ? new THREE.MeshLambertMaterial({ color: '#2a3446', transparent: true, opacity: 0.6, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ color: '#1a2333', metalness: 0.6, roughness: 0.08, transparent: true, opacity: 0.55, side: THREE.DoubleSide, envMap: env }),
@@ -20,6 +21,16 @@ function modGeo(key, make) { return MOD_GEO[key] || (MOD_GEO[key] = make()); }
 // a tapered pipe whose front end is at the origin, running backwards (-z) and tilted up by `tilt`
 function pipeGeo(rF, rR, len, tilt) { return new THREE.CylinderGeometry(rR, rF, len, 20, 1, false).translate(0, len / 2, 0).rotateX(-Math.PI / 2).rotateX(tilt); }
 function ringGeo(r, tube) { return new THREE.TorusGeometry(r, tube, 8, 22); }
+// expansion chamber: a lathe along -z (tilted up like the stock can), heat colours from gold at the header to blue at the stinger
+function chamberGeo() {
+  const prof = [[0.044, 0], [0.05, 0.05], [0.07, 0.12], [0.09, 0.21], [0.097, 0.29], [0.094, 0.36], [0.075, 0.43], [0.045, 0.5], [0.026, 0.53], [0.024, 0.62]];
+  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 28);
+  const P = g.attributes.position, C = new Float32Array(P.count * 3), stops = [[0, '#d4a74c'], [0.14, '#c98a3c'], [0.26, '#8a4f9e'], [0.4, '#4a5fb4'], [0.52, '#3b4f8a'], [0.62, '#5a6170']].map(([u, h]) => [u, new THREE.Color(h)]);
+  const tmp = new THREE.Color();
+  for (let i = 0; i < P.count; i++) { const u = P.getY(i); let k = 0; while (k < stops.length - 2 && u > stops[k + 1][0]) k++; const [u0, c0] = stops[k], [u1, c1] = stops[k + 1]; tmp.copy(c0).lerp(c1, clamp((u - u0) / (u1 - u0), 0, 1)); C[i * 3] = tmp.r; C[i * 3 + 1] = tmp.g; C[i * 3 + 2] = tmp.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(C, 3));
+  return g.rotateX(-Math.PI / 2).rotateX(0.085);
+}
 function placeAtEnd(mesh, front, len, tilt) { mesh.position.set(front[0], front[1] + Math.sin(tilt) * len, front[2] - Math.cos(tilt) * len); mesh.rotation.x = tilt; return mesh; }
 
 // adds the mods in o.mods to a BikeRig built on the real model; returns state the rig animates (flame, lift)
@@ -38,6 +49,16 @@ function addBikeMods(rig, o, low, cast) {
   if (md.exhaust === 'long') silencer(-1, [0.165, 0.295, -0.42], 0.05, 0.074, 0.9, 0.07, M.chrome, M.chrome);
   else if (md.exhaust === 'twin') { silencer(-1, [0.17, 0.3, -0.36], 0.046, 0.06, 0.78, 0.3, M.chrome, M.chrome); silencer(1, [0.19, 0.3, -0.36], 0.046, 0.06, 0.78, 0.3, M.chrome, M.chrome); }
   else if (md.exhaust === 'dragon') silencer(-1, [0.168, 0.3, -0.5], 0.052, 0.098, 0.56, 0.1, M.black, M.chrome, true);
+  else if (md.exhaust === 'free') silencer(-1, [0.16, 0.287, -0.88], 0.027, 0.029, 0.25, 0.08, M.chrome, M.chrome);   // the welded "cut silencer" pipe out of the stock can
+  else if (md.exhaust === 'chamber') {
+    // a real expansion chamber swallowing the stock can: divergent cone, belly, convergent cone, thin stinger, small silencer
+    const f = [-0.166, 0.243, -0.35], tilt = 0.085;
+    const c = mesh(modGeo('chamber', chamberGeo), M.blued); c.position.set(...f);
+    const can = mesh(modGeo('chamberCan', () => pipeGeo(0.036, 0.038, 0.19, tilt)), M.black); placeAtEnd(can, f, 0.6, tilt);
+    const cf = [f[0], f[1] + Math.sin(tilt) * 0.6, f[2] - Math.cos(tilt) * 0.6];
+    placeAtEnd(mesh(modGeo('r0.038', () => ringGeo(0.038 * 0.97, 0.009)), M.chrome), cf, 0.19, tilt);
+    placeAtEnd(mesh(modGeo('d0.03', () => new THREE.CircleGeometry(0.022, 14).rotateY(Math.PI)), M.black), cf, 0.19 + 0.004, tilt);
+  }
   // ── tyres: wider (and a touch taller) wheels; the body rides up so they still touch the road ──
   const tw = { fat: [1.75, 1.05, 1.5, 1.04], racing: [1.3, 1.0, 1.2, 1.0] }[md.tyres];
   if (tw) { rig.wheelR.scale.set(tw[0], tw[1], tw[1]); rig.wheelF.scale.set(tw[2], tw[3], tw[3]); out.lift = WHEEL_R_M * ((tw[1] + tw[3]) / 2 - 1); }

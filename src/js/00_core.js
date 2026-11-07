@@ -57,10 +57,12 @@ const PAINTS = ['#b9bec6', '#141414', '#8a1630', '#ff2e88', '#2f5d3a', '#3b1d6e'
 // Visual mods, bought once and fitted to any owned bike. fx tweak the build's stats a little (shown in the Garage).
 const MODS = {
   exhaust: { label: 'Silencer', items: [
-    { id: 'stock', name: 'Stock', cost: 0 },
-    { id: 'long', name: 'Lambi Pipe', cost: 900, note: 'Long chrome pipe · +2 km/h top', fx: { top: 2 } },
-    { id: 'twin', name: 'Twin Upswept', cost: 1600, note: 'Pipe on each side · quicker pickup', fx: { acc: 0.04 } },
-    { id: 'dragon', name: 'Dragon Mouth', cost: 2400, note: 'Spits fire on boost · boost fills faster', fx: { boost: 0.15 } } ] },
+    { id: 'stock', name: 'Stock', cost: 0, note: 'Company silencer · the crisp RX beat' },
+    { id: 'free', name: 'Free Flow', cost: 700, note: 'Pipe welded into the muffler · loud, hard beat and crackle · quicker revs', fx: { acc: 0.03, top: -1 } },
+    { id: 'long', name: 'Lambi Pipe', cost: 900, note: 'Long chrome pipe · deep bass boom · +2 km/h top', fx: { top: 2 } },
+    { id: 'twin', name: 'Twin Upswept', cost: 1600, note: 'Pipe on each side · loudest, left-right beat · quicker pickup', fx: { acc: 0.04 } },
+    { id: 'chamber', name: 'Expansion Chamber', cost: 2800, note: 'Motocross pipe · quiet low down, screams in the powerband · +3 km/h top', fx: { top: 3, acc: -0.02 } },
+    { id: 'dragon', name: 'Dragon Mouth', cost: 2400, note: 'Raspy, pops and spits fire on boost · boost fills faster', fx: { boost: 0.15 } } ] },
   tyres: { label: 'Tyres', items: [
     { id: 'stock', name: 'Stock', cost: 0 },
     { id: 'fat', name: 'Mota Tyre', cost: 1200, note: 'Fat and bulky · more grip, -1 km/h', fx: { grip: 0.05, top: -1 } },

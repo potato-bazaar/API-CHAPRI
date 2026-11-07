@@ -81,7 +81,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 - **Riders.** Skinned riders with IK posing and a verlet-cloth open shirt over a baniyan. The default rider has an athletic build, a sculpted brown pompadour, gold aviators, stubble, gold chains and a watch, and a tropical hibiscus shirt. Hair moves in the wind. The home screen uses studio rim lights, and the profile picture is a live portrait of your rider.
 - **Boost.** A "⚡ BOOST!" banner, an electric-blue speedometer with a BOOST bar, blue exhaust jets, neon speed lines and radial blur.
 - **Garage.** Builds, performance upgrades, 18 paints, and visual mods:
-  - silencers: lambi pipe, twin upswept, or dragon mouth (fire on boost);
+  - silencers: free flow (welded cut pipe), lambi pipe, twin upswept, expansion chamber (heat-blued belly), or dragon mouth (fire on boost). Each one sounds different (see **Engine sound**). In the garage, tapping a silencer plays a rev demo with the camera on the pipe, even before you buy it, and the bike wears it while the buy prompt is open. **▶ Rev** replays the fitted one;
   - Mota or racing tyres;
   - crash guard with fog lamps, café cowl, or the full bulky kit;
   - gloss, matte, metal-flake or chrome finish.
@@ -100,6 +100,18 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 
   Each step ticks off when the player does it, or moves on after a few seconds. It's skippable, runs once per save, and **Help → Coach me in my next race** brings it back. Saves that already have races skip it. `?coach` forces it for testing.
 - **Share your race.** **Share** on the results screen makes a 1080×1920 card: a close hero shot of your rider, position, track, time, best lap, top speed, coins and overtakes. It opens the phone's share sheet (WhatsApp, Instagram…) where the browser supports sharing files, and always offers **Save image**.
+- **Engine sound.** The two-stroke is played as a train of exhaust pulses, one per revolution (about 25 a second at idle, about 150 at the limiter), not a steady tone.
+  - Each pulse is a short burst made in code, with no audio files: the blow-down click, a body thump, the pipe's resonances ringing down, and a puff of gas noise.
+  - The silencer sets those resonances, its loudness and its saturation:
+    - **Stock:** muffled crisp beat.
+    - **Free Flow:** hard, loud and crackly.
+    - **Lambi Pipe:** deep bass.
+    - **Twin Upswept:** loudest, with the beat alternating left and right.
+    - **Expansion Chamber:** quieter low down, then a motocross scream from 5,400 rpm.
+    - **Dragon Mouth:** raspy, with pops.
+  - At light throttle the engine 4-strokes (every other firing goes weak), which gives the RX "ring-ding-ding".
+  - Snapping the throttle shut at high revs makes the louder pipes crackle and pop.
+  - The nearest rival is heard through their own silencer, with Doppler shift.
 - **Smoothness.** A race frame on a phone-sized screen costs about 30% less than before the November audit:
   - the wet-road mirror only draws layer 1 (the world, all lights, and bike/rider parts bigger than about 20 cm), not ink outlines, particles, glows or tiny parts;
   - each racing rig welds its fixed parts that share a material into one mesh;
