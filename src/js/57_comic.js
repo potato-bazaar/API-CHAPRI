@@ -13,10 +13,10 @@ class ComicFX {
     this.rt = new THREE.WebGLRenderTarget(sz.x, sz.y, { samples: 4 }); this.rt.texture.colorSpace = THREE.SRGBColorSpace; this.rt.texture.internalFormat = 'RGBA8'; this.rt.isXRRenderTarget = true;
     this.rt.depthTexture = new THREE.DepthTexture(sz.x, sz.y); this.rt.depthTexture.type = THREE.UnsignedIntType;
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 }, uLift: { value: 0.03 }, uGamma: { value: 0.95 }, uSat: { value: 1.12 }, uNeon: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uLiftC: { value: new THREE.Vector3(0.62, 0.66, 1.0) }, uWarm: { value: 0 }, uContrast: { value: 1 }, uVig: { value: 0.18 }, uDof: { value: 0.6 }, uFocus: { value: 55 }, uFocusR: { value: 240 } },
+      uniforms: { tColor: { value: this.rt.texture }, tDepth: { value: this.rt.depthTexture }, tBloom: { value: null }, uBloom: { value: 0.5 }, uComic: { value: 1 }, res: { value: sz.clone() }, cNear: { value: 0.1 }, cFar: { value: 2400 }, uSpeed: { value: 0 }, uBoost: { value: 0 }, uPx: { value: 1 }, uDot: { value: 5 }, uPrint: { value: 1 }, uLift: { value: 0.03 }, uGamma: { value: 0.95 }, uSat: { value: 1.12 }, uNeon: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uLiftC: { value: new THREE.Vector3(0.62, 0.66, 1.0) }, uWarm: { value: 0 }, uContrast: { value: 1 }, uVig: { value: 0.18 }, uDof: { value: 0.6 }, uFocus: { value: 55 }, uFocusR: { value: 240 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uBloom, uComic, uLift, uGamma, uSat, uNeon; uniform vec3 uTint, uLiftC; uniform float uWarm, uContrast, uVig, uDof, uFocus, uFocusR; varying vec2 vUv;
+        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tBloom; uniform vec2 res; uniform float cNear, cFar, uSpeed, uBoost, uPx, uDot, uPrint, uBloom, uComic, uLift, uGamma, uSat, uNeon; uniform vec3 uTint, uLiftC; uniform float uWarm, uContrast, uVig, uDof, uFocus, uFocusR; varying vec2 vUv;
         float lin(float d){ float z = d * 2.0 - 1.0; return (2.0 * cNear * cFar) / (cFar + cNear - z * (cFar - cNear)); }
         void main(){
           vec2 px = uPx / res; vec2 c = vUv - 0.5; float e2 = dot(c, c);
@@ -41,11 +41,11 @@ class ComicFX {
             vec2 q = gl_FragCoord.xy / uDot; q = vec2(q.x + q.y, q.y - q.x) * 0.7071; vec2 cell = fract(q) - 0.5;
             float dark = smoothstep(0.34, 0.04, lum); float rad = 0.55 * sqrt(dark);
             float dotm = 1.0 - smoothstep(rad - 0.07, rad + 0.07, length(cell));
-            o *= 1.0 - dotm * 0.13 * dark;
+            o *= 1.0 - dotm * 0.13 * dark * uPrint;
             // Ben-Day sparkle on bright, saturated colour
             float sat = max(o.r, max(o.g, o.b)) - min(o.r, min(o.g, o.b)); vec2 cell2 = fract(gl_FragCoord.xy / (uDot * 1.4)) - 0.5;
-            o += (1.0 - smoothstep(0.16, 0.24, length(cell2))) * smoothstep(0.35, 0.7, sat) * smoothstep(0.45, 0.8, lum) * 0.05;
-            o = mix(o, floor(o * 7.0 + 0.5) / 7.0, 0.07);
+            o += (1.0 - smoothstep(0.16, 0.24, length(cell2))) * smoothstep(0.35, 0.7, sat) * smoothstep(0.45, 0.8, lum) * 0.05 * uPrint;
+            o = mix(o, floor(o * 7.0 + 0.5) / 7.0, 0.07 * uPrint);
             o = mix(o, vec3(0.07, 0.04, 0.1), ink * 0.85);
           }
           // grade: lift the shadows into a cool violet so night detail survives, open up the mids, push the colour
@@ -82,7 +82,9 @@ class ComicFX {
   }
   resize() { if (!this.ok) return; const sz = this.r.getDrawingBufferSize(new THREE.Vector2()); this.rt.setSize(sz.x, sz.y); this.mat.uniforms.res.value.copy(sz);
     const bw = Math.max(8, Math.round(sz.x / 4)), bh = Math.max(8, Math.round(sz.y / 4)); this.bA.setSize(bw, bh); this.bB.setSize(bw, bh); this.brightMat.uniforms.texel.value.set(1 / sz.x, 1 / sz.y); this.bTex = new THREE.Vector2(1 / bw, 1 / bh);
-    const pr = this.r.getPixelRatio(); this.mat.uniforms.uPx.value = Math.max(1, pr * 0.85); this.mat.uniforms.uDot.value = 4.5 * Math.max(1, pr); }
+    const pr = this.r.getPixelRatio(); this.mat.uniforms.uPx.value = Math.max(1, pr * 0.85); this.mat.uniforms.uDot.value = 4.5 * Math.max(1, pr);
+    // on a phone-sized screen the print texture (halftone dots, Ben-Day sparkle, posterising) reads as grain: keep a whisper of it
+    const small = Math.min(innerWidth, innerHeight) < 600 || IS_TOUCH; this.mat.uniforms.uPrint.value = small ? 0.35 : 1; }
   render(scene, camera) {
     const U = this.mat.uniforms; U.cNear.value = camera.near; U.cFar.value = camera.far; U.uSpeed.value = this.speed; U.uBoost.value = this.boost;
     this.r.setRenderTarget(this.rt); this.r.render(scene, camera);

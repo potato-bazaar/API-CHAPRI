@@ -137,6 +137,13 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - rival outlines skip parts under 9 cm;
   - the HUD only writes to the page when a value changes;
   - 120/144 Hz screens draw every other refresh (60–72 fps), so phones don't heat up and throttle. `?nocap` turns this off.
+  - **Sharpness on phones.** The quality governor sheds cost before sharpness, in steps:
+    1. Slightly softer.
+    2. Road mirror off.
+    3. Softer again.
+    4. The floor.
+
+    It never renders below 1.35 device pixels per screen point. It used to go as low as 0.75× on Low, which looked blocky and grainy. Low renders at 1.5×. Medium's mirror runs at 42% resolution. On phone-sized screens the comic print texture (halftone dots, Ben-Day sparkle, posterising) is kept to a third of its strength, so it doesn't read as grain. The auto-quality benchmark runs again once for saves judged by older, slower builds.
 
 ![Police Express+](docs/police-express.jpg)
 
