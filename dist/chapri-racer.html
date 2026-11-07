@@ -6820,7 +6820,8 @@ const AUDIO = {
     if (thr > 0.6 && (e.thrLo ?? 1) < 0.35) e.punch = 1; e.thrLo = thr < 0.35 ? thr : thr > 0.6 ? 1 : (e.thrLo ?? 1);
     e.tone.frequency.setTargetAtTime(Math.min(16000, V.tone * (0.5 + 0.5 * thr) * (0.75 + 0.6 * rN) + (boost ? 1800 : 0) + e.punch * 2600), t, 0.03);
     const lowK = V.band ? V.low + (1 - V.low) * band : 1, rateK = 1 / (0.6 + 0.4 * Math.sqrt(f / 25));   // a pulse train gets louder as it speeds up; keep that, but tamed
-    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (0.2 + 0.8 * Math.pow(thr, 1.5)) * (1 + 0.55 * e.punch) * 2.1, t, 0.03);   // closed → open is ~+14 dB; part throttle stays well under full
+    const under = e === this.eng && this.imp ? clamp((this.imp.end - t) / 0.45, 0, 1) : 0;   // the takeover hit leads; the live engine slides back in as it ends
+    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (0.2 + 0.8 * Math.pow(thr, 1.5)) * (1 + 0.55 * e.punch) * 2.1 * (1 - 0.72 * under), t, 0.03);   // closed → open is ~+14 dB; part throttle stays well under full
     // throttle snapped shut at high revs → a burst of pops
     if (V.pops && (e.thr || 0) > 0.7 && thr < 0.2 && rpm > 5200) e.popUntil = t + 0.22 + V.pops * 0.07; e.thr = thr;
     if (vol < 0.01) { e.next = 0; return; }
@@ -6837,6 +6838,31 @@ const AUDIO = {
       e.next += jit / f;
     }
   },
+  // ── the throttle takeover hit ──
+  // The stab-and-pull from the reference ride (the first seconds of chapri-throttle-takeover.mp3: throttle snapped open
+  // at ~5,000 rpm, the revs flaring up through a shift), rendered once per silencer from this same engine code. It plays at
+  // the green light, when you rev on the start line, and whenever you open the throttle again after lifting, while the
+  // live engine dips under it, so every stab lands like that clip even when your speed has the revs pinned in top gear.
+  impactFor(ex) {
+    const I = this._imp || (this._imp = {}); if (I[ex] !== undefined) return I[ex];   // the buffer, or null while it renders
+    I[ex] = null; const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return null;
+    this.pulses(ex);   // share this context's pulse buffers
+    const sr = this.ctx.sampleRate, dur = 2.1, off = new OAC(1, Math.floor(sr * dur), sr), A = Object.create(AUDIO);
+    A.ctx = off; A.on = true; A._pulses = this._pulses; A.imp = null; A.engG = off.createGain(); A.engG.connect(off.destination); const e = A.makeEngine();
+    let rpm = 4900, shifts = 0;
+    for (let i = 0; i < Math.floor(dur * 60) - 2; i++) off.suspend(i / 60).then(() => {
+      const thr = i < 4 ? 0.3 : 1; if (thr > 0.5) { rpm += (9000 - rpm) * 0.03 + 20; if (rpm > 8900 && shifts < 2) { shifts++; rpm = 6400; } }   // same flare as the reference ride
+      A.setEngine(e, rpm, thr, 1, false, ex); off.resume(); });
+    off.startRendering().then(b => { const d = b.getChannelData(0), n = d.length, f = Math.floor(sr * 0.45); for (let i = 0; i < f; i++) d[n - 1 - i] *= i / f; I[ex] = b; }).catch(() => { });
+    return null;
+  },
+  impact(buf, rpm) {
+    const c = this.ctx, t = c.currentTime; this.impactStop(0.04);
+    const s = c.createBufferSource(); s.buffer = buf; s.playbackRate.value = clamp(0.94 + (rpm - 5000) / 40000, 0.9, 1.06);
+    const g = c.createGain(); g.gain.value = 1; s.connect(g); g.connect(this.engG); s.start(t);
+    const I = this.imp = { s, g, end: t + buf.duration / s.playbackRate.value }; this.impT = 0; s.onended = () => { if (this.imp === I) this.imp = null; };
+  },
+  impactStop(sec = 0.12) { const I = this.imp; if (!I) return; const t = this.ctx.currentTime; I.g.gain.cancelScheduledValues(t); I.g.gain.setValueAtTime(I.g.gain.value, t); I.g.gain.linearRampToValueAtTime(0, t + sec); try { I.s.stop(t + sec + 0.02); } catch (e) { } this.imp = null; },
   // garage: blip-blip, one long pull and a snap off, so you can hear a silencer before you fit it
   revDemo(ex) { if (!this.on) return; this.demo = { t: 0, ex }; },
   demoRpm(dt) {
@@ -6846,12 +6872,17 @@ const AUDIO = {
   },
   update(race, dt) {
     if (!this.on) return; const t = this.ctx.currentTime;
-    if (!race) { this.siren(0); const dm = this.demo && this.demoRpm(dt), mex = (GAME && GAME.menuExhaust) || (typeof SAVE !== 'undefined' && SAVE.build ? modsFor(SAVE.build).exhaust : 'stock');
+    if (!race) { this.siren(0); if (this.imp) this.impactStop(); const dm = this.demo && this.demoRpm(dt), mex = (GAME && GAME.menuExhaust) || (typeof SAVE !== 'undefined' && SAVE.build ? modsFor(SAVE.build).exhaust : 'stock');
       if (dm) this.setEngine(this.eng, dm[0], dm[1], 0.95, false, dm[2]); else this.setEngine(this.eng, 1500 + Math.sin(t * 2.1) * 90, 0.04, 0.22, false, mex);   // a quiet idle under the menu song
       this._take = smooth(this._take || 0, dm ? dm[1] * 0.85 : 0, dm && dm[1] ? 9 : 2.5, dt); MUSIC.engineDuck(this._take);   // the garage rev demo takes over too
       this.riv.out.gain.setTargetAtTime(0, t, 0.2); this.wind.gain.setTargetAtTime(0, t, 0.3); this.rain.gain.setTargetAtTime(GAME && GAME.wet ? 0.08 : 0, t, 0.3); for (const b of [this.scrub, this.squealB, this.hiss]) b.gain.setTargetAtTime(0, t, 0.2); return; }
     const P = race.player; const vol = P.engineOff ? 0 : P.crashed ? 0.15 : 1;
     const ex = P.st && P.st.mods ? P.st.mods.exhaust : 'stock', thrP = P.crashed || P.engineOff ? 0 : P.input.throttle; this.setEngine(this.eng, P.rpm, thrP, vol, P.boosting, ex);
+    // takeover hit: green light with the gas held, or the throttle reopened after a lift (start-line revs count too)
+    const hit = this.impactFor(ex), live = race.state === 'racing' || race.state === 'countdown', go = race.state === 'racing' && this._rs === 'countdown'; this._rs = race.state; this.impT = (this.impT ?? 9) + dt;
+    if (hit && live && !P.crashed && thrP > 0.65 && ((go && !this.imp) || ((this.lowT || 0) > 0.3 && this.impT > 0.9))) this.impact(hit, P.rpm);   // already mid-hit at the green: let it run
+    if (thrP < 0.35) this.lowT = (this.lowT || 0) + dt; else if (thrP > 0.65) this.lowT = 0;
+    if (this.imp && (thrP < 0.3 || P.crashed || !live)) this.impactStop();   // lift and it lets go with you
     // throttle takeover: the song dips under the engine while you're on the gas (and when you rev on the start line)
     const rk = clamp((P.rpm - 1500) / 8900, 0, 1); this._take = smooth(this._take || 0, thrP * (0.45 + 0.55 * rk) * (race.state === 'racing' || race.state === 'countdown' ? 1 : 0.3), thrP > (this._take || 0) ? 9 : 2.5, dt);
     MUSIC.engineDuck(this._take);

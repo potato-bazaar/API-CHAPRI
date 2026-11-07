@@ -112,6 +112,10 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - At light throttle the engine 4-strokes (every other firing goes weak), which gives the RX "ring-ding-ding".
   - Snapping the throttle shut at high revs makes the louder pipes crackle and pop.
   - The nearest rival is heard through their own silencer, with Doppler shift.
+  - **Takeover hit:** this is the stab-and-pull from the first seconds of the reference ride (`chapri-throttle-takeover.mp3`): the throttle snapped open at about 5,000 rpm and the revs flare up through a shift.
+    - It's rendered once per silencer from the same engine code and plays at the green light, when you rev on the start line, and whenever you reopen the throttle after a lift.
+    - The live engine dips under it and slides back in as it ends. Lifting off cuts it.
+    - So every throttle stab sounds like that clip, even in top gear where your speed holds the revs nearly still.
   - **Throttle takeover:** the engine is the loudest thing in the mix.
     - At full throttle it sits about 15 dB over the song.
     - Each stab of the throttle punches in harder and brighter for a moment.
