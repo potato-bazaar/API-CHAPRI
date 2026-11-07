@@ -198,6 +198,7 @@ class RiderModel {
     rig.body.add(this.root); this.baseY = this.root.position.y; this.baseX = this.root.position.x;
     this.cloth = o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
       : new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast, { muscle: o.muscle || 0, hem: o.band ? 1.06 : 0.92 });   // a shorter back when the waistband shows
+    this.cape = o.cape && o.cape.id !== 'none' ? new CapeCloth(this, rig, o.cape, low, !!o.lod, cast, { muscle: o.muscle || 0 }) : null;   // long cape over the shoulders
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
     const acc = riderAccessories(o); this.geoms = acc.geoms;
@@ -262,7 +263,7 @@ class RiderModel {
       for (const s of SIDES) { const h = wpos(B['hand_' + s], this.hands[s]), e = wpos(B['lowerarm_' + s], this.elbows[s]);
         h.multiplyScalar(sc).add(_rv[9].set(px, py, pz)); e.multiplyScalar(sc).add(_rv[9]); }
       upd(this.headH); for (const k in this.marks) wpos(this.marks[k], this.face[k]).multiplyScalar(sc).add(_rv[9]);   // face points, bike-body space
-      this.cloth.capture(B, this.invBind, sc, px, py, pz);
+      this.cloth.capture(B, this.invBind, sc, px, py, pz); if (this.cape) this.cape.capture(B, this.invBind, sc, px, py, pz);
     } finally { R.parent = parent; R.position.set(px, py, pz); R.scale.setScalar(sc); }
   }
   // two-bone IK with an anatomical hinge: aligns the upper bone's aim + hinge, then swings the lower bone onto the target
@@ -284,7 +285,7 @@ class RiderModel {
   hand(s) { return this.hands[s]; }
   elbow(s) { return this.elbows[s]; }
   setWind(speed, t) { this.U.uWind.value = smooth(this.U.uWind.value, 0.08 + clamp(speed / 24, 0, 1.3), 4, 1 / 60); this.U.uTime.value = t; }
-  dispose() { this.cloth.dispose(); this.geoms.forEach(g => g.dispose()); this.ownMats.forEach(m => m.dispose()); this.root.traverse(n => { if (n.isSkinnedMesh && n.skeleton) n.skeleton.dispose(); }); }
+  dispose() { this.cloth.dispose(); if (this.cape) this.cape.dispose(); this.geoms.forEach(g => g.dispose()); this.ownMats.forEach(m => m.dispose()); this.root.traverse(n => { if (n.isSkinnedMesh && n.skeleton) n.skeleton.dispose(); }); }
 }
 // helmet / shades / gold chain in head- and neck-relative space (+y up, +z forward, metres)
 // shades, gold chains and a watch: built from curves and lathes so they read as jewellery up close

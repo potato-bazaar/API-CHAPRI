@@ -98,6 +98,14 @@ const COSMETICS = {
     { id: 'neon-jacket', name: 'Neon Windcheater', cost: 1500, base: '#19d8ff', pattern: 'neon' },
     { id: 'leopard-shirt', name: 'Leopard Print', cost: 1300, base: '#d9a441', pattern: 'leopard' },
   ],
+  // long capes: a cloth sheet pinned across the shoulders that streams back at speed (our own designs and crests)
+  cape: [
+    { id: 'none', name: 'No cape', cost: 0 },
+    { id: 'raat', name: 'Raat Cape', cost: 1800, base: '#17141d', lining: '#b0145e', hem: 'scallop', glow: '#ff2e88' },
+    { id: 'hero', name: 'Hero Cape', cost: 1800, base: '#c8102e', lining: '#7a0a1c', crest: 'crown', trim: '#ffc21a' },
+    { id: 'neon', name: 'Neon Cape', cost: 2600, base: '#2a1140', lining: '#0c2a3a', hem: 'scallop', glow: '#20e0ff' },
+    { id: 'raja', name: 'Raja Cape', cost: 3500, base: '#c9962e', lining: '#6d0f1f', pattern: 'brocade', trim: '#7a1020', crest: 'crown' },
+  ],
   // the waistband that shows above the jeans (the chapri signature). The brand name is one constant: UW_BRAND.
   chaddi: [
     { id: 'hidden', name: 'Belt up (hidden)', cost: 0 },
@@ -211,7 +219,7 @@ function defaultSave() {
     name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
-    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
+    cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim', cape: 'none' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
     records: {}, ghosts: {},

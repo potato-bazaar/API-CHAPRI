@@ -6,8 +6,8 @@ function lookFromSave(buildId) {
   const b = BUILDS.find(x => x.id === (buildId || SAVE.build)) || BUILDS[0];
   const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0]; const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
   const hair = COSMETICS.hair.find(h => h.id === SAVE.cos.hair) || COSMETICS.hair[0];
-  const ch = COSMETICS.chaddi.find(c => c.id === SAVE.cos.chaddi) || COSMETICS.chaddi[1], jn = COSMETICS.jeans.find(j => j.id === SAVE.cos.jeans) || COSMETICS.jeans[0], bd = COSMETICS.body.find(x => x.id === SAVE.cos.body) || COSMETICS.body[0];
-  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.top ? '#888888' : shirt.base, flowers: shirt.flowers, check: shirt.check, pattern: shirt.pattern, top: shirt.top || 'shirt', vest: shirt.vest, band: ch.band ? ch : null, muscle: bd.muscle, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: jn.color, mods: modsFor(b.id) };
+  const cape = COSMETICS.cape.find(c => c.id === SAVE.cos.cape), ch = COSMETICS.chaddi.find(c => c.id === SAVE.cos.chaddi) || COSMETICS.chaddi[1], jn = COSMETICS.jeans.find(j => j.id === SAVE.cos.jeans) || COSMETICS.jeans[0], bd = COSMETICS.body.find(x => x.id === SAVE.cos.body) || COSMETICS.body[0];
+  return { tank: SAVE.paint[b.id] || b.tank, accent: b.accent, chrome: b.chrome, neon: b.neon, stickers: b.stickers, shirt: shirt.top ? '#888888' : shirt.base, flowers: shirt.flowers, check: shirt.check, pattern: shirt.pattern, top: shirt.top || 'shirt', vest: shirt.vest, band: ch.band ? ch : null, muscle: bd.muscle, cape: cape && cape.id !== 'none' ? cape : null, helmet: helm && helm.color, shades: shades && shades.color, shadesStyle: shades && shades.style, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: jn.color, mods: modsFor(b.id) };
 }
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 // resolves after the browser has really painted the current DOM (rAF runs before paint; the timeout runs after it)
@@ -515,7 +515,7 @@ class Game {
       shift = pk * 0.27; fovAdd = pk * 14;
     } else if (this.state === 'store') {
       // the wardrobe camera turns to what you're shopping for: the back for the waistband, the face for hair and shades
-      const V = { shirt: [0.9, 2.2, 1.55, 1.25], chaddi: [Math.PI - 0.45, 1.7, 1.45, 1.0], jeans: [1.45, 2.7, 1.15, 0.75], body: [0.55, 2.4, 1.55, 1.2], hair: [0.7, 1.35, 1.8, 1.6], helmet: [0.7, 1.45, 1.8, 1.6], shades: [0.35, 1.2, 1.72, 1.62] }[this.ui.storeTab || 'shirt'] || [0.9, 2.2, 1.55, 1.25];
+      const V = { shirt: [0.9, 2.2, 1.55, 1.25], chaddi: [Math.PI - 0.45, 1.7, 1.45, 1.0], jeans: [1.45, 2.7, 1.15, 0.75], body: [0.55, 2.4, 1.55, 1.2], hair: [0.7, 1.35, 1.8, 1.6], helmet: [0.7, 1.45, 1.8, 1.6], shades: [0.35, 1.2, 1.72, 1.62], cape: [Math.PI - 0.8, 3.3, 1.85, 0.95] }[this.ui.storeTab || 'shirt'] || [0.9, 2.2, 1.55, 1.25];
       const a = yaw + V[0] + Math.sin(this.t * 0.3) * 0.12, rr = V[1] * (1 + pk * 0.45); target = new THREE.Vector3(p.x + Math.sin(a) * rr, p.y + V[2], p.z + Math.cos(a) * rr); look = new THREE.Vector3(p.x, p.y + V[3], p.z);
       shiftX = pk > 0.3 ? 0 : -0.21; shift = pk * 0.25; fovAdd = pk * 12;
     } else {

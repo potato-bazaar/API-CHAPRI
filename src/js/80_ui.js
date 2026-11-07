@@ -138,7 +138,7 @@ class UI {
   // ── store: the chapri wardrobe. Tabs per category; tap to try it on (the camera turns to show it), buy with coins ──
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
-    const TABS = [['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades']];
+    const TABS = [['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades'], ['cape', 'Cape']];
     const tab = this.storeTab = this.storeTab || 'shirt';
     const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
       : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;

@@ -251,6 +251,36 @@ function shirtTexture(base, kind) {
 // the waistband above the jeans: elastic with the brand repeated, or leopard, a thin pantie band with bows, or lace.
 // Alpha = coverage: lace holes and the pantie's open top show the skin / vest underneath.
 const BAND_TEX_CACHE = {};
+// cape cloth: outer face, lining and (for the glowing ones) an edge strip. Canvas top = shoulders. Scalloped hems are cut
+// out of the alpha (alphaTest), so outer and lining share the same edge.
+const CAPE_TEX_CACHE = {};
+function capeTextures(it) {
+  if (CAPE_TEX_CACHE[it.id]) return CAPE_TEX_CACHE[it.id];
+  const W = 256, H = 512, mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
+  const tex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  const [oc, o] = mk(), [lc, l] = mk();
+  o.fillStyle = it.base; o.fillRect(0, 0, W, H); l.fillStyle = it.lining; l.fillRect(0, 0, W, H);
+  // soft vertical folds and a sheen that fades toward the hem
+  for (const [x, a] of [[o, 0.16], [l, 0.22]]) { for (let i = 0; i < 9; i++) { const g = x.createLinearGradient(i * W / 9, 0, (i + 1) * W / 9, 0); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.5, `rgba(255,255,255,${a * 0.45})`); g.addColorStop(1, `rgba(0,0,0,${a})`); x.fillStyle = g; x.fillRect(i * W / 9, 0, W / 9 + 1, H); }
+    const s = x.createLinearGradient(0, 0, 0, H); s.addColorStop(0, 'rgba(255,255,255,0.12)'); s.addColorStop(0.35, 'rgba(255,255,255,0)'); s.addColorStop(1, 'rgba(0,0,0,0.25)'); x.fillStyle = s; x.fillRect(0, 0, W, H); }
+  if (it.pattern === 'brocade') {   // raja: a woven diamond-and-dot brocade
+    o.strokeStyle = 'rgba(110,60,10,0.55)'; o.lineWidth = 2; o.fillStyle = 'rgba(255,235,170,0.35)';
+    for (let y = 0; y < H + 40; y += 40) for (let x = (y / 40) % 2 ? 20 : 0; x < W + 40; x += 40) { o.beginPath(); o.moveTo(x, y - 14); o.lineTo(x + 10, y); o.lineTo(x, y + 14); o.lineTo(x - 10, y); o.closePath(); o.stroke(); o.beginPath(); o.arc(x, y, 3, 0, 7); o.fill(); }
+  }
+  if (it.trim) { o.fillStyle = it.trim; o.fillRect(0, 0, 9, H); o.fillRect(W - 9, 0, 9, H); o.fillRect(0, H - 14, W, 14); o.fillRect(0, 0, W, 12); }
+  if (it.crest === 'crown') {   // the Chapri crest: a gold medallion with a three-point crown
+    const cx = W / 2, cy = 112, R = 50; o.fillStyle = '#ffc21a'; o.beginPath(); o.arc(cx, cy, R, 0, 7); o.fill(); o.lineWidth = 6; o.strokeStyle = '#120814'; o.stroke();
+    o.fillStyle = it.base; o.beginPath(); o.arc(cx, cy, R - 10, 0, 7); o.fill();
+    o.fillStyle = '#ffc21a'; o.beginPath(); o.moveTo(cx - 28, cy + 18); o.lineTo(cx - 30, cy - 16); o.lineTo(cx - 14, cy - 2); o.lineTo(cx, cy - 26); o.lineTo(cx + 14, cy - 2); o.lineTo(cx + 30, cy - 16); o.lineTo(cx + 28, cy + 18); o.closePath(); o.fill(); o.lineWidth = 3; o.strokeStyle = '#120814'; o.stroke();
+    o.fillRect(cx - 28, cy + 22, 56, 7); for (const dx of [-30, 0, 30]) { o.beginPath(); o.arc(cx + dx, cy + (dx ? -18 : -28), 5, 0, 7); o.fill(); }
+  }
+  let gc = null;
+  if (it.glow) { const [c, g] = mk(); gc = c; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = it.glow; g.fillRect(0, 0, 7, H); g.fillRect(W - 7, 0, 7, H); g.fillRect(0, H - 40, W, 9);
+    o.fillStyle = it.glow; o.fillRect(0, 0, 7, H); o.fillRect(W - 7, 0, 7, H); o.fillRect(0, H - 40, W, 9); }
+  if (it.hem === 'scallop') for (const x of [o, l, gc && gc.getContext('2d')].filter(Boolean)) {   // pointed scallops along the hem
+    x.globalCompositeOperation = 'destination-out'; for (let k = 0; k <= 5; k++) { x.beginPath(); x.arc(k * W / 5, H + 6, W / 10 + 2, 0, 7); x.fill(); } x.globalCompositeOperation = 'source-over'; }
+  return CAPE_TEX_CACHE[it.id] = { map: tex(oc), lining: tex(lc), glow: gc ? tex(gc) : null };
+}
 function bandTexture(it) {
   if (BAND_TEX_CACHE[it.id]) return BAND_TEX_CACHE[it.id];
   const [c, x] = mkCanvas(512, 64), col = new THREE.Color(it.band), dark = '#' + col.clone().multiplyScalar(0.62).getHexString();
