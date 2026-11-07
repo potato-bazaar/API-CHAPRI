@@ -40,8 +40,10 @@ class Game {
     this.renderer.compile(this.scene, this.camera);
     this.setLoad(1, 'Chalo!');
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
-    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
+    // a hidden tab pauses a solo race; a friends race never pauses (its bike just freezes until the tab is back)
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race' && !(this.race && this.race.mp)) this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC };
+    MPRACE.init(this);
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -170,17 +172,20 @@ class Game {
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
-  startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
-  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  startEntry(R, title) { if (this.entry || R.mp) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
+  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { if (this.race.mp) MPRACE.raceEnded(this.race); this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  // friends races (84_mp_race.js)
+  startMultiplayerRace(begin) { return MPRACE.startRace(begin); }
+  leaveMultiplayer() { return MPRACE.leave(); }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
   comicPop(text, r, scale, color) { const p = r && this.race ? this.race.track.pos(r.s, r.d, new THREE.Vector3(), r.y - this.race.track.yAt(r.s) + 1.7) : null; COMIC.pop(this, text, p, scale, color); }
   setMusic(m) { this.musicMode = m; MUSIC.setMode(m); }
-  pause() { if (this.state !== 'race') return; this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
+  pause() { if (this.state !== 'race') return; if (this.race && this.race.mp) { MPRACE.togglePause(); return; } MPRACE.restorePause(); this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
   resume() { this.ui.returnToPause = false; this.ui.closeModal(); if (this.state === 'paused') { this.state = 'race'; this.setMusic('race'); this.last = performance.now(); } }
-  restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
-  quitRace() { this.cup = null; this.toMenu(); }
+  restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (s && s.mp) return; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
+  quitRace() { if (this.race && this.race.mp) { this.leaveMultiplayer(); return; } this.cup = null; this.toMenu(); }
   toMenu() {
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
     this.endRace(); if (this.cup && this.cup.done) this.cup = null;
@@ -192,7 +197,7 @@ class Game {
     const pool = this.lastSetup.mode === 'police' ? TRACKS.filter(t => t.police) : CUP_TRACKS; const i = pool.findIndex(t => t.id === this.lastSetup.track); const nx = pool[(i + 1) % pool.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
   }
   showResults(R) {
-    if (this.race !== R || this.state === 'results') return;
+    if (this.race !== R || this.state === 'results' || R.mp) return;   // a friends race shows the server's results (MPRACE.showResults)
     const res = this.computeResults(R); this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
@@ -200,7 +205,10 @@ class Game {
   computeResults(R) {
     const P = R.player, M = MODES[R.mode], S = R.score, items = [];
     const rank = R.ranking(); const pos = R.playerPos || rank.indexOf(P) + 1; const n = R.riders.length;
-    if (M.rivals) items.push(['Position points', PTS.finish[pos - 1] || 0]);
+    // a friends race pays the Quick Race table by the room server's position (R.playerPos); a racer who did not finish
+    // gets no position points. In solo, ranked is exactly M.rivals.
+    const ranked = !!(M.rivals || (M.mp && !R.mpDnf));
+    if (ranked) items.push(['Position points', PTS.finish[pos - 1] || 0]);
     if (R.mode === 'timetrial') items.push([`Laps completed (${P.laps.length})`, P.laps.length * 50]);
     const PO = R.police; if (PO) { if (!PO.busted) items.push(['Escaped the nakabandi', 800]); else items.push([`Laps before the arrest (${P.laps.length})`, P.laps.length * 120]); }
     const add = (k, label) => { if (S[k]) items.push([label, S[k]]); };
@@ -210,9 +218,10 @@ class Game {
     add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
-    if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
+    if (ranked) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
+    else if (M.mp && R.mpDnf) SAVE.streak = 0;   // a friends race not finished ends the run of wins, as a Quick Race loss does
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
-    SAVE.coins += total; SAVE.xp += total; SAVE.parts += M.rivals ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (M.rivals && pos === 1) SAVE.wins++;
+    SAVE.coins += total; SAVE.xp += total; SAVE.parts += ranked ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (ranked && pos === 1) SAVE.wins++;
     dailyProgress('races', 1);
     const rec = SAVE.records[R.def.id] || {}; if (M.rivals && (!rec.bestPos || pos < rec.bestPos)) rec.bestPos = pos; if (R.mode === 'stunt' && (S.stunts || 0) > (rec.bestStunt || 0)) rec.bestStunt = S.stunts; SAVE.records[R.def.id] = rec;
     let cupTable = '';
@@ -229,7 +238,7 @@ class Game {
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
     if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
     if (PO) return { posText: PO.busted ? '🚨' : fmtTime(P.finishT || R.raceT), posSuf: PO.busted ? 'BUSTED' : 'ESCAPED', title, sub: sub2, items, total, multText: 'Coins and XP added.', order: [P], cupTable };
-    return { posText: M.rivals ? String(pos) : R.mode === 'stunt' ? fmtNum(S.stunts || 0) : fmtTime(P.bestLap), posSuf: M.rivals ? ordinal(pos) : R.mode === 'stunt' ? 'PTS' : '', title, sub: sub2, items, total: totalShown, multText: mult !== 1 ? `Includes the ${R.diff.label} rivals multiplier (×${mult}). Coins and XP added.` : 'Coins and XP added.', order: M.rivals ? rank : [P], cupTable };
+    return { posText: ranked ? String(pos) : R.mode === 'stunt' ? fmtNum(S.stunts || 0) : fmtTime(P.bestLap), posSuf: ranked ? ordinal(pos) : R.mode === 'stunt' ? 'PTS' : '', title, sub: sub2, items, total: totalShown, multText: mult !== 1 ? `Includes the ${R.diff.label} rivals multiplier (×${mult}). Coins and XP added.` : 'Coins and XP added.', order: M.rivals ? rank : [P], cupTable };
   }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
   // ── frame loop ──
@@ -264,7 +273,7 @@ class Game {
     if (inp.pause) { this.pause(); return; }
     { const finalLap = R.laps > 1 && P.lap >= R.laps - 1; const lvl = R.state === 'countdown' ? 0 : (P.boosting || finalLap) ? 2 : 1;
       if (lvl === 2 && MUSIC.level < 2 && finalLap && !this._riserDone) { MUSIC.riser(1.4); this._riserDone = true; } if (R.state === 'countdown') this._riserDone = false; MUSIC.setLevel(lvl); }
-    if (!DEBUG.autopilot) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; if (inp.hop) P.input.hop = true; }
+    if (!DEBUG.autopilot || R.mp) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; if (inp.hop) P.input.hop = true; }
     if (R.state === 'racing') {
       if (inp.hitL) R.combat.melee(P, 1); if (inp.hitR) R.combat.melee(P, -1); if (inp.hitAuto) R.combat.melee(P, inp.gpSide || R.combat.autoSide(P));
       if ((inp.hitL || inp.hitR || inp.hitAuto) && !R.combatOn) this.hud.callout('COMBAT OFF', null, 'info');
@@ -272,21 +281,25 @@ class Game {
       if (inp.throw) { if (!R.combat.throwItem(P) && R.combatOn && !P.weapons.throw) this.hud.callout('NOTHING TO THROW', null, 'info'); }
       if (inp.respawn && !P.crashed && !P.finished) P.respawn();
       if (SAVE.settings.manualGears) { if (inp.gearUp) P.gear = Math.min(4, P.gear + 1); if (inp.gearDown) P.gear = Math.max(1, P.gear - 1); }
-      if (DEBUG.autopilot && R.raceT > 12 && Math.random() < 0.01) R.combat.melee(P, R.combat.autoSide(P));
-      if (DEBUG.autopilot && R.raceT > 12 && P.weapons.throw && Math.random() < 0.006) R.combat.throwItem(P);
+      if (DEBUG.autopilot && !R.mp && R.raceT > 12 && Math.random() < 0.01) R.combat.melee(P, R.combat.autoSide(P));
+      if (DEBUG.autopilot && !R.mp && R.raceT > 12 && P.weapons.throw && Math.random() < 0.006) R.combat.throwItem(P);
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
     R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
-    if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
+    // a friends race moves the bike by the race clock's real elapsed time (Race.updateMp); the chase camera's springs
+    // take the same step, or a slow device would leave the camera behind the bike
+    const camDt = R.mp && R.state === 'racing' ? R.mpStep || 0 : dt;
+    this.camLead = R.mp && R.state === 'racing' ? clamp(R.mpTravel || 0, -5, 25) : 0;
+    if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(camDt); this.fx.update(dt, this.camera); }
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
     const cp = this.camera.position; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < 1.6) r.rig.root.visible = false; }
   }
   // takedown cam (Burnout style): cut to a low angle ahead of the wreck, slow motion while the bike rolls and the rider
   // tumbles down the road, then cut straight back to the chase cam. Also used when you go down yourself.
   takedownCam(r) {
-    const R = this.race; if (!R || !r.wreck || REDUCED_MOTION || this.camMode === 2) return; if (this.td || (this.tdLast && this.t - this.tdLast < 5 && !r.isPlayer)) return;
+    const R = this.race; if (!R || R.mp || !r.wreck || REDUCED_MOTION || this.camMode === 2) return; if (this.td || (this.tdLast && this.t - this.tdLast < 5 && !r.isPlayer)) return;   // R.mp: no slow motion in a friends race
     const T = R.track, W = r.wreck, side = -Math.sign(r.d || 1) || 1, s0 = W.bike.s + Math.max(5, W.bike.vs * 0.45);
     const pos = T.pos(s0, clamp(W.bike.d + side * 4.2, -T.wAt(s0) / 2 - 1.5, T.wAt(s0) / 2 + 1.5), new THREE.Vector3(), 1.25);
     this.td = { r, t: 0, dur: r.isPlayer ? 2.1 : 1.7, pos, look: new THREE.Vector3() }; this.tdLast = this.t; R.slowmo = r.isPlayer ? 0.8 : 1.1;
@@ -326,9 +339,14 @@ class Game {
       // springs, substepped so they stay stable on slow frames. Heading: a soft late swing. Distance and lateral are
       // critically damped and track velocity too (no lag at steady speed): a sudden speed loss lets the bike come back
       // toward the lens over a few frames instead of the whole view stopping dead with it. Height rides a soft spring.
+      // camLead (friends race only, 0 otherwise): the bike's travel this frame. A slow device moves the bike a long way
+      // per frame; the target then moves through the sub-steps as it would at a high frame rate, instead of jumping
+      // ahead at once and letting the velocity term carry the camera past the bike.
+      const lead = this.camLead || 0;
       for (let i = 0, n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; i < n; i++) {
         C.psiV += ((P.psi * 0.55 - C.psi) * 22 - C.psiV * 9.4) * h; C.psi += C.psiV * h;
-        C.v += ((P.dist - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
+        const pd = lead ? P.dist - lead * (1 - (i + 1) / n) : P.dist;
+        C.v += ((pd - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
         C.dv += ((P.d - C.d) * 100 - C.dv * 20) * h; C.d += C.dv * h;
         C.yv += ((P.y - C.y) * 95 - C.yv * 17.5) * h; C.y += C.yv * h;
         C.nodV += (-C.nod * 130 - C.nodV * 13) * h; C.nod += C.nodV * h;

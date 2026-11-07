@@ -141,6 +141,39 @@ node tools/t37.mjs                                           # Police Express+ s
 node tools/t40.mjs                                           # feel audit: keyboard steering vs AI, contacts, wobble, camera jerk
 ```
 
+## Friends rooms (multiplayer)
+
+Race friends on phones or laptops with a 4-digit PIN. No sign-up, no accounts.
+
+- **Create a room:** Friends, then Play with friends, enter a name, and tap CREATE A ROOM. Share the PIN, or tap COPY LINK (it copies `/?room=PIN`).
+- **Join a room:** Friends, type the PIN and tap JOIN. Opening an invite link does the same thing.
+- **Race:** the host picks the track, laps, time and weather. START RACE needs at least two racers. Everyone sees the others as ghost bikes and gets the same results.
+- **Progress** stays on each device (browser storage). A friends race pays the same coins and XP as a Quick Race.
+
+### Run the room server
+
+    npm install
+    npm run server
+
+`npm run server` builds `dist/chapri-racer.html` and serves the game at `/`, the socket at `/socket.io` and a health check at `/healthz`, on `PORT` (default 8080). On a public host, put it behind HTTPS and WSS, and set `ALLOWED_ORIGINS` when the page is served from another origin. The environment variables and deployment notes are in `server/README.md`. Nothing here is deployed for you.
+
+### Tests
+
+    npm test               # unit tests, server tests and the solo golden trajectories
+    npm run test:server    # room server only (fast)
+    npm run test:race      # solo smoke test (headless browser)
+    npm run test:e2e       # browser end-to-end: lobby, friends race, progress (about 25 minutes on a 4-core machine)
+    npm run test:all       # everything above
+
+### Known limits
+
+- Each device runs its own physics. The server keeps the lobby, the start time, the seed and the results order, but it does not re-run the race. A modified client could report a false finish time.
+- Racers in a friends race are ghost bikes. You can see and pass them, but there is no contact between bikes, no combat and no hero cinematic in multiplayer.
+- Traffic and street life are random on each device, so the traffic one racer sees can differ from another's.
+- Each device races in real time. A slow device races at its own pace, and a hidden tab's bike freezes until it comes back.
+- Tested in headless Chromium with software rendering only. Not tested on real phones, Safari or Firefox.
+- No accounts. Progress is per browser. Tabs in the same browser share one save.
+
 ## Credits and licences
 
 - Bike: "RX100 BIKE" by patilaryush on Sketchfab, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It's rebadged as CR100 / CHAPRI with no Yamaha badging; the centre stand is folded and the texture repainted.

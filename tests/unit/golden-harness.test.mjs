@@ -54,9 +54,12 @@ describe('comparison of runs', () => {
 
 describe('headless game bundle', () => {
   it('uses the source files in the browser build order', () => {
-    expect(JS_ORDER).toHaveLength(30);
+    // 30 solo files, plus the three multiplayer files (82, 83, 84) that sit between the menu UI and the input module.
+    expect(JS_ORDER).toHaveLength(33);
     expect(JS_ORDER[0]).toBe('00_core');
     expect(JS_ORDER[JS_ORDER.length - 1]).toBe('90_main');
+    const menu = JS_ORDER.indexOf('80_ui');
+    expect(JS_ORDER.slice(menu, menu + 5)).toEqual(['80_ui', '82_mp_net', '83_mp_lobby', '84_mp_race', '85_input']);
     for (const f of JS_ORDER) expect(fs.existsSync(`${ROOT}src/js/${f}.js`), f).toBe(true);
   });
 

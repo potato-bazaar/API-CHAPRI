@@ -28,12 +28,29 @@ class HUD {
     let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
     let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
     const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
-    let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
+    let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : race.riders[i].net ? '#3fe8ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
     this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
     this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
     this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
     this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
     const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
+    // friends race: a name tag over every remote racer's bike (names from the network go in as text only)
+    this.tags = null;
+    if (race.mp) this.tags = race.riders.filter(r => r.net).map(r => {
+      const el = document.createElement('div'); el.className = 'mp-tag'; el.textContent = r.short; el.hidden = true;
+      el.style.cssText = 'position:absolute;translate:-50% -100%;padding:.12em .5em .02em;border-radius:6px;background:rgba(20,10,26,.74);box-shadow:inset 0 0 0 1.5px #3fe8ff;color:#fff;font-family:var(--f-num);font-weight:600;font-size:1.2rem;line-height:1.1;letter-spacing:.04em;white-space:nowrap;pointer-events:none';
+      this.el.pops.appendChild(el); return { r, el };
+    });
+  }
+  // name tags: over the bike, shown within 90 m and in front of the lens, fading with distance
+  updateTags(camera) {
+    const R = this.race, T = R.track, W = this.game.vw, H = this.game.vh, v = this._tv || (this._tv = new THREE.Vector3());
+    for (const t of this.tags) {
+      const r = t.r; let show = !r.eliminated && r.rig.root.visible;
+      if (show) { T.pos(r.s, r.d, v, r.y - T.yAt(r.s) + 2.05); const dist = v.distanceTo(camera.position); v.project(camera); show = dist < 90 && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+        if (show) { t.el.style.left = ((v.x + 1) / 2 * W).toFixed(0) + 'px'; t.el.style.top = ((1 - v.y) / 2 * H).toFixed(0) + 'px'; t.el.style.opacity = clamp(1.4 - dist / 75, 0.35, 1).toFixed(2); } }
+      if (t.el.hidden === show) t.el.hidden = !show;
+    }
   }
   update(dt, camera) {
     const R = this.race; if (!R) return; const P = R.player;
@@ -84,6 +101,7 @@ class HUD {
     for (const r of R.riders) { if (r.isPlayer || !r.attack || r.attack.target !== P || r.attack.hit) continue; if (!r._bang) { const el = document.createElement('div'); el.className = 'bang'; el.textContent = '!'; this.el.pops.appendChild(el); r._bang = { el, r, t: 0, life: r.attack.W.strike + 0.15 }; this.pops.push(r._bang); } }
     for (const r of R.riders) if (r._bang && r._bang.t > r._bang.life - 0.01) r._bang = null;
     for (const side of ['left', 'right']) { if (this.warnT[side] > 0) { this.warnT[side] -= dt; if (this.warnT[side] <= 0) this.el[side === 'left' ? 'warnL' : 'warnR'].hidden = true; } }
+    if (this.tags) this.updateTags(camera);
   }
   coinTick(n) { $$('.coinsMirror').forEach(e => { e.textContent = fmtNum(SAVE.coins); const p = e.closest('.pill'); if (p) { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); } }); }
   callout(text, pts, cls = 'good') {
@@ -102,6 +120,7 @@ class HUD {
   lapFlash(text, t) { this.big(text, `Lap ${fmtTime(t)}`, 1.6); }
   finish(pos, n, mode) {
     if (this.race.police) { if (!this.race.police.busted) this.big('BACH GAYA!', 'Nakabandi se nikal gaya', 3.4); return; }
+    if (this.race.mp) { this.big('FINISHED!', 'Waiting for the results…', 3.4); return; }   // the place is the server's to give
     if (mode === 'stunt') this.big('STUNT RUN', `${fmtNum(this.race.score.stunts || 0)} pts`, 3.4);
     else if (n) this.big(pos === 1 ? 'JEET GAYA!' : `${pos}${ordinal(pos)}`, pos === 1 ? 'Mumbai ka asli Chapri Raja' : 'FINISHED', 3.4);
     else this.big('FINISHED', fmtTime(this.race.player.bestLap), 3.4);

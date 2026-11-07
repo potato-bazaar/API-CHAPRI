@@ -473,6 +473,95 @@ kbd { font-family: var(--f-num); }
 .garrow.r.hairpin { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff3c46' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 21V9a6 6 0 0 1 12 0v7'/%3E%3Cpath d='M14 13l4 4 4-4'/%3E%3C/svg%3E"); }
 .garrow.l.hairpin { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff3c46' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 21V9a6 6 0 0 0-12 0v7'/%3E%3Cpath d='M2 13l4 4 4-4'/%3E%3C/svg%3E"); }
 @media (max-height: 420px) { .guide { top: calc(env(safe-area-inset-top, 0px) + 58px); } .guide > span { font-size: .92rem; } }
+
+/* ── friends rooms (multiplayer): the Play with friends dialog and the room lobby over the live menu scene ── */
+.mp-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.mp-head { display: grid; justify-items: start; gap: .05rem; margin: 0; min-width: 0; }
+.mp-kicker { display: block; margin: 0; font-family: var(--f-display); font-weight: 800; font-style: normal; font-size: .95rem; line-height: 1.2; letter-spacing: .34em; color: #fff; text-shadow: 0 2px 0 #120814; }
+#friends h2.mp-kicker { font-family: var(--f-display); font-size: .95rem; color: #fff; letter-spacing: .34em; }
+.mp-title { display: block; font-family: var(--f-display); font-weight: 800; font-style: italic; font-size: 2.7rem; line-height: .95; letter-spacing: .01em; color: var(--marigold); -webkit-text-stroke: .09em #120814; paint-order: stroke fill; text-shadow: .05em .07em 0 var(--pink); transform: rotate(-2deg); transform-origin: left center; white-space: nowrap; }
+.mp-label { display: block; font-family: var(--f-display); font-weight: 800; font-size: .8rem; line-height: 1.3; letter-spacing: .22em; color: var(--muted); text-transform: uppercase; }
+
+/* entry dialog */
+#friends.mp-dialog { width: min(30rem, calc(100vw - 32px)); }
+#friends header { align-items: flex-start; padding-top: .9rem; }
+.mp-entry { display: grid; gap: .55rem; padding-bottom: 1.1rem; touch-action: pan-y; }
+.mp-input { box-sizing: border-box; width: 100%; min-width: 0; font: inherit; font-weight: 700; font-size: 1.35rem; color: #fff; background: rgba(0, 0, 0, .42); border: 2px solid rgba(255, 255, 255, .32); border-radius: 12px; padding: .4em .75em; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
+.mp-input:focus { outline: none; border-color: var(--marigold); box-shadow: 0 0 0 3px rgba(255, 194, 26, .3); }
+.mp-input::placeholder { color: rgba(255, 255, 255, .38); }
+.mp-input:disabled { opacity: .6; }
+.mp-big { width: 100%; min-height: 3.5rem; font-size: 2.1rem; }
+#mpCreate { background: linear-gradient(100deg, #ff4d9a, var(--pink) 35%, var(--saffron)); }
+.mp-or { display: flex; align-items: center; gap: .7rem; margin-top: .15rem; color: var(--muted); font-weight: 800; font-size: .8rem; letter-spacing: .22em; white-space: nowrap; }
+.mp-or::before, .mp-or::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, .25); }
+.mp-join { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; }
+.mp-pin-in { font-family: var(--f-num); font-weight: 600; font-size: 2.2rem; line-height: 1; letter-spacing: .45em; text-align: center; padding: .2em .4em 0 .85em; }
+.mp-pin-in::placeholder { font-style: italic; letter-spacing: .45em; }
+.mp-joinbtn { min-width: 6.5rem; font-size: 1.9rem; }
+.mp-msg { margin: 0; min-height: 1.3em; font-weight: 700; font-size: .95rem; line-height: 1.3; color: var(--teal); }
+.mp-msg.err { color: #ff8a96; }
+.mp-help { margin: .1rem 0 0; color: var(--muted); font-size: .9rem; line-height: 1.35; text-align: center; }
+.mp-link { justify-self: center; padding: .25rem .5rem; border-radius: 6px; color: var(--marigold); font-size: .85rem; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.mp-note { margin: 0; padding: .55rem .75rem; border-radius: 10px; background: rgba(0, 0, 0, .38); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); font-size: .88rem; line-height: 1.4; }
+#app:has(> #friends:not([hidden])) > .modal-back { background: linear-gradient(90deg, rgba(10, 4, 14, .82), rgba(10, 4, 14, .55)); }
+
+/* lobby */
+#mpLobby.show { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .5rem; background: linear-gradient(90deg, rgba(21, 10, 27, .6), rgba(21, 10, 27, .2) 52%, transparent 72%); }
+.mp-top { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+.mp-top .back { flex: none; }
+.mp-body { display: grid; grid-template-columns: repeat(2, minmax(0, 20rem)); gap: .45rem 1rem; align-items: start; align-content: start; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; margin: -.35rem; padding: .35rem .35rem .8rem; scrollbar-width: thin; }
+.mp-col { display: grid; gap: .5rem; min-width: 0; }
+.mp-pin-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .15rem .8rem; padding: .7rem 1rem .65rem; }
+.mp-pin-card .mp-label { grid-column: 1 / -1; color: #fff; letter-spacing: .3em; }
+.mp-pin { font-family: var(--f-num); font-weight: 700; font-style: italic; font-size: 4.4rem; line-height: .8; padding-top: .12em; letter-spacing: .05em; color: var(--marigold); -webkit-text-stroke: .05em #120814; paint-order: stroke fill; text-shadow: .04em .05em 0 var(--pink); font-variant-numeric: tabular-nums; }
+.mp-copy { min-height: 2.5rem; padding: 0 .9em; font-size: 1.35rem; white-space: nowrap; }
+.mp-row-head { display: flex; justify-content: space-between; align-items: baseline; padding: .1rem .25rem 0; }
+.mp-count { font-family: var(--f-num); font-size: 1.45rem; letter-spacing: .1em; color: #fff; }
+.mp-roster { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.mp-roster li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .55rem; min-height: 2.5rem; padding: .2rem .75rem; border-radius: 10px; background: rgba(20, 10, 26, .84); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .2); }
+.mp-roster li.me { box-shadow: inset 0 0 0 2px var(--marigold), 0 0 12px rgba(255, 194, 26, .25); }
+.mp-roster li.off { opacity: .62; }
+.mp-dot { width: .8rem; height: .8rem; border-radius: 50%; background: #28c76f; box-shadow: 0 0 0 3px rgba(40, 199, 111, .3); }
+.mp-roster li.off .mp-dot { background: var(--dim); box-shadow: none; }
+.mp-who { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.mp-who b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.1rem; font-weight: 700; }
+.mp-badge { flex: none; padding: .2em .45em .08em; border-radius: 5px; background: var(--pink); color: #fff; font-family: var(--f-num); font-size: .95rem; line-height: 1; letter-spacing: .1em; }
+.mp-badge.you { background: var(--cream); color: #160a12; }
+.mp-bikec { font-family: var(--f-num); font-size: 1.15rem; color: var(--muted); white-space: nowrap; }
+.mp-settings { display: grid; gap: .4rem; padding: .7rem .8rem .8rem; }
+.mp-bike { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .25rem .5rem; margin-bottom: .15rem; }
+.mp-bike .mp-label { grid-column: 1 / -1; }
+.mp-bike b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-family: var(--f-num); font-weight: 600; font-style: italic; font-size: 1.85rem; line-height: 1; color: var(--marigold); }
+.mp-arrow { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; padding-bottom: .12em; border-radius: 50%; background: var(--pink); color: #fff; font-size: 1.7rem; line-height: 1; box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0, 0, 0, .4); }
+.mp-arrow:disabled { opacity: .4; cursor: not-allowed; }
+.mp-seg { display: flex; flex-wrap: wrap; width: 100%; }
+.mp-seg button { flex: 1 1 auto; white-space: nowrap; padding: .35em .6em; }
+.mp-seg button:disabled { opacity: .45; cursor: not-allowed; }
+.mp-seg button.on:disabled { opacity: 1; filter: saturate(.7); }
+.mp-tracks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mp-tracks button { overflow: hidden; text-overflow: ellipsis; }
+.mp-tracks button:first-child { grid-column: 1 / -1; }
+.mp-trio { display: flex; flex-wrap: wrap; gap: .4rem .6rem; margin-top: .15rem; }
+.mp-trio > div { display: grid; gap: .25rem; flex: 1 1 auto; min-width: 0; }
+.mp-hostnote { margin: 0; color: var(--muted); font-size: .85rem; font-style: italic; }
+.mp-conn { margin: 0; padding: .4rem .7rem; border-radius: 10px; background: rgba(255, 75, 92, .22); box-shadow: inset 0 0 0 2px var(--bad); font-weight: 700; text-align: center; }
+.mp-cta { display: grid; gap: .45rem; }
+.mp-wait { display: grid; place-items: center; min-height: 4rem; padding: 0 .6rem; border-radius: 14px; border: 3px dashed rgba(255, 255, 255, .72); background: rgba(20, 10, 26, .6); font-family: var(--f-num); font-weight: 700; font-style: italic; font-size: 2.3rem; line-height: 1; letter-spacing: .03em; text-align: center; }
+.mp-start { width: 100%; height: 4.4rem; font-size: 2.8rem; }
+.mp-start:disabled { filter: grayscale(.6) brightness(.8); cursor: progress; }
+.mp-waithost { display: grid; place-items: center; min-height: 3.4rem; margin: 0; padding: 0 .6rem; border-radius: 12px; background: rgba(20, 10, 26, .78); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .3); font-weight: 700; font-size: 1.1rem; text-align: center; }
+.mp-caption { margin: 0; text-align: center; font-family: var(--f-num); font-size: 1.3rem; line-height: 1.1; letter-spacing: .03em; text-shadow: 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .6); }
+@media (max-height: 520px) and (orientation: landscape) {
+  .mp-body { grid-template-columns: repeat(2, minmax(0, 24rem)); }
+  .mp-title { font-size: 2.3rem; }
+}
+@media (orientation: portrait), (max-width: 560px) {
+  #mpLobby.show { background: linear-gradient(180deg, rgba(21, 10, 27, .55), rgba(21, 10, 27, .3)); }
+  .mp-body { grid-template-columns: minmax(0, 1fr); }
+  .mp-title { font-size: 2.3rem; }
+}
+/* the lobby and the dialog work upright too; the race still asks for landscape */
+#app:has(#mpLobby.show) .rotate, #app:has(> #friends:not([hidden])) .rotate { display: none; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -566,6 +655,46 @@ kbd { font-family: var(--f-num); }
     <header class="topbar"><button class="back" type="button" data-back>‹ Back</button><h1 class="screen-title">STORE · RIDER STYLE</h1><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
     <div class="store-body" id="storeBody"></div>
     <p class="store-note">Everything here is bought with coins you earn on track. Cosmetics change your look, never your speed.</p>
+  </section>
+
+  <!-- FRIENDS ROOM LOBBY (multiplayer; drawn over the live menu scene) -->
+  <section id="mpLobby" class="screen ui-pad" aria-labelledby="mpLobbyTitle">
+    <header class="mp-top">
+      <button id="mpLeave" class="back" type="button">‹ Leave</button>
+      <h1 id="mpLobbyTitle" class="mp-head"><span class="mp-kicker">PLAY WITH FRIENDS</span><span class="mp-title">MULTIPLAYER</span></h1>
+    </header>
+    <div class="mp-body">
+      <div class="mp-col">
+        <div class="panel mp-pin-card">
+          <span class="mp-label">ROOM PIN</span>
+          <b id="mpPin" class="mp-pin">----</b>
+          <button id="mpCopy" class="btn-pink mp-copy" type="button">COPY LINK</button>
+        </div>
+        <div class="mp-row-head"><span class="mp-label" id="mpRacersLbl">RACERS</span><span id="mpCount" class="mp-count">0/8</span></div>
+        <ul id="mpRoster" class="mp-roster" aria-labelledby="mpRacersLbl"></ul>
+      </div>
+      <div class="mp-col">
+        <div class="panel mp-settings">
+          <div class="mp-bike"><span class="mp-label">YOUR BIKE</span><button id="mpBikePrev" class="mp-arrow" type="button" aria-label="Previous bike">‹</button><b id="mpBikeName" aria-live="polite">CR100</b><button id="mpBikeNext" class="mp-arrow" type="button" aria-label="Next bike">›</button></div>
+          <span class="mp-label" id="mpTrackLbl">TRACK</span>
+          <div id="mpTrack" class="seg mp-seg mp-tracks" role="group" aria-labelledby="mpTrackLbl"></div>
+          <div class="mp-trio">
+            <div><span class="mp-label" id="mpLapsLbl">LAPS</span><div id="mpLaps" class="seg mp-seg" role="group" aria-labelledby="mpLapsLbl"></div></div>
+            <div><span class="mp-label" id="mpTimeLbl">TIME</span><div id="mpTime" class="seg mp-seg" role="group" aria-labelledby="mpTimeLbl"></div></div>
+            <div><span class="mp-label" id="mpWeatherLbl">WEATHER</span><div id="mpWeather" class="seg mp-seg" role="group" aria-labelledby="mpWeatherLbl"></div></div>
+          </div>
+          <p id="mpHostNote" class="mp-hostnote" hidden>The host picks the track</p>
+        </div>
+        <p id="mpConn" class="mp-conn" role="status" hidden></p>
+        <div class="mp-cta">
+          <div id="mpWaitFriends" class="mp-wait">WAITING FOR FRIENDS…</div>
+          <button id="mpStart" class="start-btn mp-start" type="button" hidden><span class="flag"></span><span id="mpStartLbl">START RACE</span><span class="chev">››</span></button>
+          <p id="mpWaitHost" class="mp-waithost" hidden>Waiting for the host to start…</p>
+          <p id="mpRaceOn" class="mp-waithost" role="status" hidden>Race in progress… results soon</p>
+          <p class="mp-caption">Share the PIN — friends join on their own phone or computer</p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- WINNER'S ENTRY (letterbox + title over the cutscene) -->
@@ -671,14 +800,22 @@ kbd { font-family: var(--f-num); }
     <header><h2 id="boardTitle">LEADERBOARD</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
     <div class="modal-body" id="boardBody"></div>
   </div>
-  <div id="friends" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="frTitle" hidden>
-    <header><h2 id="frTitle">PLAY WITH FRIENDS</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
-    <div class="modal-body">
-      <p>Friends rooms let up to 8 riders race on phones and laptops with a 4-digit PIN. They need the Chapri Racer room server (a small WebSocket relay), which isn't switched on in this build yet.</p>
-      <div class="pin-demo" aria-hidden="true"><span>4</span><span>2</span><span>0</span><span>7</span></div>
-      <p class="muted small">Until then, race the seven AI rivals in Quick Race, Gali Rumble or Elimination.</p>
+  <div id="friends" class="modal panel mp-dialog" role="dialog" aria-modal="true" aria-labelledby="frTitle" hidden>
+    <header><div class="mp-head"><h2 id="frTitle" class="mp-kicker">PLAY WITH FRIENDS</h2><span class="mp-title" aria-hidden="true">MULTIPLAYER</span></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body mp-entry">
+      <label class="mp-label" for="mpName">YOUR NAME</label>
+      <input id="mpName" class="mp-input" type="text" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="next">
+      <button id="mpCreate" class="btn-pink mp-big" type="button">CREATE A ROOM</button>
+      <div class="mp-or"><span>OR JOIN A FRIEND</span></div>
+      <div class="mp-join">
+        <input id="mpPinIn" class="mp-input mp-pin-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="PIN" autocomplete="off" aria-label="Room PIN" enterkeyhint="go">
+        <button id="mpJoin" class="btn-yellow mp-joinbtn" type="button">JOIN</button>
+      </div>
+      <p id="mpEntryMsg" class="mp-msg" role="status" aria-live="polite"></p>
+      <p class="mp-help">Create a room and share its 4-digit PIN. Friends type it here, on their phone or computer — up to 8 racers, no sign-up.</p>
+      <button id="mpPrivacyBtn" class="mp-link" type="button" aria-expanded="false" aria-controls="mpPrivacy">How your name and IP are used online</button>
+      <p id="mpPrivacy" class="mp-note" hidden>Your name and bike are shown to the other racers in your room. The room server keeps no accounts. It keeps IP addresses in memory only, to limit open connections and wrong PIN guesses per address. It counts room creation under a keyed hash of the address, with a secret that changes each time the server starts. Nothing is written to disk, and each count is dropped as soon as it no longer applies.</p>
     </div>
-    <footer><button class="btn-dark" type="button" data-close>Got it</button></footer>
   </div>
   <div id="pause" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" hidden>
     <header><h2 id="pauseTitle">PAUSED</h2></header>
@@ -696,6 +833,7 @@ kbd { font-family: var(--f-num); }
     <footer><button class="btn-yellow" type="button" id="cupGo">START CUP ››</button><button class="btn-dark" type="button" data-close>Close</button></footer>
   </div>
   <div id="flash" class="flash" hidden></div>
+  <div id="mpLive" class="mp-sr" aria-live="polite"></div>
   <div id="rotate" class="rotate"><div><svg viewBox="0 0 48 48"><rect x="14" y="4" width="20" height="36" rx="4" fill="none" stroke="#fff" stroke-width="3"/><path d="M38 30a14 14 0 0 1-14 14" fill="none" stroke="#ffc21a" stroke-width="3"/><path d="m24 40 0 8-6-4z" fill="#ffc21a"/></svg><p>Turn your phone sideways to race</p></div></div>
 </div>
 <!-- 3D bike: "RX100 BIKE" by patilaryush, CC BY 4.0 (gzip, base64) -->
@@ -874,7 +1012,9 @@ const SAVE_KEY = 'chapri-racer-save-v1';
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 function defaultSave() {
   return {
-    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
+    // ugV1 and cosV2 mark the migrations in loadSave as done. A new save must carry both, or the first reload would
+    // run a migration on choices the player has just made (cosV2 used to be missing: a free hair or shades pick reverted).
+    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true, cosV2: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
@@ -887,14 +1027,215 @@ function defaultSave() {
   };
 }
 let SAVE = defaultSave();
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.ugV1) { SAVE.setup.track = 'mumbai-underground'; SAVE.setup.laps = 2; if (SAVE.setup.mode === 'police') SAVE.setup.mode = 'quick'; SAVE.ugV1 = true; } if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
-  } catch (e) { /* storage blocked: play with defaults */ }
-  if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
+const isPlainObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+// JSON.parse keeps "__proto__" as an ordinary key; copying it by assignment would replace the target's prototype
+const ownKeys = (o) => Object.keys(o).filter(k => k !== '__proto__');
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+// Rebuilds a usable save from whatever was stored. A known field keeps its stored value only when it has the shape the
+// game reads, otherwise it falls back to its default, so a hand-edited, truncated or older save can not crash the boot,
+// the menu or a race (a null `daily` or `upgrades`, a key binding that is not a list, or an unknown quality tier all
+// used to). Fields this build does not know are kept as they were, as the old Object.assign merge did.
+function cleanSave(s) {
+  const D = defaultSave();
+  if (!isPlainObj(s)) return D;
+  const num = (v, d, lo = 0, hi = Infinity) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
+  const bool = (v, d) => (typeof v === 'boolean' ? v : d);
+  const oneOf = (v, list, d) => (list.includes(v) ? v : d);
+  const extras = (src, dst) => { for (const k of ownKeys(src)) if (!hasOwn(dst, k)) dst[k] = src[k]; return dst; };
+  // { id: true } maps. The free items in the default save stay owned whatever the stored map says.
+  const flags = (v, d) => { const o = Object.assign({}, d); if (isPlainObj(v)) for (const k of ownKeys(v)) if (v[k] === true) o[k] = true; return o; };
+  // maps whose entries are checked one by one: a bad entry is dropped, the rest of the map survives
+  const map = (v, fn) => { const o = {}; if (isPlainObj(v)) for (const k of ownKeys(v)) { const x = fn(v[k], k); if (x !== undefined) o[k] = x; } return o; };
+  const finite = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : undefined);
+
+  extras(s, D);
+  if (typeof s.name === 'string' && s.name.trim()) D.name = s.name.slice(0, 16);
+  for (const k of ['coins', 'parts', 'xp', 'streak', 'wins', 'races']) D[k] = num(s[k], D[k]);
+  D.loginDays = Math.round(num(s.loginDays, D.loginDays, 0, 7));
+  D.lastLogin = typeof s.lastLogin === 'string' ? s.lastLogin : null;
+  D.seenHelp = bool(s.seenHelp, D.seenHelp);
+  D.owned = flags(s.owned, D.owned);
+  if (typeof s.build === 'string' && D.owned[s.build] && BUILDS.some(b => b.id === s.build)) D.build = s.build;
+  D.upgrades = map(s.upgrades, (u) => (isPlainObj(u) ? map(u, (n) => (finite(n) === undefined ? undefined : clamp(Math.round(n), 0, 5))) : undefined));
+  D.paint = map(s.paint, (c) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : undefined));
+  D.mods = map(s.mods, (m) => (isPlainObj(m) ? map(m, (id) => (typeof id === 'string' ? id : undefined)) : undefined));
+  D.ownedMods = flags(s.ownedMods, D.ownedMods);
+  if (isPlainObj(s.cos)) for (const k of Object.keys(D.cos)) if (COSMETICS[k].some(c => c.id === s.cos[k])) D.cos[k] = s.cos[k];
+  D.ownedCos = flags(s.ownedCos, D.ownedCos);
+  // records hold one object per track, plus the championship's best place as a bare number
+  D.records = map(s.records, (r, k) => (k === 'cupBest' ? (finite(r) >= 1 ? Math.round(r) : undefined) : isPlainObj(r) ? map(r, finite) : undefined));
+  // a time-trial ghost is a list of samples, each one a list of numbers (Race.updateGhost indexes into every sample)
+  D.ghosts = map(s.ghosts, (g) => (Array.isArray(g) && g.every(Array.isArray) ? g : undefined));
+  const dl = s.daily;
+  if (isPlainObj(dl) && dl.date === todayStr()) D.daily = { date: dl.date, prog: map(dl.prog, (n) => (finite(n) >= 0 ? n : undefined)), claimed: flags(dl.claimed, {}), bonus: dl.bonus === true };
+
+  const S = s.settings, DS = D.settings;
+  if (isPlainObj(S)) {
+    extras(S, DS);
+    for (const k of ['sfx', 'engine', 'music']) DS[k] = num(S[k], DS[k], 0, 1);   // an AudioParam throws on NaN
+    for (const k of ['comic', 'wheelieAssist', 'manualGears', 'tilt', 'vibration', 'smoking', 'steerAssist', 'guide']) DS[k] = bool(S[k], DS[k]);
+    DS.camera = oneOf(S.camera, [0, 1, 2], DS.camera);
+    DS.quality = oneOf(S.quality, ['auto', 'low', 'medium', 'high'], DS.quality);   // an unknown tier has no QUALITY entry
+    DS.traffic = oneOf(S.traffic, ['off', 'light', 'jam'], DS.traffic);
+    // INPUT calls .some() on every bound action, so each one must be a list of key codes
+    const keys = map(S.keys, (v, k) => (hasOwn(DEFAULT_KEYS, k) && Array.isArray(v) && v.length && v.every(c => typeof c === 'string') ? v : undefined));
+    DS.keys = Object.keys(keys).length ? keys : null;
+    if (hasOwn(DS, 'detected') && !['low', 'medium', 'high'].includes(DS.detected)) delete DS.detected;
+    if (hasOwn(DS, 'musicStyle') && !['mass', 'dhinchak'].includes(DS.musicStyle)) delete DS.musicStyle;
+    if (hasOwn(DS, 'entry') && typeof DS.entry !== 'boolean') delete DS.entry;
+  }
+  const U = s.setup, DU = D.setup;
+  if (isPlainObj(U)) {
+    extras(U, DU);
+    DU.mode = oneOf(U.mode, Object.keys(MODES).filter(k => !MODES[k].mp), DU.mode);   // the solo setup never holds the friends mode
+    DU.track = oneOf(U.track, TRACKS.map(t => t.id), DU.track);
+    DU.laps = Number.isInteger(U.laps) && U.laps >= 1 && U.laps <= 20 ? U.laps : DU.laps;
+    DU.diff = oneOf(U.diff, Object.keys(DIFFICULTY), DU.diff);
+    DU.time = oneOf(U.time, ['auto', ...Object.keys(TIMES)], DU.time);
+    DU.weather = oneOf(U.weather, ['clear', 'monsoon'], DU.weather);
+    DU.combat = bool(U.combat, DU.combat);
+  }
+  // one-off migrations, keyed on the flags of the save as it was stored (the cleaned save always has both set)
+  if (!s.ugV1) { DU.track = 'mumbai-underground'; DU.laps = 2; if (DU.mode === 'police') DU.mode = 'quick'; }
+  if (!s.cosV2) { if (D.cos.hair === 'quiff-copper') D.cos.hair = 'pomp-brown'; if (D.cos.shades === 'white') D.cos.shades = 'gold'; }
+  return D;
 }
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* ignore */ } }
+
+// ── One save, several tabs ──
+// Every tab of a browser shares the one stored save but works on its own copy in memory, read at boot. Writing that
+// whole copy back used to wipe out whatever another tab had saved since (a race reward, a purchase, a new name): the
+// last tab to write won. That is likely with friends rooms, where the ?room= invite link is often opened in a second
+// tab. So a write first checks whether the stored save is still the one this tab last read or wrote. If another tab has
+// written since, the two are merged against that last common save: counters add both tabs' changes, records keep the
+// better value, and every other field takes this tab's value only where this tab changed it. A tab idling in the menus
+// also takes another tab's save as soon as it is written (the 'storage' event), so its screens stay current. A tab in a
+// race, in a friends room or still loading waits until it is back in the menus; its own next write merges anyway.
+// `raw` is the stored text this tab last read or wrote, `obj` the SAVE object it belonged to: a SAVE replaced as a
+// whole (Reset progress) is written as it is, without a merge.
+const SAVE_SYNC = { raw: null, obj: null, timer: 0 };
+const cloneJson = (v) => JSON.parse(JSON.stringify(v));
+// deep equality of two JSON values; key order does not matter
+function sameJson(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((v, i) => sameJson(v, b[i]));
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every(k => hasOwn(b, k) && sameJson(a[k], b[k]));
+}
+// a stored save as this build reads it, or null when there is no usable one
+function storedSave(raw) {
+  if (typeof raw !== 'string') return null;
+  try { const s = JSON.parse(raw); return isPlainObj(s) ? cleanSave(s) : null; } catch (e) { return null; }
+}
+// How a field both tabs changed is settled, by its path in the save. Counters add both changes (two race rewards both
+// count, a purchase in one tab still costs). Best times and places keep the better one; upgrade levels the higher one.
+const MERGE_SUM = /^(coins|parts|xp|races|wins|daily\.prog\.[^.]+)$/;
+const MERGE_LEAST = /^records\.(cupBest|[^.]+\.(bestLap|bestPos|bestEscape))$/;
+const MERGE_MOST = /^(records\.[^.]+\.bestStunt|upgrades\.[^.]+\.[^.]+)$/;
+function mergeSaves(base, mine, theirs) {
+  const lapOf = (s, k) => { const r = isPlainObj(s.records) ? s.records[k] : null; return isPlainObj(r) && Number.isFinite(r.bestLap) ? r.bestLap : Infinity; };
+  const walk = (path, b, m, t) => {
+    if (path === 'daily' && isPlainObj(m) && isPlainObj(t)) {
+      if (m.date !== t.date) return t.date === todayStr() ? t : m;   // a tab left open overnight still holds yesterday's
+      if (!isPlainObj(b) || b.date !== m.date) b = { date: m.date, prog: {}, claimed: {}, bonus: false };
+    }
+    if (MERGE_SUM.test(path)) {   // before the equality checks: two tabs that each add 1 make 2
+      const n = [b, m, t].map(v => (v === undefined ? 0 : v));
+      if (n.every(Number.isFinite)) return Math.max(0, n[2] + n[1] - n[0]);
+    }
+    if (sameJson(m, t) || sameJson(t, b)) return m;
+    if (sameJson(m, b)) return t;
+    if (isPlainObj(m) && isPlainObj(t)) {
+      const bo = isPlainObj(b) ? b : {}, o = {};
+      for (const k of new Set([...ownKeys(m), ...ownKeys(t)])) { const v = walk(path ? path + '.' + k : k, bo[k], m[k], t[k]); if (v !== undefined) o[k] = v; }
+      return o;
+    }
+    const both = [m, t].filter(Number.isFinite);
+    if (MERGE_LEAST.test(path) && both.length) return Math.min(...both);
+    if (MERGE_MOST.test(path) && both.length) return Math.max(...both);
+    if (path.startsWith('ghosts.')) { const k = path.slice(7); return lapOf(theirs, k) < lapOf(mine, k) ? t : m; }   // the ghost of the better lap
+    return m;
+  };
+  return cleanSave(walk('', base, mine, theirs));   // cleaned again: e.g. a bike picked here that the other tab's reset took away
+}
+// Makes dst equal src in place. Screens keep references into the save (the Settings handlers hold SAVE.settings), so the
+// objects stay the same objects.
+function syncInto(dst, src) {
+  for (const k of Object.keys(dst)) if (!hasOwn(src, k)) delete dst[k];
+  for (const k of ownKeys(src)) { if (isPlainObj(src[k]) && isPlainObj(dst[k])) syncInto(dst[k], src[k]); else dst[k] = src[k]; }
+}
+// Folds the save another tab stored (raw) into this tab's SAVE. Returns false when that save is unusable.
+function takeStored(raw) {
+  const theirs = storedSave(raw); if (!theirs) return false;
+  syncInto(SAVE, mergeSaves(storedSave(SAVE_SYNC.raw) || defaultSave(), cloneJson(SAVE), theirs));
+  SAVE_SYNC.raw = raw;   // memory now holds that save: it is the base of the next merge, whether or not the next write lands
+  return true;
+}
+
+// A new browser, blocked storage or an unreadable save all start from defaultSave(). An unreadable save is copied to a
+// side key first: the next checkpoint overwrites the main key, and the copy keeps the old progress recoverable by hand.
+function loadSave() {
+  let raw = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { /* storage blocked: play with defaults */ }
+  SAVE = defaultSave();
+  if (raw) {
+    let ok = false;
+    try { const s = JSON.parse(raw); if (isPlainObj(s)) { SAVE = cleanSave(s); ok = true; } } catch (e) { SAVE = defaultSave(); }
+    if (!ok) { try { localStorage.setItem(SAVE_KEY + '-unreadable', raw); } catch (e) { /* storage full or blocked */ } }
+  }
+  if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
+  SAVE_SYNC.raw = raw; SAVE_SYNC.obj = SAVE;
+}
+// Writes the whole save, merged first with anything another tab stored meanwhile (see above). A failure is most likely a
+// full storage quota; the time-trial ghosts are the bulk of a save and the one part worth giving up, so the progress
+// itself still gets written. Blocked storage fails both times, and the game plays on from memory. Returns whether the
+// save reached storage.
+function persist() {
+  if (SAVE_SYNC.obj && SAVE === SAVE_SYNC.obj) {
+    let cur = SAVE_SYNC.raw;
+    try { cur = localStorage.getItem(SAVE_KEY); } catch (e) { /* unreadable: write as before */ }
+    if (cur !== SAVE_SYNC.raw && cur !== null) takeStored(cur);
+  }
+  const write = (json) => {
+    try { localStorage.setItem(SAVE_KEY, json); } catch (e) { return false; }
+    SAVE_SYNC.raw = json; SAVE_SYNC.obj = SAVE; return true;
+  };
+  if (write(JSON.stringify(SAVE))) return true;
+  return isPlainObj(SAVE.ghosts) && Object.keys(SAVE.ghosts).length > 0 && write(JSON.stringify(Object.assign({}, SAVE, { ghosts: {} })));
+}
+// Only the menus take another tab's save at once. GAME and MP are defined further on in the bundle; this runs from events.
+function saveIdle() {
+  try { return !!(GAME && GAME.ui && ['menu', 'garage', 'store'].includes(GAME.state) && !(typeof MP !== 'undefined' && MP && MP.room)); } catch (e) { return false; }
+}
+function takeOtherTabSave() {
+  if (!SAVE_SYNC.obj || SAVE !== SAVE_SYNC.obj) return;   // not loaded yet, or a reset this tab could not store: it wins at its next write
+  let cur; try { cur = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
+  if (cur === SAVE_SYNC.raw || cur === null) return;
+  if (!saveIdle()) { if (!SAVE_SYNC.timer) SAVE_SYNC.timer = setTimeout(() => { SAVE_SYNC.timer = 0; takeOtherTabSave(); }, 1500); return; }
+  const before = cloneJson(SAVE);
+  if (takeStored(cur)) refreshAfterSync(before);
+}
+// Redraws what shows the save: the menu, the open screen and dialogs, the menu bike and the backdrop.
+function refreshAfterSync(before) {
+  const g = GAME, ui = g.ui, now = SAVE;
+  const changed = (...keys) => keys.some(k => !sameJson(before[k], now[k]));
+  const shown = (id) => { const el = document.getElementById(id); return !!el && !el.hidden; };
+  ui.renderMenu();
+  if (g.state === 'garage') ui.renderGarage(); else if (g.state === 'store') ui.renderStore();
+  if (shown('settings') && changed('settings', 'name')) ui.renderSettings();
+  if (shown('setup') && changed('setup')) ui.renderSetup();
+  if (shown('board') && changed('records', 'wins', 'races')) ui.renderBoard();
+  if (changed('settings')) {
+    if (typeof AUDIO !== 'undefined') AUDIO.applyVolumes();
+    if (g.state === 'menu' && (before.settings.quality !== now.settings.quality || before.settings.detected !== now.settings.detected)) g.applyQuality(true);
+  }
+  if (g.state === 'menu' && ['track', 'time', 'weather'].some(k => before.setup[k] !== now.setup[k])) g.previewTrack(now.setup.track);   // also redraws the bike
+  else if (changed('build', 'paint', 'mods', 'cos')) g.refreshMenuRig(g.state === 'garage' ? ui.gSel : undefined);
+}
+if (typeof addEventListener === 'function') addEventListener('storage', (e) => { if (e.key === SAVE_KEY || e.key === null) takeOtherTabSave(); });
+// For tests and debugging only (like window.__chapri): a copy of the save this tab holds in memory. Reading it changes nothing.
+if (typeof window !== 'undefined') window.__save = () => cloneJson(SAVE);
 const levelFromXp = (xp) => { let lvl = 1, need = 1000, acc = 0; while (xp >= acc + need) { acc += need; lvl++; need = Math.round(need * 1.18 / 10) * 10; } return { lvl, into: xp - acc, need }; };
 const keymap = () => Object.assign({}, DEFAULT_KEYS, SAVE.settings.keys || {});
 
@@ -4319,10 +4660,14 @@ class Rider {
     this.race = race; this.idx = idx; this.cfg = cfg; this.isPlayer = !!cfg.isPlayer;
     this.name = cfg.name; this.short = cfg.short || cfg.name;
     this.st = cfg.stats;
+    // a remote racer in a friends race: no physics, no AI; placed from the network snapshots (placeNet)
+    this.net = cfg.net ? { seat: cfg.seat, buf: [], finishT: null, gone: false } : null;
+    // ?autopilot drives the player in solo only; a multiplayer race ignores it
+    const auto = DEBUG.autopilot && !(race && race.mp);
     this.vTop = this.st.top / 3.6; this.A = 5.9 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
     this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 1.06;   // arcade grip: a touch more than a real tyre
     // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
-    this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
+    this.assist = this.isPlayer && !auto && SAVE.settings.steerAssist !== false;
     if (this.assist) this.gripLat *= 1.1;   // arcade handling for the human: tighter lines than the AI's tyres allow
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
@@ -4338,12 +4683,25 @@ class Rider {
     this.strafe = 0; this.hopCD = 0; this.hopT = 9; this.flatT = 0; this.crashDur = 2.0;
     this.ai = { laneBias: (RNG() - 0.5) * 1.2, nextThink: 0, attackCD: 2 + RNG() * 3, mistakeT: 0, target: 0, wheelieT: 0 };
     this.wheelieDist = 0; this.slideDist = 0; this.wheeliesDone = 0;
-    this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? DEBUG.autopilot : RNG() < 0.4; this.ai.jumper = this.isPlayer ? DEBUG.autopilot : RNG() < 0.55;
+    this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? auto : RNG() < 0.4; this.ai.jumper = this.isPlayer ? auto : RNG() < 0.55;
   }
   get halfW() { return this.race.track.wAt(this.s) / 2 - 0.42; }
   place(dist, d) { const T = this.race.track; this.dist = dist; this.s = ((dist % T.L) + T.L) % T.L; this.d = d; this.psi = 0; this.v = 0; this.y = T.yAt(this.s); }
+  // a remote racer's pose from an (interpolated) snapshot. `st` holds numbers already checked by the race (45_race.js).
+  placeNet(st) {
+    const T = this.race.track;
+    this.dist = st.dist; this.s = ((st.dist % T.L) + T.L) % T.L; this.d = st.d; this.y = st.y; this.psi = st.psi;
+    this.v = st.v; this.lean = st.lean; this.pitch = st.pitch; this.lap = st.lap; this.boost = st.boost; this.crashed = st.crashed;
+    if (st.finished && !this.finished) { this.finished = true; this.finishT = st.finishT; }
+    // what the rig, the engine sound and the exhaust read: a believable gear, rev and throttle for the speed
+    this.air = this.y > T.gy(this.s, this.d) + 0.25;
+    const f = clamp(this.v / Math.max(1, this.vTop), 0, 1.1), g = f < 0.34 ? 1 : f < 0.58 ? 2 : f < 0.8 ? 3 : 4, lo = [0, 0.34, 0.58, 0.8][g - 1], hi = [0.34, 0.58, 0.8, 1][g - 1];
+    this.gear = g; this.rpm = clamp(3000 + (f - lo) / (hi - lo) * 6000, 1600, 9800);
+    this.input.throttle = this.crashed ? 0 : st.accel > 0.3 ? 1 : this.v > 2 ? 0.5 : 0;
+  }
   // ── one physics step ──
   step(dt, raceT) {
+    if (this.net) return;   // remote racers are placed from snapshots, never simulated here
     const T = this.race.track, inp = this.input;
     this.invuln = Math.max(0, this.invuln - dt); this.kickCD = Math.max(0, this.kickCD - dt); this.gripT = Math.max(0, this.gripT - dt); this.splatT = Math.max(0, this.splatT - dt); this.wobbleT += dt;
     if (this.crashed) return this.stepCrash(dt);
@@ -4523,7 +4881,7 @@ class Rider {
   }
   addWobble(n, quiet) { if (this.invuln > 0) return; this.wobble += n; if (!quiet) this.wobbleT = 0; else this.wobbleT = Math.min(this.wobbleT, 0.3); }
   crash(reason) {
-    if (this.crashed) return;
+    if (this.crashed || this.net) return;
     this.crashed = true; this.crashT = 0; this.wheelie = false; this.stoppie = false; this.pitch = 0; this.boosting = false; this.sliding = false; this.crashLean = this.lean >= 0 ? 1 : -1;
     this._crashes = (this._crashes || 0) + 1; this.crashKind = reason; this.race.onCrash(this, reason);
   }
@@ -4535,6 +4893,7 @@ class Rider {
     if (this.crashT > this.crashDur) { this.crashDur = 2.0; this.respawn(); }
   }
   respawn() {
+    if (this.net) return;
     const T = this.race.track; const cp = Math.floor(this.dist / T.cpSpacing) * T.cpSpacing;
     this.dist = this.dist > 0 ? Math.max(cp, this.dist - 30) : this.dist; this.s = ((this.dist % T.L) + T.L) % T.L;
     if (T.roof) { const x = T.wrapD(this.s - T.roof.s0); if (x > 0 && x < T.roof.len) { this.dist -= x + 6; this.s = ((this.dist % T.L) + T.L) % T.L; } }   // restart before the rooftop run
@@ -4543,6 +4902,7 @@ class Rider {
   }
   // ── AI driver ──
   think(dt, raceT, riders) {
+    if (this.net) return;
     const T = this.race.track, inp = this.input, D = this.race.diff, P = this.cfg.rival;
     if (this.crashed) { inp.throttle = 0; inp.brake = 0; return; }
     const look = 7 + this.v * 0.55; const sAhead = this.s + look;
@@ -4622,18 +4982,23 @@ class Race {
     this.track = game.track; this.world = game.world; this.hud = game.hud;
     this.wet = setup.weather === 'monsoon';
     const M = MODES[this.mode];
+    // a friends race (84_mp_race.js): { raceId, goAt, seat, racers }. Null in every solo mode, and every multiplayer
+    // branch below checks it, so a solo race runs exactly the code it always ran.
+    this.mp = M.mp && setup.mp ? setup.mp : null;
     this.combatOn = M.combat === 'force' ? true : M.combat ? !!setup.combat : false;
     this.laps = M.fixedLaps || setup.laps;
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
     this.score = {}; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
     this.elimLap = 0; this.elimOrder = []; this.finishOrder = [];
-    RNG = mulberry32(Date.now() & 0xffff);
-    // player
-    const st = buildStats(SAVE.build); const b = st.build;
+    RNG = mulberry32(this.mp ? (setup.seed >>> 0) : (Date.now() & 0xffff));
+    // player. In a friends race (and only there) the bike and the look are this seat's entry in race:begin, the ones the
+    // other devices draw: a bike picked in the lobby that the server did not take in time is not ridden here either.
+    const me = this.mp ? this.mp.racers.find(r => r.seat === this.mp.seat) || null : null;
+    const st = buildStats(me ? me.bike : SAVE.build); const b = st.build;
     const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0];
     const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
-    const look = lookFromSave(b.id);
+    const look = me ? MP.sanitizeLook(me.look, me.bike) : lookFromSave(b.id);
     this.player = new Rider(this, 0, { isPlayer: true, name: SAVE.name || 'You', short: 'You', stats: st, look });
     this.riders.push(this.player);
     this.player.rig.addUnderglow();
@@ -4647,11 +5012,15 @@ class Race {
         this.riders.push(r);
       });
     }
+    if (this.mp) this.mpAddRacers();
     if (M.police) PoliceOps.addCops(this);
-    // grid: player starts at the back, like the mockup (8th/8)
-    const T = this.track; const order = this.riders.slice(1).concat([this.player]);
-    order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
-    if (!M.rivals) this.player.place(-4, 0);
+    if (this.mp) this.mpGrid();
+    else {
+      // grid: player starts at the back, like the mockup (8th/8)
+      const T = this.track; const order = this.riders.slice(1).concat([this.player]);
+      order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
+      if (!M.rivals) this.player.place(-4, 0);
+    }
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
     this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
     this.combat = new Combat(this); this.group.add(this.combat.group);
@@ -4677,6 +5046,7 @@ class Race {
   hudWarn(side) { this.hud.warn(side); AUDIO.warn(); }
   // ── frame update (fixed sub-steps) ──
   update(dt) {
+    if (this.mp) return this.updateMp(dt);
     if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
     if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; }
     const P = this.player;
@@ -4710,6 +5080,97 @@ class Race {
     if (this.state === 'racing' || this.state === 'finished') this.recordGhost();
     this.syncVisuals(dt);
     this.taunts.update(dt, this.game.camera);
+  }
+  // ── friends race (multiplayer) ──
+  // One ghost rider per remote racer, in seat order after the player (riders[0] stays the local player, idx 0, as in solo).
+  mpAddRacers() {
+    let idx = 1;
+    for (const rc of this.mp.racers) {
+      if (rc.seat === this.mp.seat) continue;
+      // race:begin looks are cleaned in 82_mp_net.js; cleaned once more here, so only known keys ever reach BikeRig
+      const look = typeof MP.sanitizeLook === 'function' ? MP.sanitizeLook(rc.look, rc.bike) : rc.look;
+      this.riders.push(new Rider(this, idx++, { name: rc.name, short: rc.name, stats: buildStatsStock(), look, net: true, seat: rc.seat }));
+    }
+    this.mpLocal = [this.player];
+  }
+  // The grid by seat order, so every device puts every racer on the same spot: two abreast, rows 5.5 m apart.
+  mpGrid() {
+    const T = this.track;
+    this.mp.racers.forEach((rc, i) => {
+      const r = rc.seat === this.mp.seat ? this.player : this.riders.find(x => x.net && x.net.seat === rc.seat); if (!r) return;
+      const row = Math.floor(i / 2), side = i % 2 ? -1 : 1;
+      r.place(-(3 + row * 5.5), side * T.wAt(0) / 4.2);
+    });
+    this.raceT = this.mpClock();   // a late race:begin (after a resume) joins the countdown, or the race, where it is now
+    this.mp.sentAt = -1e9; this.mpStep = 0; this.mpTravel = 0;
+  }
+  // Bike contact, pickups, road objects, traffic, coins and the scoring callouts read this.riders. Ghosts take no part
+  // in any of them (spec A2), so while they run the race holds the local bike only.
+  mpLocalOnly(fn) { const all = this.riders; this.riders = this.mpLocal; try { fn(); } finally { this.riders = all; } }
+  // the race clock: seconds since GO by the room server's clock (MP.serverNow is Date.now plus the measured offset)
+  mpClock() { return (MP.serverNow() - this.mp.goAt) / 1000; }
+  mpGo() {
+    if (this.state !== 'countdown' || this.mpOver) return;   // an aborted race never gets its GO
+    const P = this.player;
+    this.state = 'racing'; this.raceT = Math.max(0, this.mpClock()); this.mp.goWall = Date.now();
+    if (this.raceT > 0.5) P.lapStart = this.raceT;   // joined after GO: the first lap is timed from the moment this bike could go
+    this.hud.countdown(0); AUDIO.beep(true); if (P.input.throttle > 0.5) this.launch.jump = true;
+  }
+  // The friends-race frame. Only the local bike is simulated, with the same physics, sub-steps, road objects and
+  // scoring as solo. Ghosts are placed from snapshots (84_mp_race.js). The clock never runs slow motion or hit-stop:
+  // it follows the server, so every device agrees on GO and on the finish times it reports.
+  updateMp(dt) {
+    const P = this.player, clock = this.mpClock();
+    if (this.mpOver) this.mpPark(dt);
+    if (this.state === 'countdown') {
+      const before = this.raceT; this.raceT = Math.max(before, clock);
+      if (!this.mpOver) for (let k = 3; k >= 1; k--) if (before < -k + 0.4 && this.raceT >= -k + 0.4 && this.raceT < 0) { this.hud.countdown(k); AUDIO.beep(false); }
+      if (this.raceT >= 0) this.mpGo();
+      for (const r of this.riders) { r.rpm = smooth(r.rpm, r.isPlayer ? 1600 + P.input.throttle * 8200 : 2200 + Math.sin(this.raceT * 7 + r.idx) * 600, 8, dt); }
+    } else {
+      // Physics runs on the race clock's real elapsed time, not the frame loop's dt (capped at 0.1 s a frame for solo):
+      // a slow device then races at the same pace in real time as a fast one, and ?timescale changes nothing. The cap
+      // keeps a tab that was hidden for a while from jumping its bike forward when it comes back (spec 9: it freezes).
+      const prev = this.raceT; this.raceT = Math.max(prev, clock);
+      const h0 = this.mpStep = clamp(this.raceT - prev, 0, 0.5);   // the chase camera follows with the same step (90_main)
+      if (!this.launch.done && this.raceT < 0.6 && P.input.throttle > 0.5) { this.launch.done = true; if (!this.launch.jump && this.raceT < 0.35) { P.boost = Math.min(100, P.boost + 20); this.hud.callout('PERFECT START', `+${this.award('launch', PTS.launch)}`, 'good'); } }
+      if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
+      const d0 = P.dist;
+      if (h0 > 0) {
+        // once the room server has ended the race the local bike is parked (mpPark): it is not stepped any more
+        if (!this.mpOver) {
+          const steps = Math.max(1, Math.ceil(h0 / (1 / 90))), h = h0 / steps;
+          for (let i = 0; i < steps; i++) {
+            if (P.finished) { P.input.throttle = 0.4; P.input.brake = P.v > 14 ? 0.3 : 0; P.input.boost = false; }
+            P.step(h, this.raceT);   // lap and finish events see every racer, so the place counts the ghosts
+            this.mpLocalOnly(() => this.interactions(h));
+          }
+        }
+        this.mpLocalOnly(() => {
+          // the street, the stage and the smoke around the bike carry on under the results
+          this.combat.update(h0, this.raceT);
+          if (this.stage) this.stage.update(h0);
+          if (this.ug) this.ug.update(h0);
+          this.street.update(h0);
+          if (!this.mpOver) { this.collectCoins(); this.scoring(h0); }
+        });
+      }
+      this.mpTravel = P.dist - d0;   // how far the bike went this frame: the chase camera spreads it over its sub-steps
+      if (!this.mpOver) MPRACE.sendSnapshot(this);
+    }
+    MPRACE.placeGhosts(this);
+    this.mpFirst = this.ranking()[0];   // finishOrder only knows the local finish, so the winner's celebration reads this
+    this.syncVisuals(dt);
+    this.taunts.update(dt, this.game.camera);
+  }
+  // The room server has ended the race (its results are in, or it ended while this device was away). The local bike
+  // stays where that found it and is no longer simulated: no line it reaches can become a second finish, a lap, a
+  // finish report, coins, points or daily progress. It comes to rest upright, with the engine at idle.
+  mpPark(dt) {
+    const P = this.player, I = P.input;
+    I.throttle = 0; I.brake = 0; I.rear = 0; I.boost = false; I.steer = 0; I.back = false; I.hop = false;
+    P.v = 0; P.boosting = false; P.sliding = false;
+    P.lean = smooth(P.lean, 0, 4, dt); P.pitch = smooth(P.pitch, 0, 4, dt); P.rpm = smooth(P.rpm, 1600, 4, dt);
   }
   interactions(dt) {
     const R = this.riders;
@@ -4781,6 +5242,9 @@ class Race {
   }
   // ── events from riders / combat ──
   onLap(r, t) {
+    // In a friends race a line crossed after this bike's own finish, or after the room server has ended the race, counts
+    // for nothing: no second finish (its chime, a finish report the server would refuse), no lap record, no lead-lap points.
+    if (this.mp && (r.finished || this.mpOver)) return;
     const lapTime = t - r.lapStart; r.lapStart = t; r.laps.push(lapTime); r.bestLap = Math.min(r.bestLap, lapTime);
     const done = r.laps.length;
     if (this.mode === 'elimination' && done > this.elimLap) { this.elimLap = done; this.eliminateLast(r); }
@@ -4814,6 +5278,9 @@ class Race {
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
+    // a friends race has no hero entry, and its results come from the room server (84_mp_race.js). Until they arrive
+    // the HUD shows the live place, which still changes as remote finishes come in.
+    if (this.mp) { this.playerPos = null; MPRACE.localFinish(this); return; }
     // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results
     const won = this.police ? !this.police.busted : MODES[this.mode].rivals && pos === 1;
     if (won && this.player.rig.rm && (!DEBUG.autopilot || URLP.get('entry')) && SAVE.settings.entry !== false) this.game.startEntry(this, this.police ? 'BACH GAYA!' : 'FIRST!');
@@ -4901,7 +5368,7 @@ class Race {
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
       this.swagger(r, dt);
-      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
+      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && (this.mp ? this.mpFirst === r : this.finishOrder[0] === r) });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }
@@ -6457,12 +6924,29 @@ class HUD {
     let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
     let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
     const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
-    let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
+    let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : race.riders[i].net ? '#3fe8ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
     this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
     this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
     this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
     this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
     const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
+    // friends race: a name tag over every remote racer's bike (names from the network go in as text only)
+    this.tags = null;
+    if (race.mp) this.tags = race.riders.filter(r => r.net).map(r => {
+      const el = document.createElement('div'); el.className = 'mp-tag'; el.textContent = r.short; el.hidden = true;
+      el.style.cssText = 'position:absolute;translate:-50% -100%;padding:.12em .5em .02em;border-radius:6px;background:rgba(20,10,26,.74);box-shadow:inset 0 0 0 1.5px #3fe8ff;color:#fff;font-family:var(--f-num);font-weight:600;font-size:1.2rem;line-height:1.1;letter-spacing:.04em;white-space:nowrap;pointer-events:none';
+      this.el.pops.appendChild(el); return { r, el };
+    });
+  }
+  // name tags: over the bike, shown within 90 m and in front of the lens, fading with distance
+  updateTags(camera) {
+    const R = this.race, T = R.track, W = this.game.vw, H = this.game.vh, v = this._tv || (this._tv = new THREE.Vector3());
+    for (const t of this.tags) {
+      const r = t.r; let show = !r.eliminated && r.rig.root.visible;
+      if (show) { T.pos(r.s, r.d, v, r.y - T.yAt(r.s) + 2.05); const dist = v.distanceTo(camera.position); v.project(camera); show = dist < 90 && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+        if (show) { t.el.style.left = ((v.x + 1) / 2 * W).toFixed(0) + 'px'; t.el.style.top = ((1 - v.y) / 2 * H).toFixed(0) + 'px'; t.el.style.opacity = clamp(1.4 - dist / 75, 0.35, 1).toFixed(2); } }
+      if (t.el.hidden === show) t.el.hidden = !show;
+    }
   }
   update(dt, camera) {
     const R = this.race; if (!R) return; const P = R.player;
@@ -6513,6 +6997,7 @@ class HUD {
     for (const r of R.riders) { if (r.isPlayer || !r.attack || r.attack.target !== P || r.attack.hit) continue; if (!r._bang) { const el = document.createElement('div'); el.className = 'bang'; el.textContent = '!'; this.el.pops.appendChild(el); r._bang = { el, r, t: 0, life: r.attack.W.strike + 0.15 }; this.pops.push(r._bang); } }
     for (const r of R.riders) if (r._bang && r._bang.t > r._bang.life - 0.01) r._bang = null;
     for (const side of ['left', 'right']) { if (this.warnT[side] > 0) { this.warnT[side] -= dt; if (this.warnT[side] <= 0) this.el[side === 'left' ? 'warnL' : 'warnR'].hidden = true; } }
+    if (this.tags) this.updateTags(camera);
   }
   coinTick(n) { $$('.coinsMirror').forEach(e => { e.textContent = fmtNum(SAVE.coins); const p = e.closest('.pill'); if (p) { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); } }); }
   callout(text, pts, cls = 'good') {
@@ -6531,6 +7016,7 @@ class HUD {
   lapFlash(text, t) { this.big(text, `Lap ${fmtTime(t)}`, 1.6); }
   finish(pos, n, mode) {
     if (this.race.police) { if (!this.race.police.busted) this.big('BACH GAYA!', 'Nakabandi se nikal gaya', 3.4); return; }
+    if (this.race.mp) { this.big('FINISHED!', 'Waiting for the results…', 3.4); return; }   // the place is the server's to give
     if (mode === 'stunt') this.big('STUNT RUN', `${fmtNum(this.race.score.stunts || 0)} pts`, 3.4);
     else if (n) this.big(pos === 1 ? 'JEET GAYA!' : `${pos}${ordinal(pos)}`, pos === 1 ? 'Mumbai ka asli Chapri Raja' : 'FINISHED', 3.4);
     else this.big('FINISHED', fmtTime(this.race.player.bestLap), 3.4);
@@ -6592,6 +7078,7 @@ class UI {
   }
   modalOpen() { return $$('.modal').some(m => !m.hidden); }
   open(id, fromPause = false) {
+    if (id === 'friends') { MPUI.open(); return; }   // friends rooms: 83_mp_lobby.js owns this dialog
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
     if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard();
@@ -6777,6 +7264,1389 @@ function trackThumb(t) {
   return `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="g${t.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient></defs><rect width="120" height="100" fill="url(#g${t.id})"/><polyline points="${pts}" fill="none" stroke="#160a12" stroke-width="7" stroke-linejoin="round"/><polyline points="${pts}" fill="none" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
 }
 
+// ===== 82_mp_net.js =====
+// ───────────────────────── MULTIPLAYER NET: the friends-room connection ─────────────────────────
+// Talks to the room server (server/index.mjs) over Socket.IO. Nothing here touches the network until a player opens
+// Friends: the client library is fetched from the room server on first use, so solo play never loads it.
+// Protocol: MULTIPLAYER_BUILD_SPEC.md section 3. Everything that arrives from the network is cleaned here before the
+// lobby or the race sees it (names, bike ids, settings, and every `look`, which the server does not inspect).
+const MP_SESSION_KEY = 'chapri-mp-session';
+const MP_SEATS = 8, MP_MIN_RACERS = 2, MP_STATE_PER_SEC = 15;
+const MP_BIKES = ['stock', 'kaali', 'chrome', 'sticker', 'cafe', 'neon', 'drag', 'raja'];
+const MP_TRACKS = ['random', 'mumbai-central', 'dharavi-lanes', 'mumbai-underground', 'sion-flyover', 'crawford-market', 'bandstand-rush'];
+const MP_LAPS = [1, 3, 5], MP_TIMES = ['morning', 'golden', 'night'], MP_WEATHERS = ['clear', 'monsoon'];
+const MP_ERROR_TEXT = {
+  BAD_REQUEST: 'The room server could not use that request. Check your name and PIN and try again.',
+  BAD_PIN: 'Type the 4-digit PIN of the room.',
+  NOT_FOUND: 'No room has that PIN. Check the 4 digits with your friend.',
+  FULL: 'That room is full: 8 racers are in it already.',
+  RACING: 'That room is in a race right now. Try again when the race ends.',
+  LOCKED_OUT: 'Too many wrong PINs. Try again later.',
+  NOT_HOST: 'Only the host can do that.',
+  NOT_ENOUGH_RACERS: 'You need at least 2 racers to start.',
+  RACE_IN_PROGRESS: 'A race is on. Settings can change when it ends.',
+  ALREADY_IN_ROOM: 'You are already in a room. Leave it first.',
+  NOT_IN_ROOM: 'You are not in a room any more.',
+  EXPIRED: 'That room has closed.',
+  RATE_LIMITED: 'Too many requests at once. Wait a moment and try again.',
+  SERVER_BUSY: 'The room server is full right now. Try again in a minute.',
+  SUPERSEDED: 'This room is now open in another tab or window, so this one has left it.',
+  ORIGIN_DENIED: 'This page is not allowed to use the room server.',
+  REFUSED: 'The room server refused the connection. Try again in a minute.',
+  NETWORK:'Could not reach the room server. Check your connection and try again.',
+  NO_SERVER: 'Could not reach the room server. Friends rooms work when the game is opened from the Chapri Racer room server.',
+  TIMEOUT: 'The room server did not answer in time. Try again.',
+  BAD_RESPONSE: 'The room server sent something this game does not understand. Reload the page and try again.',
+  UNKNOWN: 'Something went wrong with the room server. Try again.',
+};
+
+// Same rule as the server: control and direction-override characters removed, spaces collapsed, trimmed, 1 to 16
+// characters counted as code points (an emoji is never cut in half), default Rider.
+function mpCleanName(v) {
+  let s = String(v ?? '').normalize('NFC').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\u061c\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+  const chars = Array.from(s);
+  if (chars.length > 16) s = chars.slice(0, 16).join('').trim();
+  return s || 'Rider';
+}
+const mpBike = (id) => (MP_BIKES.includes(id) ? id : 'stock');
+const mpPin = (v) => { const s = typeof v === 'number' && Number.isInteger(v) ? String(v).padStart(4, '0') : String(v ?? ''); return /^\d{4}$/.test(s) ? s : ''; };
+
+// ── look sanitizer: a remote racer's look only ever reaches BikeRig through here ──
+// The keys are the ones lookFromSave() produces. Anything else (render flags such as lod or ghost included) is dropped.
+const MP_HEX = /^#[0-9a-f]{6}$/i;
+const MP_HAIR = ['pomp', 'quiff', 'long', 'buzz', 'afro'];
+function mpDefaultLook(bike) {
+  const b = BUILDS.find(x => x.id === bike) || BUILDS[0];
+  const shirt = COSMETICS.shirt[0], hair = COSMETICS.hair[0], shades = COSMETICS.shades[0];
+  return { tank: b.tank, accent: b.accent, chrome: !!b.chrome, neon: !!b.neon, stickers: !!b.stickers, shirt: shirt.base, flowers: !!shirt.flowers, check: !!shirt.check,
+    helmet: null, shades: shades.color || null, shadesStyle: shades.style || null, hair: hair.style, hairColor: hair.color, goldChain: true, watch: true, stubble: true, jeans: '#1f2a4a',
+    mods: { exhaust: 'stock', tyres: 'stock', kit: 'none', finish: b.chrome ? 'chrome' : 'gloss' } };
+}
+function mpSanitizeLook(look, bike) {
+  const d = mpDefaultLook(bike);
+  if (!look || typeof look !== 'object' || Array.isArray(look)) return d;
+  // lookFromSave() writes `shades: undefined` for No shades and `flowers: undefined` for a plain shirt. JSON drops
+  // such keys on the way to the server, so the local copy must read them the same way: as missing, never as bad values.
+  const has = (k) => Object.prototype.hasOwnProperty.call(look, k) && look[k] !== undefined;
+  const out = {};
+  for (const k of ['tank', 'accent', 'shirt', 'hairColor', 'jeans']) out[k] = has(k) && typeof look[k] === 'string' && MP_HEX.test(look[k]) ? look[k] : d[k];
+  // no helmet and no shades are real choices, sent as a missing key
+  for (const k of ['helmet', 'shades']) out[k] = !has(k) || look[k] === null ? null : typeof look[k] === 'string' && MP_HEX.test(look[k]) ? look[k] : d[k];
+  // lookFromSave() leaves a flag out when it is off, so a missing flag means false
+  for (const k of ['chrome', 'neon', 'stickers', 'flowers', 'check', 'goldChain', 'watch', 'stubble']) out[k] = !has(k) ? false : typeof look[k] === 'boolean' ? look[k] : d[k];
+  out.shadesStyle = has('shadesStyle') && look.shadesStyle === 'aviator' ? 'aviator' : null;
+  out.hair = has('hair') && MP_HAIR.includes(look.hair) ? look.hair : d.hair;
+  const m = has('mods') && look.mods && typeof look.mods === 'object' && !Array.isArray(look.mods) ? look.mods : {};
+  out.mods = {};
+  for (const slot of Object.keys(MODS)) {
+    const v = Object.prototype.hasOwnProperty.call(m, slot) ? m[slot] : undefined;
+    out.mods[slot] = MODS[slot].items.some(it => it.id === v) ? v : d.mods[slot];
+  }
+  return out;
+}
+
+// ── incoming payloads ──
+function mpRoomView(v) {
+  if (!v || typeof v !== 'object' || !Array.isArray(v.racers)) return null;
+  const st = v.settings && typeof v.settings === 'object' ? v.settings : {};
+  const racers = v.racers.filter(r => r && typeof r === 'object' && Number.isInteger(r.seat)).slice(0, MP_SEATS)
+    .map(r => ({ seat: r.seat, name: mpCleanName(r.name), bike: mpBike(r.bike), look: mpSanitizeLook(r.look, r.bike), host: r.host === true, connected: r.connected !== false }))
+    .sort((a, b) => a.seat - b.seat);
+  return {
+    pin: mpPin(v.pin), phase: ['lobby', 'countdown', 'racing'].includes(v.phase) ? v.phase : 'lobby',
+    you: Number.isInteger(v.you) ? v.you : null, raceId: Number.isFinite(v.raceId) ? v.raceId : null, hostSeat: Number.isInteger(v.hostSeat) ? v.hostSeat : null,
+    settings: { track: MP_TRACKS.includes(st.track) ? st.track : 'random', laps: MP_LAPS.includes(st.laps) ? st.laps : 3, time: MP_TIMES.includes(st.time) ? st.time : 'morning', weather: MP_WEATHERS.includes(st.weather) ? st.weather : 'clear' },
+    racers,
+  };
+}
+function mpBegin(b) {
+  if (!b || typeof b !== 'object' || !Array.isArray(b.racers) || !Number.isFinite(b.goAt)) return null;
+  return Object.assign({}, b, {
+    seed: (Number(b.seed) >>> 0), goAt: b.goAt,
+    track: TRACKS.some(t => t.id === b.track) ? b.track : 'mumbai-central', laps: MP_LAPS.includes(b.laps) ? b.laps : 3,
+    time: MP_TIMES.includes(b.time) ? b.time : 'morning', weather: MP_WEATHERS.includes(b.weather) ? b.weather : 'clear',
+    racers: b.racers.filter(r => r && typeof r === 'object' && Number.isInteger(r.seat)).slice(0, MP_SEATS)
+      .map(r => ({ seat: r.seat, name: mpCleanName(r.name), bike: mpBike(r.bike), look: mpSanitizeLook(r.look, r.bike) })).sort((a, b2) => a.seat - b2.seat),
+  });
+}
+function mpResults(r) {
+  if (!r || typeof r !== 'object' || !Array.isArray(r.order)) return null;
+  return Object.assign({}, r, { order: r.order.filter(o => o && typeof o === 'object' && Number.isInteger(o.seat)).map(o => Object.assign({}, o, { name: mpCleanName(o.name), bike: mpBike(o.bike) })) });
+}
+// A timeout that counts only time the page could run. After a long stall (a slow phone drawing its first frame) the
+// event we wait for is often queued right behind the timer, so a plain setTimeout would give up on an answer that has
+// already arrived. Each one-second tick counts for at most 1.5 s, however long the page was stuck.
+function mpPatientTimer(ms, fn) {
+  let left = ms, last = Date.now(), id = 0;
+  const tick = () => { const now = Date.now(); left -= Math.min(now - last, 1500); last = now; if (left <= 0) fn(); else id = setTimeout(tick, 1000); };
+  id = setTimeout(tick, 1000);
+  return { cancel: () => clearTimeout(id) };
+}
+// A handshake the server refuses (engine.io allowRequest: origin not allowed, server full or shutting down) reaches
+// the client as an HTTP 403 transport error, not as a socket.io error with a code, and socket.io would keep retrying
+// it. Over long-polling the reason is in the response body; without a readable body it is still a refusal.
+function mpRefusal(err) {
+  if (!err || err.type !== 'TransportError') return null;
+  try {
+    const xhr = err.context && typeof err.context === 'object' ? err.context : null;
+    const status = typeof err.description === 'number' ? err.description : xhr && typeof xhr.status === 'number' ? xhr.status : 0;
+    if (status !== 403) return null;
+    let code = '';
+    try { const body = JSON.parse(xhr && typeof xhr.responseText === 'string' ? xhr.responseText : 'null'); code = body && typeof body.message === 'string' ? body.message : ''; } catch (e) { code = ''; }
+    return code === 'ORIGIN_DENIED' || code === 'SERVER_BUSY' ? code : 'REFUSED';
+  } catch (e) { return null; }
+}
+// For each ack, how many room:update events had been applied when it arrived. An ack's room view is older than any
+// update that arrives after it; over long-polling both come in one batch and the ack's promise resumes last.
+const mpAckSeq = new WeakMap();
+// The race:state keys and ranges the server accepts. sendState() rebuilds every snapshot from this list, so a stray key
+// or an out-of-range number never gets the whole packet dropped by the server.
+const MP_STATE_NUM = { raceT: [0, 3600], dist: [0, 1e6], s: [0, 1e6], d: [-60, 60], y: [-20, 200], psi: [-20, 20], v: [-10, 150], lean: [-3, 3], pitch: [-3, 3], boost: [0, 100] };
+
+const MP = {
+  status: 'offline', room: null, seat: null, clockOffset: 0, rtt: null, lastError: null,
+  socket: null, _libP: null, _connP: null, _ready: false, _leaving: false, _listeners: {}, _sent: [], _mem: null, _idleT: 0, _giveUpT: 0, _heldBegin: null,
+  _roomSeq: 0, lastBegin: null,
+
+  isHost() { return !!this.room && this.seat !== null && this.room.hostSeat === this.seat; },
+  serverNow() { return Date.now() + this.clockOffset; },
+  on(ev, fn) { (this._listeners[ev] || (this._listeners[ev] = [])).push(fn); return fn; },
+  off(ev, fn) { const L = this._listeners[ev]; if (!L) return; const i = L.indexOf(fn); if (i >= 0) L.splice(i, 1); },
+  _emit(ev, data) { for (const fn of (this._listeners[ev] || []).slice()) { try { fn(data); } catch (e) { console.error('multiplayer listener failed:', ev, e); } } },
+  _setStatus(s) { if (s === this.status) return; this.status = s; this._emit('status', s); },
+
+  errorText(code, ack) {
+    if (code === 'LOCKED_OUT') { const sec = Number(ack && ack.retryAfterSec); if (Number.isFinite(sec) && sec > 0) { const m = Math.ceil(sec / 60); return `Too many wrong PINs. Try again in ${m} minute${m > 1 ? 's' : ''}.`; } }
+    if (code === 'RATE_LIMITED') {
+      // the server says how long: a room budget can be 10 minutes, a burst a few seconds
+      const sec = Number(ack && ack.retryAfterSec);
+      if (Number.isFinite(sec) && sec > 0) {
+        const minutes = sec >= 120;
+        const n = minutes ? Math.ceil(sec / 60) : Math.ceil(sec);
+        return `Too many requests in a short time. Try again in ${n} ${minutes ? 'minute' : 'second'}${n === 1 ? '' : 's'}.`;
+      }
+    }
+    if (MP_ERROR_TEXT[code]) return MP_ERROR_TEXT[code];
+    return ack && typeof ack.message === 'string' && ack.message && ack.message.length < 160 ? ack.message : MP_ERROR_TEXT.UNKNOWN;
+  },
+  _fail(code, message) { return { ok: false, code, message: message || this.errorText(code) }; },
+  _readable(ack) { const code = (ack && ack.code) || 'UNKNOWN'; const out = { ok: false, code, message: this.errorText(code, ack) }; if (ack && ack.retryAfterSec !== undefined) out.retryAfterSec = ack.retryAfterSec; this.lastError = out; return out; },
+
+  // ── the seat token lives in sessionStorage (per tab), so a reload rejoins the same seat; memory is the fallback ──
+  session() {
+    let s = null;
+    try { const raw = sessionStorage.getItem(MP_SESSION_KEY); if (raw) s = JSON.parse(raw); } catch (e) { s = null; }
+    if (!s) s = this._mem;
+    return s && typeof s.token === 'string' && /^[0-9a-f]{16,128}$/i.test(s.token) && mpPin(s.pin) ? { token: s.token, pin: mpPin(s.pin) } : null;
+  },
+  _saveSession(token, pin) { this._mem = { token, pin }; try { sessionStorage.setItem(MP_SESSION_KEY, JSON.stringify({ token, pin })); } catch (e) { /* memory copy only */ } },
+  clearSession() { this._mem = null; try { sessionStorage.removeItem(MP_SESSION_KEY); } catch (e) { /* nothing stored */ } },
+
+  // ── connection ──
+  ensureConnected() {
+    if (this._ready && this.socket && this.socket.connected) return Promise.resolve();
+    if (!this._connP) this._connP = this._connect().finally(() => { this._connP = null; });
+    return this._connP;
+  },
+  async _connect() {
+    clearTimeout(this._idleT);
+    if (this._ready && this.status === 'reconnecting') {   // socket.io is already reconnecting on its own
+      if (await this._waitStatus('online', 30000)) return;
+      throw new Error(this.errorText('NETWORK'));
+    }
+    this._setStatus('connecting');
+    try {
+      const io = await this._loadLib();
+      if (!this.socket) this._makeSocket(io); else if (!this.socket.connected) this.socket.connect();
+      await this._waitConnect(30000);   // generous: a slow phone on a bad network, or a page busy building the scene
+      await this._syncClock();
+      this._ready = true;
+      this._setStatus('online');
+    } catch (e) {
+      if (this.socket) this.socket.disconnect();   // stops socket.io from retrying in the background
+      this._ready = false;
+      this._setStatus('offline');
+      throw e instanceof Error ? e : new Error(this.errorText('NETWORK'));
+    }
+  },
+  _loadLib() {
+    if (typeof window.io === 'function') return Promise.resolve(window.io);
+    if (this._libP) return this._libP;
+    if (location.protocol === 'file:') return Promise.reject(new Error(this.errorText('NO_SERVER')));
+    this._libP = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      const fail = () => { t.cancel(); el.remove(); this._libP = null; reject(new Error(this.errorText('NO_SERVER'))); };
+      const t = mpPatientTimer(30000, () => { if (typeof window.io === 'function') resolve(window.io); else fail(); });
+      el.onload = () => { t.cancel(); if (typeof window.io === 'function') resolve(window.io); else fail(); };
+      el.onerror = fail;
+      el.async = true; el.src = '/socket.io/socket.io.js';
+      document.head.appendChild(el);
+    });
+    return this._libP;
+  },
+  _makeSocket(io) {
+    // websocket first; tryAllTransports falls back to long-polling where a proxy blocks websockets
+    const s = this.socket = io({ transports: ['websocket', 'polling'], tryAllTransports: true, reconnectionDelay: 700, reconnectionDelayMax: 5000, timeout: 20000 });
+    s.on('connect', () => { if (this._ready) this._afterReconnect(); });
+    s.on('disconnect', (reason) => this._onDisconnect(reason));
+    s.on('room:update', (v) => this._onRoom(v, true));
+    s.on('room:notice', (n) => { if (this._leaving || !n || typeof n !== 'object' || typeof n.kind !== 'string') return; this._emit('notice', { kind: n.kind, name: n.name == null ? undefined : mpCleanName(n.name) }); });
+    // On a reload mid-race, race:begin comes straight after the session:resume ack. When both arrive in one batch they
+    // are handled before the ack's promise sets this.seat, and the race glue needs the seat: hold it for the room view.
+    s.on('race:begin', (b) => { if (this._leaving) return; const v = mpBegin(b); if (!v) return; if (this.seat === null) { this._heldBegin = v; return; } this._emitBegin(v); });
+    s.on('race:state', (st) => { if (!this._leaving && st && typeof st === 'object' && Number.isInteger(st.seat)) this._emit('state', st); });
+    s.on('race:results', (r) => { if (this._leaving) return; const v = mpResults(r); if (v) this._emit('results', v); });
+    s.on('room:closed', (c) => this._onClosed(c));
+    s.on('error', (e) => this._onServerError(e));
+  },
+  _waitConnect(ms) {
+    const s = this.socket;
+    if (s.connected) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const done = (err) => { t.cancel(); s.off('connect', ok); s.off('connect_error', bad); if (err) reject(err); else resolve(); };
+      const ok = () => done();
+      // a refusal from the server (a known code, or a middleware error that socket.io will not retry) fails at once;
+      // transport errors are retried by socket.io until the timeout
+      const bad = (err) => {
+        const refused = mpRefusal(err);
+        if (refused) { done(new Error(this.errorText(refused))); return; }
+        const c = (err && err.data && err.data.code) || (err && err.message);
+        if (MP_ERROR_TEXT[c] || !s.active) done(new Error(this.errorText(MP_ERROR_TEXT[c] ? c : 'NETWORK')));
+      };
+      const t = mpPatientTimer(ms, () => done(s.connected ? null : new Error(this.errorText('NETWORK'))));
+      s.on('connect', ok); s.on('connect_error', bad);
+    });
+  },
+  // five clock:ping round trips; the one with the smallest round trip sets the offset
+  async _syncClock() {
+    let best = null;
+    for (let i = 0; i < 5; i++) {
+      const t0 = Date.now(); const ack = await this._ack('clock:ping', {}, 4000); const t1 = Date.now();
+      if (!ack.ok || !Number.isFinite(ack.serverNow)) { if (ack.code === 'TIMEOUT') break; continue; }
+      const rtt = t1 - t0; if (!best || rtt < best.rtt) best = { rtt, offset: ack.serverNow + rtt / 2 - t1 };
+    }
+    if (best) { this.clockOffset = best.offset; this.rtt = best.rtt; }
+  },
+  _waitStatus(want, ms) {
+    if (this.status === want) return Promise.resolve(true);
+    if (this.status === 'offline') return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const fn = (s) => { if (s === want || s === 'offline') done(s === want); };
+      const done = (v) => { t.cancel(); this.off('status', fn); resolve(v); };
+      const t = mpPatientTimer(ms, () => done(false));
+      this.on('status', fn);
+    });
+  },
+  _ack(event, data, ms = 15000) {
+    const s = this.socket;
+    if (!s) return Promise.resolve(this._fail('NETWORK'));
+    return new Promise((resolve) => {
+      let settled = false;
+      const t = mpPatientTimer(ms, () => { if (!settled) { settled = true; resolve(this._fail('TIMEOUT')); } });
+      s.emit(event, data, (ack) => {
+        if (settled) return;   // answered after we gave up: too late to use
+        settled = true; t.cancel();
+        if (ack && typeof ack === 'object') { mpAckSeq.set(ack, this._roomSeq); resolve(ack); } else resolve(this._fail('BAD_RESPONSE'));
+      });
+    });
+  },
+  async _request(event, data, ms = 15000) {
+    if (!this.room) return this._readable({ code: 'NOT_IN_ROOM' });
+    if (this.status !== 'online' && !(await this._waitStatus('online', 20000))) return this._readable({ code: 'NETWORK' });
+    const ack = await this._ack(event, data, ms);
+    if (!ack.ok) return this._readable(ack);
+    this._ackRoom(ack);
+    return ack;
+  },
+  // The room view inside an ack, unless a room:update arrived after that ack: that update is newer and already applied.
+  _ackRoom(ack) {
+    if (!ack || !ack.room) return;
+    const seq = mpAckSeq.get(ack);
+    if (seq !== undefined && seq !== this._roomSeq) return;
+    this._onRoom(ack.room);
+  },
+  _onRoom(v, live = false) {
+    if (this._leaving) return;
+    const r = mpRoomView(v); if (!r) return;
+    if (live) this._roomSeq++;
+    this.room = r; if (r.you !== null) this.seat = r.you;
+    this._emit('room', r);
+    const held = this._heldBegin;
+    if (held && this.seat !== null) { this._heldBegin = null; if (r.raceId === held.raceId && r.phase !== 'lobby') this._emitBegin(held); }
+  },
+  // the lobby reads the last race:begin when a race takes over (the bike this seat races on)
+  _emitBegin(v) { this.lastBegin = v; this._emit('begin', v); },
+  _onDisconnect(reason) {
+    this._sent.length = 0;
+    if (reason === 'io client disconnect') { this._ready = false; this._setStatus('offline'); return; }
+    if (reason === 'io server disconnect') {   // closed by the server on purpose (another tab took the seat, rate limit); socket.io does not retry
+      this._ready = false; this.room = null; this.seat = null; this._setStatus('offline'); return;
+    }
+    if (!this._ready) return;
+    this._setStatus('reconnecting');   // socket.io reconnects by itself; 'connect' then resumes the seat
+    // The server holds a seat for 60 s. Past 90 s without a connection the seat is gone whatever happens next, so stop
+    // retrying (and filling the console) and let the page go back to the menu.
+    clearTimeout(this._giveUpT);
+    this._giveUpT = setTimeout(() => {
+      if (this.status !== 'reconnecting') return;
+      this.lastError = this._fail('NETWORK');
+      this.clearSession(); this.room = null; this.seat = null;
+      this.disconnect();
+    }, 90000);
+  },
+  async _afterReconnect(attempt = 0) {
+    const s = this.session();
+    if (!s) { await this._syncClock(); if (this.socket && this.socket.connected) this._setStatus('online'); return; }
+    // resume first: during a race the server re-sends race:begin straight after this ack
+    const ack = await this._ack('session:resume', { token: s.token });
+    if (ack.ok) {
+      if (Number.isInteger(ack.seat)) this.seat = ack.seat;
+      this._ackRoom(ack); this._setStatus('online'); this._syncClock();
+      return;
+    }
+    if (ack.code === 'TIMEOUT' || ack.code === 'RATE_LIMITED' || ack.code === 'SERVER_BUSY') {
+      // a dropped socket gets a fresh 'connect' (and a fresh try) from socket.io; a live one tries a few more times
+      if (!this.socket || !this.socket.connected) return;
+      // RATE_LIMITED says when this seat may be resumed again (retryAfterSec): wait that long, not a guess
+      const sec = Number(ack.retryAfterSec);
+      const wait = ack.code === 'RATE_LIMITED' && Number.isFinite(sec) && sec > 0 ? Math.min(sec, 60) * 1000 + 250 : 1500;
+      if (attempt < 3) { setTimeout(() => { if (this.socket && this.socket.connected && this.status === 'reconnecting') this._afterReconnect(attempt + 1); }, wait); return; }
+      this._readable(ack); this.room = null; this.seat = null; this.disconnect();   // the session stays: Friends tries again
+      return;
+    }
+    this._readable(ack);
+    this._roomGone({ reason: 'expired' });
+  },
+  _roomGone(payload) {
+    this.clearSession(); this.room = null; this.seat = null; this.lastBegin = null;
+    this._emit('closed', payload);
+    this.disconnect();
+  },
+  _onClosed(c) { if (this._leaving) return; this._roomGone({ reason: c && ['empty', 'expired', 'server-shutdown'].includes(c.reason) ? c.reason : 'expired' }); },
+  _onServerError(e) {
+    const code = e && typeof e.code === 'string' ? e.code : 'UNKNOWN';
+    const err = { code, message: this.errorText(code, e) };
+    this.lastError = err;
+    if (code === 'SUPERSEDED') { this.clearSession(); this.room = null; this.seat = null; }
+    this._emit('error', err);
+  },
+  disconnect() { clearTimeout(this._idleT); this._ready = false; if (this.socket) this.socket.disconnect(); this._setStatus('offline'); },
+  // a socket that is not in a room is dropped after a while, so a closed Friends dialog does not hold a connection open
+  _idle() { clearTimeout(this._idleT); this._idleT = setTimeout(() => { if (!this.room && !this.session() && !this._connP) this.disconnect(); }, 120000); },
+
+  // ── rooms ──
+  create({ name, bike, look } = {}) { return this._enterRoom('room:create', { name: mpCleanName(name), bike: mpBike(bike), look: mpSanitizeLook(look, bike) }); },
+  join({ pin, name, bike, look } = {}) {
+    const p = mpPin(String(pin ?? '').replace(/\D/g, ''));
+    if (!p) return Promise.resolve(this._fail('BAD_PIN'));
+    return this._enterRoom('room:join', { pin: p, name: mpCleanName(name), bike: mpBike(bike), look: mpSanitizeLook(look, bike) });
+  },
+  async _enterRoom(event, data) {
+    this._leaving = false; clearTimeout(this._idleT);
+    try { await this.ensureConnected(); } catch (e) { this.lastError = this._fail('NETWORK', e.message); return this.lastError; }
+    // One room per tab: a seat this socket holds is let go first. A session it has not taken back (an invite link to
+    // another room, or a resume that failed) is kept until the new seat is confirmed, so a failed join still leaves the
+    // way back to it; the server frees that old seat when its grace period runs out.
+    if (this.room) {
+      this.clearSession(); this.room = null; this.seat = null; this.lastBegin = null;
+      await this._ack('room:leave', {}, 3000);
+    }
+    let ack = await this._ack(event, data);
+    // a create or join whose answer was lost may still have seated this socket: let go of that seat
+    if (!ack.ok && ack.code === 'ALREADY_IN_ROOM') { await this._ack('room:leave', {}, 5000); ack = await this._ack(event, data); }
+    if (!ack.ok) {
+      if (ack.code === 'TIMEOUT' && this.socket) this.socket.emit('room:leave', {}, () => {});
+      this._idle();
+      return this._readable(ack);
+    }
+    const pin = mpPin(ack.pin) || mpPin(ack.room && ack.room.pin) || data.pin || '';
+    if (typeof ack.token === 'string') this._saveSession(ack.token, pin);
+    else this.clearSession();   // never keep an old room's token beside a new seat
+    if (Number.isInteger(ack.seat)) this.seat = ack.seat;
+    this._ackRoom(ack);
+    if (!this.room) return this._readable({ code: 'BAD_RESPONSE' });
+    this._setStatus('online');
+    const { token, ...rest } = ack;   // the token stays in the session store only
+    return Object.assign(rest, { pin, room: this.room, seat: this.seat });
+  },
+  async resume() {
+    const s = this.session(); if (!s) return false;
+    this._leaving = false;
+    try { await this.ensureConnected(); } catch (e) { this.lastError = this._fail('NETWORK', e.message); return false; }
+    if (this.room && this.room.pin === s.pin) return true;   // the reconnect handler already took the seat back
+    const ack = await this._ack('session:resume', { token: s.token });
+    if (ack.ok) {
+      if (Number.isInteger(ack.seat)) this.seat = ack.seat;
+      this._ackRoom(ack);
+      if (this.room) { this._setStatus('online'); return true; }
+      this._readable({ code: 'BAD_RESPONSE' });
+      return false;
+    }
+    this._readable(ack);
+    if (!['TIMEOUT', 'NETWORK', 'RATE_LIMITED', 'SERVER_BUSY'].includes(ack.code)) { this.clearSession(); this.room = null; this.seat = null; this._idle(); }
+    return false;
+  },
+  async leave() {
+    const inRoom = !!(this.room || this.session());
+    this._leaving = true; this.clearSession(); this.room = null; this.seat = null; this.lastBegin = null; this._sent.length = 0;
+    if (inRoom && this.socket && this.socket.connected) await this._ack('room:leave', {}, 3000);
+    if (this._leaving) this.disconnect();   // unless a new create or join started meanwhile
+    return { ok: true };
+  },
+  setSettings(patch = {}) {
+    const p = {};
+    if (MP_TRACKS.includes(patch.track)) p.track = patch.track;
+    if (MP_LAPS.includes(Number(patch.laps))) p.laps = Number(patch.laps);
+    if (MP_TIMES.includes(patch.time)) p.time = patch.time;
+    if (MP_WEATHERS.includes(patch.weather)) p.weather = patch.weather;
+    if (!Object.keys(p).length) return Promise.resolve(this._fail('BAD_REQUEST'));
+    return this._request('room:settings', p);
+  },
+  updateRacer(patch = {}) {
+    const p = {};
+    if (patch.name !== undefined) p.name = mpCleanName(patch.name);
+    if (patch.bike !== undefined) p.bike = mpBike(patch.bike);
+    if (patch.look !== undefined) p.look = mpSanitizeLook(patch.look, p.bike || patch.bike);
+    if (!Object.keys(p).length) return Promise.resolve(this._fail('BAD_REQUEST'));
+    return this._request('racer:update', p);
+  },
+  startRace() { return this._request('race:start', {}); },
+  // fire and forget: at most 15 snapshots in any second, and none while reconnecting
+  sendState(snap) {
+    const s = this.socket;
+    if (!snap || !s || !s.connected || this.status !== 'online' || !this.room) return false;
+    if (!Number.isInteger(snap.raceId) || !Number.isFinite(snap.raceT)) return false;
+    const now = performance.now(), q = this._sent;
+    while (q.length && now - q[0] >= 1000) q.shift();
+    if (q.length >= MP_STATE_PER_SEC || (q.length && now - q[q.length - 1] < 45)) return false;
+    const out = { raceId: snap.raceId };
+    for (const [k, [a, b]] of Object.entries(MP_STATE_NUM)) { const v = Number(snap[k]); out[k] = Number.isFinite(v) ? clamp(v, a, b) : a < 0 ? 0 : a; }
+    out.lap = clamp(Math.round(Number(snap.lap) || 0), -1, 200);
+    out.crashed = !!snap.crashed; out.finished = !!snap.finished;
+    q.push(now);
+    s.volatile.emit('race:state', out);
+    return true;
+  },
+  async finish({ raceId, raceT, dist, lap } = {}) {
+    const data = { raceId, raceT: clamp(Number(raceT) || 0, 0, 3600), dist: clamp(Number(dist) || 0, 0, 1e6), lap: clamp(Math.round(Number(lap) || 0), -1, 200) };
+    let ack = await this._request('race:finish', data);
+    if (!ack.ok && (ack.code === 'TIMEOUT' || ack.code === 'NETWORK') && this.room) ack = await this._request('race:finish', data);   // the first ack can be lost in a reconnect
+    return ack;
+  },
+  sanitizeLook: mpSanitizeLook,
+  cleanName: mpCleanName,
+};
+if (typeof window !== 'undefined') window.__mp = MP;
+
+// ===== 83_mp_lobby.js =====
+// ───────────────────────── MULTIPLAYER LOBBY: the Play with friends dialog and the room lobby ─────────────────────────
+// The dialog is the #friends modal (opened through UI.open('friends')). The lobby is the #mpLobby screen, drawn over the
+// live menu scene, which shows the room's track, time and weather with your own bike. The race itself belongs to
+// 84_mp_race.js: it takes over on race:begin and calls MPUI.hideLobby(). Names from the network go in with textContent.
+const MP_TIME_LABEL = { morning: 'Morning', golden: 'Golden hour', night: 'Night' };
+const MP_WEATHER_LABEL = { clear: 'Clear', monsoon: 'Rain' };
+const mpTrackLabel = (id) => (id === 'random' ? 'Random' : (TRACKS.find(t => t.id === id) || {}).short || id);
+const mpBikeLabel = (id) => (BUILDS.find(b => b.id === id) || BUILDS[0]).name;
+const MP_NOTE_QUEUE = 3;          // toasts waiting to show; a burst of notices keeps only the newest
+const MP_DROP_HOLD_MS = 3000;     // a racer who drops and is back within this long (a reload) gets no notices
+const MP_RENDER_GAP_MS = 100;     // room updates redraw the lobby at most this often
+
+const MPUI = {
+  ready: false, booted: false, busy: false, starting: false, leaving: false, wasDown: false,
+  pending: {}, segs: {}, notes: [], noteBusy: false, lastNote: '', lastNoteAt: 0, recent: [],
+  bdKey: '', bdWorld: '', bdTimer: 0, bdWatch: 0, bikeTimer: 0, startTimer: 0, raceWait: 0, invitePin: null,
+  drops: new Map(), hostNews: null, hostNewsT: 0, renderT: 0, renderedAt: -1e9, bikeDirty: false,
+
+  init() {
+    if (this.ready) return;
+    this.ready = true;
+    const pinIn = $('#mpPinIn'), nameIn = $('#mpName');
+    $('#mpCreate').addEventListener('click', () => this.create());
+    $('#mpJoin').addEventListener('click', () => this.join());
+    pinIn.addEventListener('input', () => { const v = pinIn.value.replace(/\D/g, '').slice(0, 4); if (v !== pinIn.value) pinIn.value = v; if (!this.busy) this.entryMsg(''); });
+    pinIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.join(); } });
+    nameIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (pinIn.value.length === 4) this.join(); else pinIn.focus(); } });
+    $('#mpPrivacyBtn').addEventListener('click', () => { const p = $('#mpPrivacy'); p.hidden = !p.hidden; $('#mpPrivacyBtn').setAttribute('aria-expanded', String(!p.hidden)); AUDIO.click(); });
+    $('#mpLeave').addEventListener('click', () => this.leave());
+    $('#mpCopy').addEventListener('click', () => this.copyLink());
+    $('#mpBikePrev').addEventListener('click', () => this.cycleBike(-1));
+    $('#mpBikeNext').addEventListener('click', () => this.cycleBike(1));
+    $('#mpStart').addEventListener('click', () => this.start());
+    const seg = (key, opts) => {
+      const el = this.segs[key] = $('#mp' + key[0].toUpperCase() + key.slice(1));
+      for (const [v, label] of opts) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.dataset.v = String(v); b.textContent = label; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => this.setSetting(key, key === 'laps' ? Number(v) : v));
+        el.appendChild(b);
+      }
+    };
+    seg('track', MP_TRACKS.map(id => [id, mpTrackLabel(id)]));
+    seg('laps', MP_LAPS.map(n => [n, String(n)]));
+    seg('time', MP_TIMES.map(k => [k, MP_TIME_LABEL[k]]));
+    seg('weather', MP_WEATHERS.map(k => [k, MP_WEATHER_LABEL[k]]));
+    MP.on('room', () => this.onRoom());
+    MP.on('notice', (n) => this.onNotice(n));
+    MP.on('closed', () => this.onClosed());
+    MP.on('status', (s) => this.onStatus(s));
+    MP.on('error', (e) => this.onError(e));
+  },
+
+  // ── entry dialog ──
+  open() {
+    this.init();
+    if (MP.room) { this.showLobby(); return; }
+    const s = MP.session();
+    if (s) { this.showEntry({ pin: s.pin }); this.rejoin(); return; }
+    this.showEntry();
+  },
+  showEntry(opts = {}) {
+    this.init();
+    $$('.modal').forEach(m => (m.hidden = true));
+    $('#modalBack').hidden = false; $('#friends').hidden = false;
+    if (GAME && GAME.ui) GAME.ui.returnToPause = false;
+    const nameIn = $('#mpName');
+    nameIn.value = SAVE.name || '';
+    $('#mpPinIn').value = opts.pin || '';
+    $('#mpPrivacy').hidden = true; $('#mpPrivacyBtn').setAttribute('aria-expanded', 'false');
+    this.entryMsg(opts.msg || '', !!opts.err);
+    if (opts.focusName) { nameIn.focus({ preventScroll: true }); nameIn.select(); }
+    else { const x = $('#friends .x'); if (x) x.focus({ preventScroll: true }); }
+  },
+  entryVisible() { const f = $('#friends'); return !!f && !f.hidden; },
+  closeEntry() { $('#friends').hidden = true; if (!$$('.modal').some(m => !m.hidden)) $('#modalBack').hidden = true; },
+  entryMsg(text, err = false) { const el = $('#mpEntryMsg'); if (!el) return; el.textContent = text; el.classList.toggle('err', !!err); },
+  setBusy(on, msg) {
+    this.busy = on;
+    for (const id of ['#mpCreate', '#mpJoin', '#mpName', '#mpPinIn']) $(id).disabled = on;
+    $('#friends').setAttribute('aria-busy', String(on));
+    if (msg !== undefined) this.entryMsg(msg);
+  },
+  // the name typed here is the player's name, the same one Settings edits
+  takeName() {
+    const n = MP.cleanName($('#mpName').value);
+    $('#mpName').value = n;
+    if (n !== SAVE.name) { SAVE.name = n; persist(); if (GAME && GAME.ui) GAME.ui.renderMenu(); }
+    return n;
+  },
+  myBike() { return MP_BIKES.includes(SAVE.build) && SAVE.owned[SAVE.build] ? SAVE.build : 'stock'; },
+  myLook() { try { return lookFromSave(this.myBike()); } catch (e) { return null; } },
+  async create() {
+    if (this.busy) return;
+    AUDIO.click();
+    const name = this.takeName();
+    this.setBusy(true, 'Creating a room…');
+    const ack = await MP.create({ name, bike: this.myBike(), look: this.myLook() });
+    this.setBusy(false);
+    this.afterEnter(ack);
+  },
+  async join(pinArg) {
+    if (this.busy) return;
+    const pin = String(pinArg ?? $('#mpPinIn').value).replace(/\D/g, '');
+    if (!/^\d{4}$/.test(pin)) { this.entryMsg(MP.errorText('BAD_PIN'), true); AUDIO.warn(); $('#mpPinIn').focus(); return; }
+    AUDIO.click();
+    $('#mpPinIn').value = pin;
+    const name = this.takeName();
+    this.setBusy(true, `Joining room ${pin}…`);
+    let ack = await MP.join({ pin, name, bike: this.myBike(), look: this.myLook() });
+    this.setBusy(false);
+    if (this.invitePin === pin && (ack.ok || ack.code === 'NOT_FOUND')) { this.invitePin = null; this.stripRoomParam(); }
+    // an invite to another room that did not work out: the seat this tab held is still there for a while
+    const kept = !ack.ok && MP.session();
+    if (kept && kept.pin !== pin) ack = Object.assign({}, ack, { message: `${ack.message} You still have your seat in room ${kept.pin}: close this and open Friends to go back to it.` });
+    this.afterEnter(ack);
+  },
+  afterEnter(ack) {
+    if (!ack.ok) { this.entryMsg(ack.message, true); AUDIO.warn(); return; }
+    // the player may have closed the dialog and started a solo race while the request was out: give the seat back
+    if (!GAME || GAME.state !== 'menu') { MP.leave(); return; }
+    this.entryMsg('');
+    this.closeEntry();
+    this.showLobby();
+    AUDIO.pickup();
+  },
+  async rejoin() {
+    this.setBusy(true, 'Rejoining your room…');
+    const ok = await MP.resume();
+    this.setBusy(false);
+    if (ok && GAME.state === 'menu') { this.entryMsg(''); this.closeEntry(); this.afterResume(); return; }
+    if (ok) return;
+    this.entryMsg(MP.session() ? (MP.lastError || {}).message || MP.errorText('NETWORK') : 'That room has closed.', true);
+  },
+
+  // ── lobby screen ──
+  lobbyVisible() { const el = $('#mpLobby'); return !!el && el.classList.contains('show'); },
+  showLobby() {
+    this.init();
+    const g = GAME;
+    if (!g || !g.scene) return;
+    if (!MP.room) { this.showEntry(); return; }
+    clearTimeout(this.raceWait);
+    $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
+    // back from a race: the game's own calls put the menu scene back; the backdrop below then sets the room's track
+    g.endRace();
+    if (g.state !== 'menu') g.showScreen('menu');
+    g.showScreen('mpLobby');
+    this.render();
+    this.applyBackdrop(true);
+    if (!this.bdWatch) this.bdWatch = setInterval(() => this.watchBackdrop(), 1000);
+    const f = $('#mpLeave'); if (f) f.focus({ preventScroll: true });
+  },
+  hideLobby() {
+    const el = $('#mpLobby'); if (el) el.classList.remove('show');
+    clearTimeout(this.bdTimer); clearInterval(this.bdWatch); this.bdWatch = 0;
+    clearTimeout(this.startTimer); clearTimeout(this.raceWait); this.starting = false;
+    clearTimeout(this.renderT); this.renderT = 0;
+    // a bike tapped in the last moments before the start is not sent any more: the server would refuse it mid-race
+    clearTimeout(this.bikeTimer); this.bikeTimer = 0;
+    this.matchRaceBike();
+  },
+  // The race glue calls hideLobby() on race:begin, before it builds the race from SAVE.build. A bike picked here that
+  // the server had not taken by then (tapped just before the start, or refused) is not in race:begin, so the other
+  // racers see the bike that is: ride that one too. Every other caller has left the room already (MP.room is null).
+  matchRaceBike() {
+    const b = MP.lastBegin;
+    if (!this.bikeDirty || !b || !MP.room || MP.seat === null) return;
+    this.bikeDirty = false;
+    const mine = b.racers.find(r => r.seat === MP.seat);
+    if (!mine || mine.bike === this.myBike() || !SAVE.owned[mine.bike]) return;
+    SAVE.build = mine.bike;   // stored at the next save (the race's results), not mid-race
+    this.note(`Too late to switch bikes: you race on the ${mpBikeLabel(mine.bike)}.`);
+  },
+  // after a resume: the lobby, or (a race is on) wait for race:begin, which the race glue handles
+  afterResume() {
+    if (!MP.room) return;
+    if (MP.room.phase === 'lobby') { this.showLobby(); return; }
+    clearTimeout(this.raceWait);
+    this.raceWait = setTimeout(() => { if (MP.room && GAME.state === 'menu' && !this.lobbyVisible()) this.showLobby(); }, 4000);
+  },
+  // room updates can come in bursts (a racer whose connection flaps): the first redraws at once, the rest at most every 100 ms
+  renderSoon() {
+    const wait = MP_RENDER_GAP_MS - (Date.now() - this.renderedAt);
+    if (wait <= 0) { clearTimeout(this.renderT); this.renderT = 0; this.render(); return; }
+    if (!this.renderT) this.renderT = setTimeout(() => { this.renderT = 0; this.render(); }, wait);
+  },
+  render() {
+    const R = MP.room;
+    if (!R || !this.ready) return;
+    this.renderedAt = Date.now();
+    const host = MP.isHost(), lobby = R.phase === 'lobby', online = MP.status === 'online';
+    $('#mpPin').textContent = R.pin;
+    $('#mpCount').textContent = `${R.racers.length}/${MP_SEATS}`;
+    this.renderRoster(R);
+    $('#mpBikeName').textContent = mpBikeLabel(this.myBike());
+    const st = Object.assign({}, R.settings, this.pending);
+    for (const [key, el] of Object.entries(this.segs)) {
+      for (const b of el.children) {
+        const on = String(st[key]) === b.dataset.v;
+        b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); b.disabled = !host || !lobby;
+      }
+    }
+    $('#mpHostNote').hidden = host;
+    const ready = R.racers.filter(r => r.connected).length >= MP_MIN_RACERS;
+    // back in the lobby while the others still race, or a start on its way: no start controls, a line that says so
+    const raceOn = !lobby && !this.starting;
+    $('#mpWaitFriends').hidden = ready || raceOn;
+    $('#mpStart').hidden = raceOn || !(ready && host);
+    $('#mpWaitHost').hidden = raceOn || !(ready && !host);
+    const on = $('#mpRaceOn');
+    on.hidden = !raceOn;
+    on.textContent = R.phase === 'countdown' ? 'The race is starting…' : 'Race in progress… results soon';
+    $('#mpStart').disabled = this.starting || !online || !lobby;
+    $('#mpStartLbl').textContent = this.starting ? 'STARTING…' : 'START RACE';
+    const conn = $('#mpConn');
+    conn.hidden = online;
+    conn.textContent = MP.status === 'reconnecting' ? 'Connection lost. Reconnecting…' : 'Connecting to the room server…';
+    for (const id of ['#mpBikePrev', '#mpBikeNext']) $(id).disabled = !lobby;
+  },
+  renderRoster(R) {
+    const ul = $('#mpRoster');
+    ul.textContent = '';
+    const badge = (text, cls) => { const s = document.createElement('span'); s.className = 'mp-badge ' + cls; s.textContent = text; return s; };
+    for (const r of R.racers) {
+      const me = r.seat === MP.seat;
+      const li = document.createElement('li');
+      li.className = (me ? 'me' : '') + (r.connected ? '' : ' off');
+      li.dataset.seat = String(r.seat);
+      const dot = document.createElement('span');
+      dot.className = 'mp-dot'; dot.setAttribute('role', 'img'); dot.setAttribute('aria-label', r.connected ? 'Connected' : 'Reconnecting');
+      const who = document.createElement('span'); who.className = 'mp-who';
+      const nm = document.createElement('b'); nm.textContent = r.name; who.appendChild(nm);
+      if (r.seat === R.hostSeat) who.appendChild(badge('HOST', 'host'));
+      if (me) who.appendChild(badge('YOU', 'you'));
+      const bk = document.createElement('span'); bk.className = 'mp-bikec'; bk.textContent = mpBikeLabel(r.bike);
+      li.append(dot, who, bk);
+      ul.appendChild(li);
+    }
+  },
+  // the menu scene behind the lobby shows the room's track, time and weather, and the local bike
+  backdropTrack(id) {
+    if (id !== 'random' && TRACKS.some(t => t.id === id)) return id;
+    const cur = GAME.track && GAME.track.def.id;
+    if (cur !== 'random' && MP_TRACKS.includes(cur)) return cur;
+    return MP_TRACKS.includes(SAVE.setup.track) && SAVE.setup.track !== 'random' ? SAVE.setup.track : 'mumbai-underground';
+  },
+  applyBackdrop(force = false) {
+    clearTimeout(this.bdTimer);
+    const g = GAME, R = MP.room;
+    if (!g || !R || !this.lobbyVisible() || g.state !== 'menu') return;
+    const st = R.settings, id = this.backdropTrack(st.track);
+    const key = `${id}|${st.time}|${st.weather}|${this.myBike()}`;
+    if (!force && key === this.bdKey && g.worldKey === this.bdWorld) return;
+    g.loadTrack(id, st.time, st.weather);
+    g.refreshMenuRig(this.myBike());
+    this.bdKey = key; this.bdWorld = g.worldKey;
+  },
+  // rapid changes (the host clicking through tracks) build the world once
+  scheduleBackdrop() { clearTimeout(this.bdTimer); this.bdTimer = setTimeout(() => this.applyBackdrop(), 180); },
+  // the quality benchmark can rebuild the world with the solo setup's mood; put the room's back
+  watchBackdrop() {
+    if (!this.lobbyVisible()) { clearInterval(this.bdWatch); this.bdWatch = 0; return; }
+    if (GAME.worldKey !== this.bdWorld) this.applyBackdrop(true);
+  },
+
+  // ── lobby controls ──
+  async setSetting(key, value) {
+    const R = MP.room;
+    if (!R || !MP.isHost() || R.phase !== 'lobby') return;
+    if (String(Object.assign({}, R.settings, this.pending)[key]) === String(value)) return;
+    AUDIO.click();
+    this.pending[key] = value;   // show the choice at once; the room update confirms it
+    this.render();
+    const ack = await MP.setSettings({ [key]: value });
+    if (this.pending[key] === value) delete this.pending[key];
+    if (!ack.ok) { this.note(ack.message); AUDIO.warn(); }
+    this.render();
+  },
+  cycleBike(dir) {
+    const owned = BUILDS.filter(b => SAVE.owned[b.id] && MP_BIKES.includes(b.id));
+    if (!owned.length || !MP.room) return;
+    let i = owned.findIndex(b => b.id === SAVE.build);
+    i = (i + dir + owned.length) % owned.length;
+    SAVE.build = owned[i].id; persist(); AUDIO.click();
+    this.bikeDirty = true;   // until a room update shows the server has this bike for this seat
+    this.render();
+    this.applyBackdrop();
+    // one update for a run of quick taps
+    clearTimeout(this.bikeTimer);
+    this.bikeTimer = setTimeout(async () => {
+      this.bikeTimer = 0;
+      if (!MP.room) return;
+      const ack = await MP.updateRacer({ bike: this.myBike(), look: this.myLook() });
+      // a refusal because the race started meanwhile is not news on the race screen: hideLobby() has dealt with it
+      if (!ack.ok && MP.room && this.lobbyVisible()) this.note(ack.message);
+    }, 250);
+  },
+  async start() {
+    if (!MP.isHost() || this.starting) return;
+    AUDIO.click();
+    this.starting = true; this.render();
+    const ack = await MP.startRace();
+    if (!ack.ok) { this.starting = false; this.note(ack.message); AUDIO.warn(); this.render(); return; }
+    // race:begin goes to every seat and the race glue takes over; this only frees the button if that never comes
+    clearTimeout(this.startTimer);
+    this.startTimer = setTimeout(() => { this.starting = false; this.render(); }, 8000);
+  },
+  leave() {
+    AUDIO.click();
+    this.leaving = true;
+    clearTimeout(this.bikeTimer); this.bikeTimer = 0; this.bikeDirty = false;
+    this.forgetRoomNews();
+    const done = MP.leave();
+    this.hideLobby();
+    GAME.toMenu();   // the game's own path back: solo track, solo mood, menu screen
+    done.finally(() => { this.leaving = false; });
+  },
+  inviteLink() { return MP.room ? `${location.origin}/?room=${MP.room.pin}` : ''; },
+  async copyLink() {
+    const link = this.inviteLink();
+    if (!link) return;
+    AUDIO.click();
+    let ok = false;
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(link); ok = true; } } catch (e) { ok = false; }
+    if (!ok) {   // plain http on a LAN address has no async clipboard
+      try {
+        const t = document.createElement('textarea');
+        t.value = link; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(t); t.select(); t.setSelectionRange(0, link.length);
+        ok = document.execCommand('copy'); t.remove();
+      } catch (e) { ok = false; }
+    }
+    this.note(ok ? 'Invite link copied' : `Share this link: ${link}`);
+  },
+
+  // ── notices ──
+  note(text) {
+    if (!text) return;
+    const now = Date.now();
+    if (text === this.lastNote && now - this.lastNoteAt < 2500) return;
+    this.lastNote = text; this.lastNoteAt = now;
+    this.recent.push(text); if (this.recent.length > 30) this.recent.shift();
+    const live = $('#mpLive'); if (live) live.textContent = text;
+    // each toast shows for 1.5 s: a burst of notices must not queue minutes of them, so only the newest few wait
+    if (!this.notes.includes(text)) this.notes.push(text);
+    if (this.notes.length > MP_NOTE_QUEUE) this.notes.splice(0, this.notes.length - MP_NOTE_QUEUE);
+    if (!this.noteBusy) this.drainNotes();
+  },
+  // one flashNote at a time, so two notices never print on top of each other
+  drainNotes() {
+    const t = this.notes.shift();
+    if (!t) { this.noteBusy = false; return; }
+    this.noteBusy = true;
+    if (GAME && GAME.ui) GAME.ui.flashNote(t);
+    setTimeout(() => this.drainNotes(), 1500);
+  },
+  onRoom() {
+    if (!MP.room) return;
+    for (const k of Object.keys(this.pending)) if (String(MP.room.settings[k]) === String(this.pending[k])) delete this.pending[k];
+    if (this.hostNews !== null) this.flushHostNews();
+    if (this.bikeDirty) { const me = MP.room.racers.find(r => r.seat === MP.seat); if (me && me.bike === this.myBike()) this.bikeDirty = false; }
+    this.renderSoon();
+    if (this.lobbyVisible()) this.scheduleBackdrop();
+  },
+  onNotice(n) {
+    const who = n.name || 'A racer';
+    if (n.kind === 'joined') this.note(`${who} joined the room`);
+    else if (n.kind === 'left') { this.cancelDrop(who); this.note(`${who} left the room`); }
+    else if (n.kind === 'disconnected') {
+      // a reload or a short drop is back within seconds: say so only if the racer stays away
+      if (!this.drops.has(who)) this.drops.set(who, setTimeout(() => { this.drops.delete(who); this.note(`${who} lost connection`); }, MP_DROP_HOLD_MS));
+    } else if (n.kind === 'reconnected') { if (!this.cancelDrop(who)) this.note(`${who} is back`); }
+    else if (n.kind === 'new-host') {
+      // Names are not unique (every new save is PotatoBazaar), so whether that is you comes from the seats in the room
+      // update the server sends straight after this notice, not from the name.
+      clearTimeout(this.hostNewsT);
+      this.hostNews = who;
+      this.hostNewsT = setTimeout(() => this.flushHostNews(), 2000);
+    } else if (n.kind === 'settings' && this.lobbyVisible()) this.note('The host changed the race settings');
+  },
+  cancelDrop(who) { const t = this.drops.get(who); if (t === undefined) return false; clearTimeout(t); this.drops.delete(who); return true; },
+  flushHostNews() {
+    clearTimeout(this.hostNewsT); this.hostNewsT = 0;
+    const who = this.hostNews; this.hostNews = null;
+    if (who === null || !MP.room) return;
+    this.note(MP.isHost() ? 'You are the host now' : `${who} is the host now`);
+  },
+  // notices still on hold belong to the room this page is leaving
+  forgetRoomNews() {
+    for (const t of this.drops.values()) clearTimeout(t);
+    this.drops.clear();
+    clearTimeout(this.hostNewsT); this.hostNewsT = 0; this.hostNews = null;
+  },
+  onClosed() {
+    this.forgetRoomNews();
+    this.note('That room has closed.');
+    if (this.entryVisible() && this.busy === false) this.entryMsg('That room has closed.', true);
+    if (this.lobbyVisible()) { this.hideLobby(); GAME.toMenu(); }
+  },
+  onStatus(s) {
+    if (this.lobbyVisible()) this.render();
+    if (s === 'reconnecting' && MP.room) { this.wasDown = true; this.note('Connection lost. Reconnecting…'); }
+    else if (s === 'online' && this.wasDown) { this.wasDown = false; this.note('Reconnected'); if (this.lobbyVisible()) this.scheduleBackdrop(); }
+    else if (s === 'offline') {
+      if (!MP.room) this.forgetRoomNews();
+      const was = this.wasDown; this.wasDown = false;
+      if (this.lobbyVisible() && !this.leaving) {
+        this.note(was ? 'Lost the connection to the room server.' : 'Disconnected from the room server.');
+        this.hideLobby(); GAME.toMenu();
+      }
+    }
+  },
+  onError(e) {
+    if (!e || !e.message) return;
+    this.note(e.message);
+    if (e.code === 'SUPERSEDED') this.forgetRoomNews();
+    if (e.code === 'SUPERSEDED' && this.lobbyVisible()) { this.hideLobby(); GAME.toMenu(); }
+  },
+
+  // ── page load: a live session in this tab, or an invite link ──
+  boot() {
+    if (this.booted) return;
+    this.booted = true;
+    this.init();
+    const raw = URLP.get('room'), pin = String(raw || '').replace(/\D/g, '');
+    const s = MP.session(), invite = /^\d{4}$/.test(pin);
+    // An invite to another room wins over the seat this tab holds: the player opened the link to go there. The old
+    // seat is not taken back first, so if the invite does not work out, Friends can still return to it.
+    if (s && invite && pin !== s.pin) this.inviteFlow(pin, s.pin);
+    else if (s) this.bootResume();
+    else if (invite) this.inviteFlow(pin);
+    else if (raw !== null) { this.stripRoomParam(); this.showEntry({ msg: 'That invite link has no room PIN. Type the 4 digits here.', err: true }); }
+  },
+  // a reload (or an invite link to the room this tab is already in): take the seat back
+  async bootResume(attempt = 0) {
+    const ok = await MP.resume();
+    if (!ok && MP.session() && attempt < 2) {   // the seat is still held (60 s): a network hiccup gets two more tries
+      setTimeout(() => this.bootResume(attempt + 1), 2500);
+      return;
+    }
+    if (ok) {
+      this.stripRoomParam();
+      if (GAME.state === 'menu' && !GAME.ui.modalOpen()) this.afterResume();
+      else if (!(GAME.race && GAME.race.mp)) this.note(`You are still in room ${MP.room.pin}. Open Friends to go back to it.`);   // a resumed race needs no note
+      return;
+    }
+    if (MP.session()) { this.note((MP.lastError || {}).message || MP.errorText('NETWORK')); return; }   // seat still held: Friends tries again
+    this.note('That room has closed.');
+    this.stripRoomParam();
+  },
+  // ?room=PIN: the dialog opens with the PIN in. A player with a name of their own joins at once; a new one names
+  // themselves first. fromPin: the room this tab holds a seat in, which joining this one leaves.
+  inviteFlow(pin, fromPin = null) {
+    this.invitePin = pin;
+    const named = !!SAVE.name && SAVE.name !== defaultSave().name;
+    const away = fromPin ? ` Joining takes you out of room ${fromPin}.` : '';
+    this.showEntry({ pin, focusName: !named, msg: named ? '' : `Type your name, then tap JOIN.${away}` });
+    if (named) this.join(pin);
+  },
+  stripRoomParam() {
+    try {
+      const u = new URL(location.href);
+      if (!u.searchParams.has('room')) return;
+      u.searchParams.delete('room');
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+    } catch (e) { /* the URL keeps its ?room= */ }
+  },
+};
+if (typeof window !== 'undefined') window.__mpui = MPUI;
+
+// Session and invite links are handled once the menu is up. Only a tab that has something to resume, or an invite link,
+// waits for it, and it waits on animation frames, so a headless or solo run never starts anything here.
+(function mpBootWatch() {
+  if (typeof requestAnimationFrame !== 'function' || DEBUG.autopilot) return;
+  if (!URLP.has('room') && !MP.session()) return;
+  const t0 = Date.now();
+  const tick = () => {
+    if (GAME && GAME.state === 'menu' && GAME.ui) { MPUI.boot(); return; }
+    if (Date.now() - t0 < 300000 && (!GAME || GAME.state === 'loading')) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();
+
+// ===== 84_mp_race.js =====
+// ───────────────────────── MULTIPLAYER RACE: friends races on top of the solo Race ─────────────────────────
+// The room server owns GO, the seed and the final order; every device runs the solo physics for its own bike only
+// (MULTIPLAYER_BUILD_SPEC.md A1 to A4). This file is the glue: it turns race:begin into a Race, sends the local bike's
+// snapshot 15 times a second, buffers the other racers' snapshots and draws them as ghost bikes about 100 ms behind
+// real time, reports the finish, and shows the server's standings on the results screen.
+// Every network payload is checked here before the race sees it. Names only ever reach the page through textContent.
+
+// The friends mode. Not enumerable, so the solo Race Setup (which lists Object.entries(MODES)) never offers it.
+Object.defineProperty(MODES, 'friends', {
+  value: { label: 'Friends race', desc: 'Up to 8 friends, each on their own phone or computer · no AI rivals, no combat', rivals: false, combat: false, laps: true, mp: true },
+  enumerable: false, writable: false, configurable: true,
+});
+
+const MP_GHOST_DELAY = 0.1;       // ghosts are drawn this far behind real time, more when packets arrive late
+const MP_GHOST_DELAY_MAX = 1;     // a slow device sends a snapshot a frame, so maybe 2 a second: its ghost is drawn later, smoothly
+const MP_EXTRAPOLATE_MAX = 0.25;  // a late packet: carry the ghost forward this long at most, then hold it
+const MP_GHOST_BUFFER = 48;
+const MP_RESULTS_WAIT_MS = 60000; // after the local finish, the local standings show if the server has not answered by then
+const MP_FINISH_RETRY_MS = 4000;  // an unanswered finish report goes out again this often while the connection is up
+const MP_FINISH_KEY = 'chapri-mp-finish';   // sessionStorage: the race this tab finished, until its results are paid
+const MP_SNAPSHOTS_PER_SEC = 15;
+// race:state numbers and their protocol ranges (spec section 3)
+const MP_SNAPSHOT_RANGE = { raceT: [0, 3600], dist: [0, 1e6], s: [0, 1e6], d: [-60, 60], y: [-20, 200], psi: [-20, 20], v: [-10, 150], lean: [-3, 3], pitch: [-3, 3], boost: [0, 100] };
+
+const MPRACE = {
+  game: null, timers: new Set(), pendingRace: null, lastResults: null, done: null, viewRaceId: null,
+  leaving: false, starting: false, view: null, viewOn: false, viewWhy: '', pauseView: false,
+
+  init(game) {
+    if (this.game) return;
+    this.game = game;
+    MP.on('begin', (b) => this.onBegin(b));
+    MP.on('state', (st) => this.onState(st));
+    MP.on('results', (r) => this.onResults(r));
+    MP.on('closed', () => this.onClosed());
+    MP.on('status', (s) => this.onStatus(s));
+    MP.on('room', () => this.onRoom());
+    this.restoreFinish();
+    if (typeof window !== 'undefined') window.__mprace = MPRACE;
+  },
+
+  // per-race timers, all released together
+  later(fn, ms) { const id = setTimeout(() => { this.timers.delete(id); fn(); }, Math.max(0, ms)); this.timers.add(id); return id; },
+  clearTimers() { for (const id of this.timers) clearTimeout(id); this.timers.clear(); },
+  note(text) { if (typeof MPUI !== 'undefined') MPUI.note(text); else if (this.game && this.game.ui) this.game.ui.flashNote(text); },
+  mpRace() { const R = this.game && this.game.race; return R && R.mp ? R : null; },
+
+  // ── race:begin ──
+  onBegin(b) {
+    const g = this.game; if (!g || !g.scene || g.state === 'loading') return;
+    const R = g.race;
+    if (R && R.mp && R.mp.raceId === b.raceId) return;   // sent again after a reconnect: this race is already on
+    if (this.hasFinished(b)) return;   // sent again after a reconnect or a reload: this tab has crossed the line in it already
+    if (R && !R.mp && (g.state === 'race' || g.state === 'paused' || g.entry)) {   // a solo race is on: it is left alone
+      this.note('Your room started a race. Finish this one, then open Friends for the next.');
+      return;
+    }
+    this.startRace(b);
+  },
+  // game.startMultiplayerRace(begin): hides the lobby and menus, builds the friends Race and starts its countdown at goAt
+  startRace(b) {
+    const g = this.game, seat = MP.seat;
+    if (!g || !b || !Array.isArray(b.racers) || !Number.isInteger(seat) || !b.racers.some(r => r.seat === seat)) return false;
+    if (!Number.isFinite(b.goAt) || !TRACKS.some(t => t.id === b.track) || this.hasFinished(b)) return false;
+    // a new race: the one before it has had its results (or they were missed), so no reward waits any more
+    this.clearTimers(); this.endView(); this.dropPending(); this.starting = false;
+    if (typeof MPUI !== 'undefined') MPUI.hideLobby();
+    const setup = {
+      mode: 'friends', track: b.track, laps: b.laps, time: b.time, weather: b.weather, diff: 'normal', combat: false, seed: b.seed >>> 0,
+      mp: { raceId: b.raceId, goAt: b.goAt, seat, racers: b.racers.map(r => ({ seat: r.seat, name: r.name, bike: r.bike, look: r.look })) },
+    };
+    g.cup = null;
+    g.startRace(setup, null);
+    const R = g.race;
+    if (!R || !R.mp) return false;
+    // GO on a timer as well as on the frame, so a slow frame rate does not make this device's GO late
+    const wait = b.goAt - MP.serverNow();
+    if (wait > 0) this.later(() => { if (g.race === R) R.mpGo(); }, wait);
+    return true;
+  },
+
+  // ── snapshots out: the local bike, from the game's own loop, at most 15 a second ──
+  sendSnapshot(R) {
+    const now = performance.now(), M = R.mp;
+    if (now - M.sentAt < 1000 / MP_SNAPSHOTS_PER_SEC - 2) return;
+    const P = R.player;
+    if (MP.sendState({ raceId: M.raceId, raceT: R.raceT, dist: P.dist, s: P.s, d: P.d, y: P.y, psi: P.psi, v: P.v, lean: P.lean, pitch: P.pitch, lap: P.lap, boost: P.boost, crashed: P.crashed, finished: P.finished })) M.sentAt = now;
+  },
+
+  // ── snapshots in ──
+  // Numbers outside the protocol ranges, or not numbers at all, drop the packet. The protocol keeps dist >= 0, so a
+  // bike still behind the start line arrives with dist 0: its real place comes from s.
+  cleanState(st, L) {
+    const out = {};
+    for (const [k, [a, b]] of Object.entries(MP_SNAPSHOT_RANGE)) { const v = st[k]; if (typeof v !== 'number' || !Number.isFinite(v)) return null; out[k] = clamp(v, a, b); }
+    out.lap = Number.isInteger(st.lap) ? clamp(st.lap, -1, 200) : 0;
+    out.crashed = st.crashed === true; out.finished = st.finished === true;
+    out.s %= L; out.psi = wrapAngle(out.psi);
+    if (!(out.dist > 0)) out.dist = out.s > L / 2 ? out.s - L : out.s;
+    return out;
+  },
+  onState(st) {
+    const R = this.mpRace(); if (!R || R.mpOver || !st || st.raceId !== R.mp.raceId || st.seat === R.mp.seat) return;
+    const g = R.riders.find(r => r.net && r.net.seat === st.seat); if (!g || g.net.gone) return;
+    const snap = this.cleanState(st, R.track.L); if (!snap) return;
+    const N = g.net, buf = N.buf, last = buf[buf.length - 1];
+    if (last && snap.raceT <= last.raceT) return;   // late or repeated
+    // how far behind the local clock snapshots arrive (network delay plus clock error): the drawing delay follows it
+    const lag = R.raceT - snap.raceT; N.lag = N.lag === undefined ? lag : N.lag + (lag - N.lag) * 0.1;
+    if (snap.finished && N.finishT === null) {
+      // the finish time: where the bike crossed the line between the last two snapshots
+      const line = R.laps * R.track.L;
+      N.finishT = last && !last.finished && last.dist < line && snap.dist > last.dist ? last.raceT + (line - last.dist) / (snap.dist - last.dist) * (snap.raceT - last.raceT) : snap.raceT;
+    }
+    if (last) {   // a respawn or a rejoin moves the bike at once: snap to the new spot instead of sliding there
+      const dt = snap.raceT - last.raceT;
+      N.gap = N.gap === undefined ? dt : N.gap + (Math.min(dt, 1) - N.gap) * 0.2;   // a slow device sends less often
+      if (Math.abs(snap.dist - (last.dist + last.v * dt)) > 8 + 5 * dt * dt) buf.length = 0;
+    }
+    buf.push(snap); if (buf.length > MP_GHOST_BUFFER) buf.splice(0, buf.length - MP_GHOST_BUFFER);
+  },
+  // Each frame: every ghost at (race clock - delay), between the two snapshots around that moment.
+  placeGhosts(R) {
+    for (const g of R.riders) {
+      const N = g.net; if (!N || N.gone || !N.buf.length) continue;
+      // late enough that the next snapshot is usually already here: arrival lag plus the sender's interval
+      N.delay = clamp((N.lag || 0) + Math.max(N.gap || 0, 1 / MP_SNAPSHOTS_PER_SEC) + 0.02, MP_GHOST_DELAY, MP_GHOST_DELAY_MAX);
+      const buf = N.buf, t = R.raceT - N.delay;
+      let i = 0; while (i < buf.length - 1 && buf[i + 1].raceT <= t) i++;
+      if (i > 0) { buf.splice(0, i); i = 0; }   // older snapshots are never drawn again
+      const a = buf[i], b = buf[i + 1];
+      let out;
+      if (b && t >= a.raceT) {
+        const span = b.raceT - a.raceT, f = clamp((t - a.raceT) / span, 0, 1);
+        out = { dist: lerp(a.dist, b.dist, f), d: lerp(a.d, b.d, f), y: lerp(a.y, b.y, f), psi: a.psi + wrapAngle(b.psi - a.psi) * f, v: lerp(a.v, b.v, f),
+          lean: lerp(a.lean, b.lean, f), pitch: lerp(a.pitch, b.pitch, f), boost: lerp(a.boost, b.boost, f), lap: f < 1 ? a.lap : b.lap, crashed: f < 1 ? a.crashed : b.crashed, accel: (b.v - a.v) / span };
+      } else if (t < a.raceT) out = Object.assign({}, a, { accel: 0 });   // nothing that old yet: hold the oldest pose
+      else { const ex = Math.min(t - a.raceT, MP_EXTRAPOLATE_MAX); out = Object.assign({}, a, { dist: a.dist + Math.max(0, a.v) * ex, accel: 0 }); }
+      out.finished = N.finishT !== null && t >= N.finishT; out.finishT = N.finishT;
+      g.placeNet(out);
+    }
+  },
+
+  // ── finish and results ──
+  localFinish(R) {
+    const P = R.player, M = R.mp; M.finishedAt = Date.now();
+    M.finishMsg = { raceId: M.raceId, raceT: P.finishT, dist: P.dist, lap: P.lap };
+    this.storeFinish(R);
+    this.reportFinish(R);
+    this.later(() => { if (this.game.race === R && !R.mpOver) this.showResults(R, null); }, MP_RESULTS_WAIT_MS);
+  },
+  // The finish report has to reach the room server, or this racer ends as DNF however the race went. MP.finish retries
+  // once by itself, but gives up after about 40 s without a connection. So the report goes out again: every few seconds
+  // while the connection is up, and as soon as the room is back after a reconnect or a reload (resendFinish). A repeat
+  // is harmless: the server acknowledges it as a duplicate. R is the live race, or the pending one (BACK TO LOBBY, reload).
+  reportFinish(R) {
+    const M = R.mp;
+    if (!M.finishMsg || M.finishAck || M.finishing || M.finishRefused || R.mpOver || R.mpPaid !== undefined || this.leaving || !MP.room) return;
+    if (this.game.race !== R && this.pendingRace !== R) return;   // released (left, or a new race began): nothing to report for
+    M.finishing = true;
+    MP.finish(M.finishMsg).then((ack) => {
+      M.finishing = false;
+      if (ack && ack.ok) { M.finishAck = true; return; }
+      const code = ack && ack.code;
+      if (code === 'TIMEOUT' || code === 'NETWORK' || (code === 'NOT_IN_ROOM' && !MP.room)) {
+        if (MP.status === 'online' && MP.room) this.later(() => this.reportFinish(R), MP_FINISH_RETRY_MS);
+        return;   // offline: resendFinish sends it when the room is back
+      }
+      M.finishRefused = true;   // the server said no (the race is over, or this racer is out of it): sending it again changes nothing
+    });
+  },
+  resendFinish() {
+    const room = MP.room;
+    if (MP.status !== 'online' || !room || room.phase !== 'racing') return;
+    for (const R of [this.mpRace(), this.pendingRace]) if (R && R.mp.raceId === room.raceId) this.reportFinish(R);
+  },
+
+  // ── the race this tab finished ──
+  // When a seat resumes, the room server sends race:begin again to every racer still in a running race, finished or not.
+  // A racer who has crossed the line stays where they are (the results screen or the lobby) instead of being put back on
+  // the grid, and the reward for the real run is paid when the results come. The record is kept in sessionStorage, like
+  // the seat token, so a reload in between keeps both. A race is known by its raceId and its GO time together, so a
+  // restarted room server that counts raceIds from 1 again cannot be mistaken for it.
+  raceKey(raceId, goAt) { return `${raceId}@${goAt}`; },
+  hasFinished(b) { return !!b && this.done === this.raceKey(b.raceId, b.goAt); },
+  storeFinish(R) {
+    const P = R.player, M = R.mp, s = MP.session();
+    this.done = this.raceKey(M.raceId, M.goAt);
+    const rec = { pin: s ? s.pin : MP.room && MP.room.pin, raceId: M.raceId, goAt: M.goAt, seat: M.seat, track: R.def.id, laps: R.laps,
+      score: R.score, clean: R.clean, lapTimes: P.laps, bestLap: Number.isFinite(P.bestLap) ? P.bestLap : null, finishT: P.finishT, finish: M.finishMsg };
+    try { sessionStorage.setItem(MP_FINISH_KEY, JSON.stringify(rec)); } catch (e) { /* kept in memory only: a reload forgets it */ }
+  },
+  forgetFinish() { try { sessionStorage.removeItem(MP_FINISH_KEY); } catch (e) { /* nothing stored */ } },
+  dropPending() { this.pendingRace = null; this.forgetFinish(); },
+  // After a reload: the finished race whose results had not come yet. pendingRace gets what paying its reward needs
+  // (the fields Game.computeResults reads) and its finish report, in case the server never got it.
+  restoreFinish() {
+    let o = null;
+    try { const raw = sessionStorage.getItem(MP_FINISH_KEY); o = raw ? JSON.parse(raw) : null; } catch (e) { o = null; }
+    if (!o) return;
+    const s = MP.session(), num = (v) => typeof v === 'number' && Number.isFinite(v), f = o.finish;
+    if (typeof o !== 'object' || !s || o.pin !== s.pin || !Number.isInteger(o.raceId) || !num(o.goAt) || !Number.isInteger(o.seat) || !num(o.finishT)
+      || !MP_LAPS.includes(o.laps) || !TRACKS.some(t => t.id === o.track) || !f || typeof f !== 'object' || f.raceId !== o.raceId) { this.forgetFinish(); return; }
+    const score = {};
+    if (o.score && typeof o.score === 'object') for (const [k, v] of Object.entries(o.score)) if (num(v)) score[k] = v;
+    const player = { isPlayer: true, finished: true, finishT: o.finishT, laps: Array.isArray(o.lapTimes) ? o.lapTimes.filter(num).slice(0, 200) : [], bestLap: num(o.bestLap) ? o.bestLap : Infinity };
+    const finishMsg = { raceId: o.raceId, raceT: num(f.raceT) ? f.raceT : o.finishT, dist: num(f.dist) ? f.dist : 0, lap: Number.isInteger(f.lap) ? f.lap : 0 };
+    this.done = this.raceKey(o.raceId, o.goAt);
+    this.viewRaceId = o.raceId;   // the last race this tab saw the room run: a lobby view after the reload says it is over
+    this.pendingRace = { mode: 'friends', def: TRACKS.find(t => t.id === o.track), laps: o.laps, diff: DIFFICULTY.normal, score, clean: o.clean === true,
+      player, riders: [player], ranking: () => [player], mp: { raceId: o.raceId, goAt: o.goAt, seat: o.seat, finishMsg, finishAck: false } };
+  },
+
+  onResults(res) {
+    this.lastResults = res;
+    const R = this.mpRace();
+    if (R && R.mp.raceId === res.raceId) { this.showResults(R, res); return; }
+    // the player went back to the lobby (or reloaded) after finishing, before the results came: pay the reward now
+    const PR = this.pendingRace;
+    if (PR && PR.mp.raceId === res.raceId) {
+      this.pendingRace = null;
+      const rw = this.pay(PR, res), me = res.order.find(o => o.seat === PR.mp.seat);
+      if (this.game.ui) this.game.ui.renderMenu();
+      if (me) this.note(me.finished ? `Results are in: you finished ${me.pos}${ordinal(me.pos).toLowerCase()}${rw ? ` · +${fmtNum(rw.total)} coins and XP` : ''}` : 'Results are in: you did not finish.');
+    }
+  },
+  // The reward, once per race: the Quick Race table (Game.computeResults) with the server's position. A racer who did
+  // not finish gets no position points. An aborted race pays nothing.
+  pay(R, res) {
+    if (R.mpPaid !== undefined) return R.mpPaid;
+    this.forgetFinish();
+    const me = res && res.order.find(o => o.seat === R.mp.seat);
+    if (!res || res.reason === 'aborted' || !me) { R.mpPaid = null; return null; }
+    R.playerPos = me.pos; R.mpDnf = !me.finished;
+    R.mpPaid = this.game.computeResults(R);
+    return R.mpPaid;
+  },
+  // res: the server's race:results, or null for the local standings (no answer yet, or the race ended unseen)
+  showResults(R, res, missed = false) {
+    const g = this.game; if (g.race !== R) return;
+    if (res) { R.mpOver = true; R.mpResults = res; this.clearTimers(); }
+    if (missed) { R.mpOver = true; this.clearTimers(); this.forgetFinish(); }
+    const reward = res ? this.pay(R, res) : null;
+    $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
+    if (g.state !== 'results') {
+      g.state = 'results'; g.td = null; g.setMusic('menu');
+      $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
+    }
+    this.renderResults(R, res, reward, missed);
+    g.ui.renderMenu();
+  },
+  ensureView() {
+    if (this.view) return this.view;
+    const order = $('#rOrder'), acts = $('#results .res-actions');
+    const table = document.createElement('table'); table.id = 'rMpTable'; table.className = 'cup-table'; table.hidden = true;
+    const note = document.createElement('p'); note.id = 'rMpNote'; note.className = 'muted small'; note.hidden = true; note.setAttribute('role', 'status');
+    order.after(table, note);
+    const btn = (id, cls, text, fn) => { const b = document.createElement('button'); b.type = 'button'; b.id = id; b.className = cls; b.textContent = text; b.hidden = true; b.addEventListener('click', fn); return b; };
+    const again = btn('rMpAgain', 'btn-yellow', 'RACE AGAIN', () => this.raceAgain());
+    const lobby = btn('rMpLobby', 'btn-pink', 'BACK TO LOBBY', () => this.backToLobby());
+    acts.prepend(again, lobby);
+    this.view = { table, note, again, lobby };
+    return this.view;
+  },
+  renderResults(R, res, reward, missed) {
+    const V = this.ensureView(), P = R.player, me = res && res.order.find(o => o.seat === R.mp.seat);
+    const aborted = !!res && res.reason === 'aborted';
+    const livePos = R.ranking().indexOf(P) + 1;
+    // header, reward list and daily challenges: the solo results renderer, with the server's standings in place of its order
+    const base = reward || { posText: '', posSuf: '', title: '', sub: '', items: [], total: 0, multText: '', cupTable: '' };
+    this.game.ui.renderResults(R, Object.assign({}, base, { order: [] }));
+    let posText, posSuf, title;
+    if (aborted) { posText = '–'; posSuf = ''; title = 'RACE CALLED OFF'; }
+    else if (me) { posText = me.finished ? String(me.pos) : '–'; posSuf = me.finished ? ordinal(me.pos) : 'DNF'; title = !me.finished ? 'DID NOT FINISH' : me.pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE'; }
+    else { posText = String(livePos); posSuf = ordinal(livePos); title = P.finished ? 'FINISHED' : 'RACE OVER'; }
+    $('#rPos').textContent = posText; $('#rPosSuf').textContent = posSuf; $('#rTitle').textContent = title;
+    $('#rSub').textContent = `${R.def.short} · ${R.laps} lap${R.laps > 1 ? 's' : ''} · ${MODES.friends.label} · Best lap ${fmtTime(P.bestLap)}`;
+    if (!reward) {
+      const li = document.createElement('li'), sp = document.createElement('span'), b = document.createElement('b');
+      sp.textContent = aborted ? 'The race did not start, so there is no reward.' : res || missed ? 'No reward this time' : 'Your reward is paid when the results arrive.';
+      b.textContent = '+0'; li.append(sp, b); $('#rList').replaceChildren(li);
+      $('#rMult').textContent = '';
+    }
+    // the standings: the server's order, or the local one while it has not arrived
+    const rows = res ? res.order.map(o => ({ pos: o.pos, name: o.name, me: o.seat === R.mp.seat, time: aborted ? '' : o.finished && Number.isFinite(o.finishT) ? fmtTime(o.finishT) : 'DNF' }))
+      : R.ranking().map((r, i) => ({ pos: i + 1, name: r.isPlayer ? SAVE.name : r.name, me: r.isPlayer, time: r.finished && Number.isFinite(r.finishT) ? fmtTime(r.finishT) : r.eliminated ? 'LEFT' : 'racing' }));
+    const head = document.createElement('tr');
+    for (const t of ['#', 'Racer', 'Time']) { const th = document.createElement('th'); th.textContent = t; if (t === 'Time') th.style.textAlign = 'right'; head.appendChild(th); }
+    const trs = [head];
+    for (const r of rows) {
+      const tr = document.createElement('tr'); if (r.me) tr.className = 'me';
+      const a = document.createElement('td'), n = document.createElement('td'), t = document.createElement('td');
+      a.textContent = String(r.pos); n.textContent = r.me ? `${r.name} (You)` : r.name; t.className = 'n'; t.textContent = r.time;
+      tr.append(a, n, t); trs.push(tr);
+    }
+    V.table.replaceChildren(...trs);
+    const why = aborted ? 'The race was called off: fewer than 2 racers were connected at GO.'
+      : missed ? 'The race ended while you were reconnecting, so the results did not reach this device.'
+      : !res ? 'Waiting for the other racers…'
+      : res.reason === 'timeout' ? 'Time up: racers still on the road did not finish.' : '';
+    this.viewWhy = why;
+    this.viewOn = true;
+    for (const id of ['#rAgain', '#rNext', '#rGarage', '#rMenu']) $(id).hidden = true;
+    $('#rOrder').hidden = true; V.table.hidden = false; V.lobby.hidden = false;
+    this.refreshButtons();
+  },
+  // RACE AGAIN is the host's, once the room is back in the lobby
+  refreshButtons() {
+    if (!this.viewOn || !this.view) return;
+    const R = this.mpRace(), V = this.view, can = !!(R && R.mpResults) && !!MP.room && MP.room.phase === 'lobby' && MP.isHost();
+    V.again.hidden = !can;
+    V.again.disabled = this.starting; V.again.textContent = this.starting ? 'STARTING…' : 'RACE AGAIN';
+    const hint = R && R.mpResults && MP.room && !MP.isHost() ? 'The host starts the next race.' : '';
+    const note = this.viewWhy || hint; V.note.textContent = note; V.note.hidden = !note;
+    V.lobby.textContent = MP.room ? 'BACK TO LOBBY' : 'MAIN MENU';
+  },
+  endView() {
+    this.restorePause();
+    if (!this.viewOn) return;
+    this.viewOn = false; this.starting = false;
+    const V = this.view;
+    for (const id of ['#rAgain', '#rNext', '#rGarage', '#rMenu']) $(id).hidden = false;
+    $('#rOrder').hidden = false;
+    V.table.hidden = true; V.note.hidden = true; V.again.hidden = true; V.lobby.hidden = true;
+    V.again.disabled = false; V.again.textContent = 'RACE AGAIN';
+  },
+  async raceAgain() {
+    if (this.starting || !MP.isHost()) return;
+    AUDIO.click();
+    this.starting = true; this.refreshButtons();
+    const ack = await MP.startRace();   // race:begin follows, to every seat, and starts the next race
+    this.starting = false;
+    if (!ack.ok) { this.note(ack.message); AUDIO.warn(); }
+    this.refreshButtons();
+  },
+  backToLobby() {
+    AUDIO.click();
+    const g = this.game, R = this.mpRace();
+    if (R && !R.mpOver && R.player.finished && R.mpPaid === undefined) this.pendingRace = R;   // its reward is paid when the results arrive
+    this.clearTimers(); this.endView();
+    if (MP.room && typeof MPUI !== 'undefined') MPUI.showLobby();   // ends the race (Game.endRace) and shows the room
+    else { g.cup = null; g.toMenu(); if (!MP.session()) this.dropPending(); }   // no seat to come back to: no results will come
+    // the race's timers went with it: a finish report the server has not acknowledged yet carries on from here
+    if (this.pendingRace) this.reportFinish(this.pendingRace);
+  },
+  // Game.endRace calls this for a friends race: its timers and the results view go with it
+  raceEnded() { this.clearTimers(); this.endView(); },
+
+  // ── pause: a friends race never pauses; the menu only offers leaving ──
+  togglePause() {
+    const g = this.game, m = $('#pause');
+    if (!m.hidden) { g.ui.closeModal(); return; }
+    this.pauseView = true;
+    $('#pauseTitle').textContent = 'FRIENDS RACE';
+    $('#pauseInfo').textContent = 'A friends race does not pause: your bike keeps going while this menu is open.';
+    $('#pResume').textContent = 'BACK TO RACE'; $('#pQuit').textContent = 'Leave race';
+    $('#pRestart').hidden = true; $('#pSettings').hidden = true;
+    g.ui.open('pause');
+  },
+  restorePause() {
+    if (!this.pauseView) return;
+    this.pauseView = false;
+    $('#pauseTitle').textContent = 'PAUSED'; $('#pResume').textContent = 'RESUME'; $('#pQuit').textContent = 'Quit to menu';
+    $('#pRestart').hidden = false; $('#pSettings').hidden = false;
+  },
+
+  // game.leaveMultiplayer(): ends the friends race if one is on, leaves the room (the session goes) and returns to the menu
+  leave() {
+    const g = this.game;
+    this.leaving = true; this.dropPending(); this.viewRaceId = null;
+    const R = this.mpRace(); if (R) R.mpLeft = true;
+    this.clearTimers(); this.endView();
+    const done = MP.leave();
+    if (typeof MPUI !== 'undefined') MPUI.hideLobby();
+    g.cup = null; g.toMenu();   // Game.endRace: the race group, the ghost rigs and the HUD race go with it
+    return done.finally(() => { this.leaving = false; });
+  },
+
+  // ── room events ──
+  onClosed() {
+    this.dropPending(); this.viewRaceId = null;
+    const g = this.game; if (!this.mpRace()) return;
+    this.clearTimers(); this.endView(); g.cup = null; g.toMenu();
+    if (typeof MPUI === 'undefined' || !MPUI.ready) this.note('That room has closed.');   // once the lobby UI is set up, it says so itself
+  },
+  onStatus(s) {
+    if (s === 'online') { this.resendFinish(); return; }
+    if (s !== 'offline') return;
+    // the seat is gone for good (left, taken over by another tab, or past the server's grace period), and with it the
+    // results a finished race was waiting for. With the session still here, Friends can take the seat back, so it stays.
+    if (!MP.session()) this.dropPending();
+    if (this.leaving) return;
+    const g = this.game, R = this.mpRace(); if (!R) return;
+    // the connection is gone for good: socket.io could not reconnect, or another tab took this seat over
+    const superseded = MP.lastError && MP.lastError.code === 'SUPERSEDED';
+    this.clearTimers(); this.endView();
+    if (MP.session() && !R.mpOver && R.player.finished && R.mpPaid === undefined) this.pendingRace = R;   // paid if the seat comes back in time for the results
+    g.cup = null; g.toMenu();
+    if (!superseded) this.note('Lost the connection to the room server.');
+  },
+  onRoom() {
+    const room = MP.room; if (!room) return;
+    // A room view names the race it is running (raceId); a lobby view names none. So a lobby view says that the race of
+    // the last race view before it is over, and nothing about any other race.
+    if (room.phase !== 'lobby' && room.raceId !== null) this.viewRaceId = room.raceId;
+    this.resendFinish();
+    // A lobby view ends race R only when the last race the room showed was R. A view from before R began (the answer to
+    // a request sent from the lobby, applied just after race:begin on a polling connection, even late on a slow device)
+    // follows no view of R, so it cannot end R. And no race ends before its GO.
+    const over = (R) => room.phase === 'lobby' && this.viewRaceId === R.mp.raceId && MP.serverNow() >= R.mp.goAt;
+    // the results of the race this tab finished went out while it was away (reconnecting or reloading)
+    const PR = this.pendingRace;
+    if (PR && PR.mpPaid === undefined && over(PR)) { this.dropPending(); this.note('That race ended while you were away, so its results did not reach this device.'); }
+    const R = this.mpRace(); if (!R) return;
+    // a racer who left the room leaves the road too (one who only lost connection stays, frozen, and may come back)
+    const seats = new Set(room.racers.map(r => r.seat));
+    for (const r of R.riders) if (r.net && !r.net.gone && !seats.has(r.net.seat)) { r.net.gone = true; r.eliminated = true; r.rig.root.visible = false; }
+    // the room is back in the lobby but no results came: the race ended while this tab was reconnecting
+    if (!R.mpOver && over(R)) this.showResults(R, null, true);
+    this.refreshButtons();
+  },
+};
+
 // ===== 85_input.js =====
 // ───────────────────────── INPUT: keyboard, touch, tilt, gamepad ─────────────────────────
 const INPUT = {
@@ -6888,8 +8758,10 @@ class Game {
     this.renderer.compile(this.scene, this.camera);
     this.setLoad(1, 'Chalo!');
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
-    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
+    // a hidden tab pauses a solo race; a friends race never pauses (its bike just freezes until the tab is back)
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race' && !(this.race && this.race.mp)) this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC };
+    MPRACE.init(this);
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -7018,17 +8890,20 @@ class Game {
     G.t = 0; this.govK = k; this.renderer.setPixelRatio(base * k); if (this.comic) this.comic.resize(); if (this.refl) this.refl.resize();
   }
   // the winner's hero entry (58_entry); it hands over to the results when it ends or is skipped
-  startEntry(R, title) { if (this.entry) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
-  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  startEntry(R, title) { if (this.entry || R.mp) return; try { this.entry = new HeroEntry(this, R, title); } catch (e) { console.warn('entry', e); this.entry = null; setTimeout(() => this.showResults(R), 1500); } }
+  endRace() { if (this.entry) { this.entry.done = true; this.entry.el.hidden = true; this.entry.dispose(); this.entry = null; } if (this.race) { if (this.race.mp) MPRACE.raceEnded(this.race); this.scene.remove(this.race.group); this.race.dispose(); this.race = null; } }
+  // friends races (84_mp_race.js)
+  startMultiplayerRace(begin) { return MPRACE.startRace(begin); }
+  leaveMultiplayer() { return MPRACE.leave(); }
   // post pass (glow + optional comic print look) on medium/high
   postOn() { return !!(this.comic && this.comic.ok && this.quality !== 'low' && URLP.get('post') !== '0'); }
   comicOn() { return this.postOn() && SAVE.settings.comic && URLP.get('comic') !== '0'; }
   comicPop(text, r, scale, color) { const p = r && this.race ? this.race.track.pos(r.s, r.d, new THREE.Vector3(), r.y - this.race.track.yAt(r.s) + 1.7) : null; COMIC.pop(this, text, p, scale, color); }
   setMusic(m) { this.musicMode = m; MUSIC.setMode(m); }
-  pause() { if (this.state !== 'race') return; this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
+  pause() { if (this.state !== 'race') return; if (this.race && this.race.mp) { MPRACE.togglePause(); return; } MPRACE.restorePause(); this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
   resume() { this.ui.returnToPause = false; this.ui.closeModal(); if (this.state === 'paused') { this.state = 'race'; this.setMusic('race'); this.last = performance.now(); } }
-  restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
-  quitRace() { this.cup = null; this.toMenu(); }
+  restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (s && s.mp) return; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
+  quitRace() { if (this.race && this.race.mp) { this.leaveMultiplayer(); return; } this.cup = null; this.toMenu(); }
   toMenu() {
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
     this.endRace(); if (this.cup && this.cup.done) this.cup = null;
@@ -7040,7 +8915,7 @@ class Game {
     const pool = this.lastSetup.mode === 'police' ? TRACKS.filter(t => t.police) : CUP_TRACKS; const i = pool.findIndex(t => t.id === this.lastSetup.track); const nx = pool[(i + 1) % pool.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
   }
   showResults(R) {
-    if (this.race !== R || this.state === 'results') return;
+    if (this.race !== R || this.state === 'results' || R.mp) return;   // a friends race shows the server's results (MPRACE.showResults)
     const res = this.computeResults(R); this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
@@ -7048,7 +8923,10 @@ class Game {
   computeResults(R) {
     const P = R.player, M = MODES[R.mode], S = R.score, items = [];
     const rank = R.ranking(); const pos = R.playerPos || rank.indexOf(P) + 1; const n = R.riders.length;
-    if (M.rivals) items.push(['Position points', PTS.finish[pos - 1] || 0]);
+    // a friends race pays the Quick Race table by the room server's position (R.playerPos); a racer who did not finish
+    // gets no position points. In solo, ranked is exactly M.rivals.
+    const ranked = !!(M.rivals || (M.mp && !R.mpDnf));
+    if (ranked) items.push(['Position points', PTS.finish[pos - 1] || 0]);
     if (R.mode === 'timetrial') items.push([`Laps completed (${P.laps.length})`, P.laps.length * 50]);
     const PO = R.police; if (PO) { if (!PO.busted) items.push(['Escaped the nakabandi', 800]); else items.push([`Laps before the arrest (${P.laps.length})`, P.laps.length * 120]); }
     const add = (k, label) => { if (S[k]) items.push([label, S[k]]); };
@@ -7058,9 +8936,10 @@ class Game {
     add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
-    if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
+    if (ranked) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
+    else if (M.mp && R.mpDnf) SAVE.streak = 0;   // a friends race not finished ends the run of wins, as a Quick Race loss does
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
-    SAVE.coins += total; SAVE.xp += total; SAVE.parts += M.rivals ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (M.rivals && pos === 1) SAVE.wins++;
+    SAVE.coins += total; SAVE.xp += total; SAVE.parts += ranked ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (ranked && pos === 1) SAVE.wins++;
     dailyProgress('races', 1);
     const rec = SAVE.records[R.def.id] || {}; if (M.rivals && (!rec.bestPos || pos < rec.bestPos)) rec.bestPos = pos; if (R.mode === 'stunt' && (S.stunts || 0) > (rec.bestStunt || 0)) rec.bestStunt = S.stunts; SAVE.records[R.def.id] = rec;
     let cupTable = '';
@@ -7077,7 +8956,7 @@ class Game {
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
     if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
     if (PO) return { posText: PO.busted ? '🚨' : fmtTime(P.finishT || R.raceT), posSuf: PO.busted ? 'BUSTED' : 'ESCAPED', title, sub: sub2, items, total, multText: 'Coins and XP added.', order: [P], cupTable };
-    return { posText: M.rivals ? String(pos) : R.mode === 'stunt' ? fmtNum(S.stunts || 0) : fmtTime(P.bestLap), posSuf: M.rivals ? ordinal(pos) : R.mode === 'stunt' ? 'PTS' : '', title, sub: sub2, items, total: totalShown, multText: mult !== 1 ? `Includes the ${R.diff.label} rivals multiplier (×${mult}). Coins and XP added.` : 'Coins and XP added.', order: M.rivals ? rank : [P], cupTable };
+    return { posText: ranked ? String(pos) : R.mode === 'stunt' ? fmtNum(S.stunts || 0) : fmtTime(P.bestLap), posSuf: ranked ? ordinal(pos) : R.mode === 'stunt' ? 'PTS' : '', title, sub: sub2, items, total: totalShown, multText: mult !== 1 ? `Includes the ${R.diff.label} rivals multiplier (×${mult}). Coins and XP added.` : 'Coins and XP added.', order: M.rivals ? rank : [P], cupTable };
   }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
   // ── frame loop ──
@@ -7112,7 +8991,7 @@ class Game {
     if (inp.pause) { this.pause(); return; }
     { const finalLap = R.laps > 1 && P.lap >= R.laps - 1; const lvl = R.state === 'countdown' ? 0 : (P.boosting || finalLap) ? 2 : 1;
       if (lvl === 2 && MUSIC.level < 2 && finalLap && !this._riserDone) { MUSIC.riser(1.4); this._riserDone = true; } if (R.state === 'countdown') this._riserDone = false; MUSIC.setLevel(lvl); }
-    if (!DEBUG.autopilot) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; if (inp.hop) P.input.hop = true; }
+    if (!DEBUG.autopilot || R.mp) { P.input.throttle = inp.throttle; P.input.brake = inp.brake; P.input.rear = inp.rear; P.input.steer = inp.steer; P.input.back = inp.back; P.input.boost = inp.boost; if (inp.hop) P.input.hop = true; }
     if (R.state === 'racing') {
       if (inp.hitL) R.combat.melee(P, 1); if (inp.hitR) R.combat.melee(P, -1); if (inp.hitAuto) R.combat.melee(P, inp.gpSide || R.combat.autoSide(P));
       if ((inp.hitL || inp.hitR || inp.hitAuto) && !R.combatOn) this.hud.callout('COMBAT OFF', null, 'info');
@@ -7120,21 +8999,25 @@ class Game {
       if (inp.throw) { if (!R.combat.throwItem(P) && R.combatOn && !P.weapons.throw) this.hud.callout('NOTHING TO THROW', null, 'info'); }
       if (inp.respawn && !P.crashed && !P.finished) P.respawn();
       if (SAVE.settings.manualGears) { if (inp.gearUp) P.gear = Math.min(4, P.gear + 1); if (inp.gearDown) P.gear = Math.max(1, P.gear - 1); }
-      if (DEBUG.autopilot && R.raceT > 12 && Math.random() < 0.01) R.combat.melee(P, R.combat.autoSide(P));
-      if (DEBUG.autopilot && R.raceT > 12 && P.weapons.throw && Math.random() < 0.006) R.combat.throwItem(P);
+      if (DEBUG.autopilot && !R.mp && R.raceT > 12 && Math.random() < 0.01) R.combat.melee(P, R.combat.autoSide(P));
+      if (DEBUG.autopilot && !R.mp && R.raceT > 12 && P.weapons.throw && Math.random() < 0.006) R.combat.throwItem(P);
     }
     if (inp.horn) AUDIO.horn();
     if (inp.camera) { this.camMode = (this.camMode + 1) % 3; SAVE.settings.camera = this.camMode; persist(); }
     R.update(dt * (this.entry ? this.entry.ts : 1));
     this.hud.update(dt, this.camera);
-    if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(dt); this.fx.update(dt, this.camera); }
+    // a friends race moves the bike by the race clock's real elapsed time (Race.updateMp); the chase camera's springs
+    // take the same step, or a slow device would leave the camera behind the bike
+    const camDt = R.mp && R.state === 'racing' ? R.mpStep || 0 : dt;
+    this.camLead = R.mp && R.state === 'racing' ? clamp(R.mpTravel || 0, -5, 25) : 0;
+    if (R.state === 'finished') { this.td = null; this.fx.clear(); if (this.entry) this.entry.update(dt); else this.orbitCam(dt, P, 5.5, 2.0, 0.35); } else if (this.td) { this.tdCam(dt); this.fx.update(dt, this.camera); } else { this.chaseCam(camDt); this.fx.update(dt, this.camera); }
     // a rival tucked right behind the player would put the chase camera inside his head: hide anyone that close to the lens
     const cp = this.camera.position; for (const r of R.riders) { if (r.isPlayer || r.eliminated || !r.rig.root.visible) continue; const q = r.rig.root.position; if (Math.hypot(q.x - cp.x, q.y + 1.0 - cp.y, q.z - cp.z) < 1.6) r.rig.root.visible = false; }
   }
   // takedown cam (Burnout style): cut to a low angle ahead of the wreck, slow motion while the bike rolls and the rider
   // tumbles down the road, then cut straight back to the chase cam. Also used when you go down yourself.
   takedownCam(r) {
-    const R = this.race; if (!R || !r.wreck || REDUCED_MOTION || this.camMode === 2) return; if (this.td || (this.tdLast && this.t - this.tdLast < 5 && !r.isPlayer)) return;
+    const R = this.race; if (!R || R.mp || !r.wreck || REDUCED_MOTION || this.camMode === 2) return; if (this.td || (this.tdLast && this.t - this.tdLast < 5 && !r.isPlayer)) return;   // R.mp: no slow motion in a friends race
     const T = R.track, W = r.wreck, side = -Math.sign(r.d || 1) || 1, s0 = W.bike.s + Math.max(5, W.bike.vs * 0.45);
     const pos = T.pos(s0, clamp(W.bike.d + side * 4.2, -T.wAt(s0) / 2 - 1.5, T.wAt(s0) / 2 + 1.5), new THREE.Vector3(), 1.25);
     this.td = { r, t: 0, dur: r.isPlayer ? 2.1 : 1.7, pos, look: new THREE.Vector3() }; this.tdLast = this.t; R.slowmo = r.isPlayer ? 0.8 : 1.1;
@@ -7174,9 +9057,14 @@ class Game {
       // springs, substepped so they stay stable on slow frames. Heading: a soft late swing. Distance and lateral are
       // critically damped and track velocity too (no lag at steady speed): a sudden speed loss lets the bike come back
       // toward the lens over a few frames instead of the whole view stopping dead with it. Height rides a soft spring.
+      // camLead (friends race only, 0 otherwise): the bike's travel this frame. A slow device moves the bike a long way
+      // per frame; the target then moves through the sub-steps as it would at a high frame rate, instead of jumping
+      // ahead at once and letting the velocity term carry the camera past the bike.
+      const lead = this.camLead || 0;
       for (let i = 0, n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; i < n; i++) {
         C.psiV += ((P.psi * 0.55 - C.psi) * 22 - C.psiV * 9.4) * h; C.psi += C.psiV * h;
-        C.v += ((P.dist - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
+        const pd = lead ? P.dist - lead * (1 - (i + 1) / n) : P.dist;
+        C.v += ((pd - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
         C.dv += ((P.d - C.d) * 100 - C.dv * 20) * h; C.d += C.dv * h;
         C.yv += ((P.y - C.y) * 95 - C.yv * 17.5) * h; C.y += C.yv * h;
         C.nodV += (-C.nod * 130 - C.nodV * 13) * h; C.nod += C.nodV * h;

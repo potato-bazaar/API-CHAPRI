@@ -7,18 +7,23 @@ class Race {
     this.track = game.track; this.world = game.world; this.hud = game.hud;
     this.wet = setup.weather === 'monsoon';
     const M = MODES[this.mode];
+    // a friends race (84_mp_race.js): { raceId, goAt, seat, racers }. Null in every solo mode, and every multiplayer
+    // branch below checks it, so a solo race runs exactly the code it always ran.
+    this.mp = M.mp && setup.mp ? setup.mp : null;
     this.combatOn = M.combat === 'force' ? true : M.combat ? !!setup.combat : false;
     this.laps = M.fixedLaps || setup.laps;
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
     this.score = {}; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
     this.elimLap = 0; this.elimOrder = []; this.finishOrder = [];
-    RNG = mulberry32(Date.now() & 0xffff);
-    // player
-    const st = buildStats(SAVE.build); const b = st.build;
+    RNG = mulberry32(this.mp ? (setup.seed >>> 0) : (Date.now() & 0xffff));
+    // player. In a friends race (and only there) the bike and the look are this seat's entry in race:begin, the ones the
+    // other devices draw: a bike picked in the lobby that the server did not take in time is not ridden here either.
+    const me = this.mp ? this.mp.racers.find(r => r.seat === this.mp.seat) || null : null;
+    const st = buildStats(me ? me.bike : SAVE.build); const b = st.build;
     const shirt = COSMETICS.shirt.find(s => s.id === SAVE.cos.shirt) || COSMETICS.shirt[0];
     const helm = COSMETICS.helmet.find(h => h.id === SAVE.cos.helmet); const shades = COSMETICS.shades.find(s => s.id === SAVE.cos.shades);
-    const look = lookFromSave(b.id);
+    const look = me ? MP.sanitizeLook(me.look, me.bike) : lookFromSave(b.id);
     this.player = new Rider(this, 0, { isPlayer: true, name: SAVE.name || 'You', short: 'You', stats: st, look });
     this.riders.push(this.player);
     this.player.rig.addUnderglow();
@@ -32,11 +37,15 @@ class Race {
         this.riders.push(r);
       });
     }
+    if (this.mp) this.mpAddRacers();
     if (M.police) PoliceOps.addCops(this);
-    // grid: player starts at the back, like the mockup (8th/8)
-    const T = this.track; const order = this.riders.slice(1).concat([this.player]);
-    order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
-    if (!M.rivals) this.player.place(-4, 0);
+    if (this.mp) this.mpGrid();
+    else {
+      // grid: player starts at the back, like the mockup (8th/8)
+      const T = this.track; const order = this.riders.slice(1).concat([this.player]);
+      order.forEach((r, i) => { const row = Math.floor(i / 2), side = i % 2 ? -1 : 1; r.place(-(3 + row * 5.5) - (r.isPlayer ? 0.6 : 0), side * T.wAt(0) / 4.2); });
+      if (!M.rivals) this.player.place(-4, 0);
+    }
     if (M.police) this.cops.forEach((c, i) => c.place(-38 - i * 8, (i - 1) * 2.4));   // the cops start a few seconds behind you
     this.riders.forEach(r => { this.group.add(r.rig.root); r.lapStart = 0; });
     this.combat = new Combat(this); this.group.add(this.combat.group);
@@ -62,6 +71,7 @@ class Race {
   hudWarn(side) { this.hud.warn(side); AUDIO.warn(); }
   // ── frame update (fixed sub-steps) ──
   update(dt) {
+    if (this.mp) return this.updateMp(dt);
     if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
     if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; }
     const P = this.player;
@@ -95,6 +105,97 @@ class Race {
     if (this.state === 'racing' || this.state === 'finished') this.recordGhost();
     this.syncVisuals(dt);
     this.taunts.update(dt, this.game.camera);
+  }
+  // ── friends race (multiplayer) ──
+  // One ghost rider per remote racer, in seat order after the player (riders[0] stays the local player, idx 0, as in solo).
+  mpAddRacers() {
+    let idx = 1;
+    for (const rc of this.mp.racers) {
+      if (rc.seat === this.mp.seat) continue;
+      // race:begin looks are cleaned in 82_mp_net.js; cleaned once more here, so only known keys ever reach BikeRig
+      const look = typeof MP.sanitizeLook === 'function' ? MP.sanitizeLook(rc.look, rc.bike) : rc.look;
+      this.riders.push(new Rider(this, idx++, { name: rc.name, short: rc.name, stats: buildStatsStock(), look, net: true, seat: rc.seat }));
+    }
+    this.mpLocal = [this.player];
+  }
+  // The grid by seat order, so every device puts every racer on the same spot: two abreast, rows 5.5 m apart.
+  mpGrid() {
+    const T = this.track;
+    this.mp.racers.forEach((rc, i) => {
+      const r = rc.seat === this.mp.seat ? this.player : this.riders.find(x => x.net && x.net.seat === rc.seat); if (!r) return;
+      const row = Math.floor(i / 2), side = i % 2 ? -1 : 1;
+      r.place(-(3 + row * 5.5), side * T.wAt(0) / 4.2);
+    });
+    this.raceT = this.mpClock();   // a late race:begin (after a resume) joins the countdown, or the race, where it is now
+    this.mp.sentAt = -1e9; this.mpStep = 0; this.mpTravel = 0;
+  }
+  // Bike contact, pickups, road objects, traffic, coins and the scoring callouts read this.riders. Ghosts take no part
+  // in any of them (spec A2), so while they run the race holds the local bike only.
+  mpLocalOnly(fn) { const all = this.riders; this.riders = this.mpLocal; try { fn(); } finally { this.riders = all; } }
+  // the race clock: seconds since GO by the room server's clock (MP.serverNow is Date.now plus the measured offset)
+  mpClock() { return (MP.serverNow() - this.mp.goAt) / 1000; }
+  mpGo() {
+    if (this.state !== 'countdown' || this.mpOver) return;   // an aborted race never gets its GO
+    const P = this.player;
+    this.state = 'racing'; this.raceT = Math.max(0, this.mpClock()); this.mp.goWall = Date.now();
+    if (this.raceT > 0.5) P.lapStart = this.raceT;   // joined after GO: the first lap is timed from the moment this bike could go
+    this.hud.countdown(0); AUDIO.beep(true); if (P.input.throttle > 0.5) this.launch.jump = true;
+  }
+  // The friends-race frame. Only the local bike is simulated, with the same physics, sub-steps, road objects and
+  // scoring as solo. Ghosts are placed from snapshots (84_mp_race.js). The clock never runs slow motion or hit-stop:
+  // it follows the server, so every device agrees on GO and on the finish times it reports.
+  updateMp(dt) {
+    const P = this.player, clock = this.mpClock();
+    if (this.mpOver) this.mpPark(dt);
+    if (this.state === 'countdown') {
+      const before = this.raceT; this.raceT = Math.max(before, clock);
+      if (!this.mpOver) for (let k = 3; k >= 1; k--) if (before < -k + 0.4 && this.raceT >= -k + 0.4 && this.raceT < 0) { this.hud.countdown(k); AUDIO.beep(false); }
+      if (this.raceT >= 0) this.mpGo();
+      for (const r of this.riders) { r.rpm = smooth(r.rpm, r.isPlayer ? 1600 + P.input.throttle * 8200 : 2200 + Math.sin(this.raceT * 7 + r.idx) * 600, 8, dt); }
+    } else {
+      // Physics runs on the race clock's real elapsed time, not the frame loop's dt (capped at 0.1 s a frame for solo):
+      // a slow device then races at the same pace in real time as a fast one, and ?timescale changes nothing. The cap
+      // keeps a tab that was hidden for a while from jumping its bike forward when it comes back (spec 9: it freezes).
+      const prev = this.raceT; this.raceT = Math.max(prev, clock);
+      const h0 = this.mpStep = clamp(this.raceT - prev, 0, 0.5);   // the chase camera follows with the same step (90_main)
+      if (!this.launch.done && this.raceT < 0.6 && P.input.throttle > 0.5) { this.launch.done = true; if (!this.launch.jump && this.raceT < 0.35) { P.boost = Math.min(100, P.boost + 20); this.hud.callout('PERFECT START', `+${this.award('launch', PTS.launch)}`, 'good'); } }
+      if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
+      const d0 = P.dist;
+      if (h0 > 0) {
+        // once the room server has ended the race the local bike is parked (mpPark): it is not stepped any more
+        if (!this.mpOver) {
+          const steps = Math.max(1, Math.ceil(h0 / (1 / 90))), h = h0 / steps;
+          for (let i = 0; i < steps; i++) {
+            if (P.finished) { P.input.throttle = 0.4; P.input.brake = P.v > 14 ? 0.3 : 0; P.input.boost = false; }
+            P.step(h, this.raceT);   // lap and finish events see every racer, so the place counts the ghosts
+            this.mpLocalOnly(() => this.interactions(h));
+          }
+        }
+        this.mpLocalOnly(() => {
+          // the street, the stage and the smoke around the bike carry on under the results
+          this.combat.update(h0, this.raceT);
+          if (this.stage) this.stage.update(h0);
+          if (this.ug) this.ug.update(h0);
+          this.street.update(h0);
+          if (!this.mpOver) { this.collectCoins(); this.scoring(h0); }
+        });
+      }
+      this.mpTravel = P.dist - d0;   // how far the bike went this frame: the chase camera spreads it over its sub-steps
+      if (!this.mpOver) MPRACE.sendSnapshot(this);
+    }
+    MPRACE.placeGhosts(this);
+    this.mpFirst = this.ranking()[0];   // finishOrder only knows the local finish, so the winner's celebration reads this
+    this.syncVisuals(dt);
+    this.taunts.update(dt, this.game.camera);
+  }
+  // The room server has ended the race (its results are in, or it ended while this device was away). The local bike
+  // stays where that found it and is no longer simulated: no line it reaches can become a second finish, a lap, a
+  // finish report, coins, points or daily progress. It comes to rest upright, with the engine at idle.
+  mpPark(dt) {
+    const P = this.player, I = P.input;
+    I.throttle = 0; I.brake = 0; I.rear = 0; I.boost = false; I.steer = 0; I.back = false; I.hop = false;
+    P.v = 0; P.boosting = false; P.sliding = false;
+    P.lean = smooth(P.lean, 0, 4, dt); P.pitch = smooth(P.pitch, 0, 4, dt); P.rpm = smooth(P.rpm, 1600, 4, dt);
   }
   interactions(dt) {
     const R = this.riders;
@@ -166,6 +267,9 @@ class Race {
   }
   // ── events from riders / combat ──
   onLap(r, t) {
+    // In a friends race a line crossed after this bike's own finish, or after the room server has ended the race, counts
+    // for nothing: no second finish (its chime, a finish report the server would refuse), no lap record, no lead-lap points.
+    if (this.mp && (r.finished || this.mpOver)) return;
     const lapTime = t - r.lapStart; r.lapStart = t; r.laps.push(lapTime); r.bestLap = Math.min(r.bestLap, lapTime);
     const done = r.laps.length;
     if (this.mode === 'elimination' && done > this.elimLap) { this.elimLap = done; this.eliminateLast(r); }
@@ -199,6 +303,9 @@ class Race {
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
+    // a friends race has no hero entry, and its results come from the room server (84_mp_race.js). Until they arrive
+    // the HUD shows the live place, which still changes as remote finishes come in.
+    if (this.mp) { this.playerPos = null; MPRACE.localFinish(this); return; }
     // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results
     const won = this.police ? !this.police.busted : MODES[this.mode].rivals && pos === 1;
     if (won && this.player.rig.rm && (!DEBUG.autopilot || URLP.get('entry')) && SAVE.settings.entry !== false) this.game.startEntry(this, this.police ? 'BACH GAYA!' : 'FIRST!');
@@ -286,7 +393,7 @@ class Race {
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
       this.swagger(r, dt);
-      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
+      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && (this.mp ? this.mpFirst === r : this.finishOrder[0] === r) });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }

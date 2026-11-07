@@ -99,6 +99,46 @@
     <p class="store-note">Everything here is bought with coins you earn on track. Cosmetics change your look, never your speed.</p>
   </section>
 
+  <!-- FRIENDS ROOM LOBBY (multiplayer; drawn over the live menu scene) -->
+  <section id="mpLobby" class="screen ui-pad" aria-labelledby="mpLobbyTitle">
+    <header class="mp-top">
+      <button id="mpLeave" class="back" type="button">‹ Leave</button>
+      <h1 id="mpLobbyTitle" class="mp-head"><span class="mp-kicker">PLAY WITH FRIENDS</span><span class="mp-title">MULTIPLAYER</span></h1>
+    </header>
+    <div class="mp-body">
+      <div class="mp-col">
+        <div class="panel mp-pin-card">
+          <span class="mp-label">ROOM PIN</span>
+          <b id="mpPin" class="mp-pin">----</b>
+          <button id="mpCopy" class="btn-pink mp-copy" type="button">COPY LINK</button>
+        </div>
+        <div class="mp-row-head"><span class="mp-label" id="mpRacersLbl">RACERS</span><span id="mpCount" class="mp-count">0/8</span></div>
+        <ul id="mpRoster" class="mp-roster" aria-labelledby="mpRacersLbl"></ul>
+      </div>
+      <div class="mp-col">
+        <div class="panel mp-settings">
+          <div class="mp-bike"><span class="mp-label">YOUR BIKE</span><button id="mpBikePrev" class="mp-arrow" type="button" aria-label="Previous bike">‹</button><b id="mpBikeName" aria-live="polite">CR100</b><button id="mpBikeNext" class="mp-arrow" type="button" aria-label="Next bike">›</button></div>
+          <span class="mp-label" id="mpTrackLbl">TRACK</span>
+          <div id="mpTrack" class="seg mp-seg mp-tracks" role="group" aria-labelledby="mpTrackLbl"></div>
+          <div class="mp-trio">
+            <div><span class="mp-label" id="mpLapsLbl">LAPS</span><div id="mpLaps" class="seg mp-seg" role="group" aria-labelledby="mpLapsLbl"></div></div>
+            <div><span class="mp-label" id="mpTimeLbl">TIME</span><div id="mpTime" class="seg mp-seg" role="group" aria-labelledby="mpTimeLbl"></div></div>
+            <div><span class="mp-label" id="mpWeatherLbl">WEATHER</span><div id="mpWeather" class="seg mp-seg" role="group" aria-labelledby="mpWeatherLbl"></div></div>
+          </div>
+          <p id="mpHostNote" class="mp-hostnote" hidden>The host picks the track</p>
+        </div>
+        <p id="mpConn" class="mp-conn" role="status" hidden></p>
+        <div class="mp-cta">
+          <div id="mpWaitFriends" class="mp-wait">WAITING FOR FRIENDS…</div>
+          <button id="mpStart" class="start-btn mp-start" type="button" hidden><span class="flag"></span><span id="mpStartLbl">START RACE</span><span class="chev">››</span></button>
+          <p id="mpWaitHost" class="mp-waithost" hidden>Waiting for the host to start…</p>
+          <p id="mpRaceOn" class="mp-waithost" role="status" hidden>Race in progress… results soon</p>
+          <p class="mp-caption">Share the PIN — friends join on their own phone or computer</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- WINNER'S ENTRY (letterbox + title over the cutscene) -->
   <div id="entry" class="entry" hidden aria-live="polite">
     <div class="entry-bar top"></div><div class="entry-bar bot"></div>
@@ -202,14 +242,22 @@
     <header><h2 id="boardTitle">LEADERBOARD</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
     <div class="modal-body" id="boardBody"></div>
   </div>
-  <div id="friends" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="frTitle" hidden>
-    <header><h2 id="frTitle">PLAY WITH FRIENDS</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
-    <div class="modal-body">
-      <p>Friends rooms let up to 8 riders race on phones and laptops with a 4-digit PIN. They need the Chapri Racer room server (a small WebSocket relay), which isn't switched on in this build yet.</p>
-      <div class="pin-demo" aria-hidden="true"><span>4</span><span>2</span><span>0</span><span>7</span></div>
-      <p class="muted small">Until then, race the seven AI rivals in Quick Race, Gali Rumble or Elimination.</p>
+  <div id="friends" class="modal panel mp-dialog" role="dialog" aria-modal="true" aria-labelledby="frTitle" hidden>
+    <header><div class="mp-head"><h2 id="frTitle" class="mp-kicker">PLAY WITH FRIENDS</h2><span class="mp-title" aria-hidden="true">MULTIPLAYER</span></div><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body mp-entry">
+      <label class="mp-label" for="mpName">YOUR NAME</label>
+      <input id="mpName" class="mp-input" type="text" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="next">
+      <button id="mpCreate" class="btn-pink mp-big" type="button">CREATE A ROOM</button>
+      <div class="mp-or"><span>OR JOIN A FRIEND</span></div>
+      <div class="mp-join">
+        <input id="mpPinIn" class="mp-input mp-pin-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="PIN" autocomplete="off" aria-label="Room PIN" enterkeyhint="go">
+        <button id="mpJoin" class="btn-yellow mp-joinbtn" type="button">JOIN</button>
+      </div>
+      <p id="mpEntryMsg" class="mp-msg" role="status" aria-live="polite"></p>
+      <p class="mp-help">Create a room and share its 4-digit PIN. Friends type it here, on their phone or computer — up to 8 racers, no sign-up.</p>
+      <button id="mpPrivacyBtn" class="mp-link" type="button" aria-expanded="false" aria-controls="mpPrivacy">How your name and IP are used online</button>
+      <p id="mpPrivacy" class="mp-note" hidden>Your name and bike are shown to the other racers in your room. The room server keeps no accounts. It keeps IP addresses in memory only, to limit open connections and wrong PIN guesses per address. It counts room creation under a keyed hash of the address, with a secret that changes each time the server starts. Nothing is written to disk, and each count is dropped as soon as it no longer applies.</p>
     </div>
-    <footer><button class="btn-dark" type="button" data-close>Got it</button></footer>
   </div>
   <div id="pause" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" hidden>
     <header><h2 id="pauseTitle">PAUSED</h2></header>
@@ -227,6 +275,7 @@
     <footer><button class="btn-yellow" type="button" id="cupGo">START CUP ››</button><button class="btn-dark" type="button" data-close>Close</button></footer>
   </div>
   <div id="flash" class="flash" hidden></div>
+  <div id="mpLive" class="mp-sr" aria-live="polite"></div>
   <div id="rotate" class="rotate"><div><svg viewBox="0 0 48 48"><rect x="14" y="4" width="20" height="36" rx="4" fill="none" stroke="#fff" stroke-width="3"/><path d="M38 30a14 14 0 0 1-14 14" fill="none" stroke="#ffc21a" stroke-width="3"/><path d="m24 40 0 8-6-4z" fill="#ffc21a"/></svg><p>Turn your phone sideways to race</p></div></div>
 </div>
 <!-- 3D bike: "RX100 BIKE" by patilaryush, CC BY 4.0 (gzip, base64) -->

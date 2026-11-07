@@ -49,6 +49,7 @@ class UI {
   }
   modalOpen() { return $$('.modal').some(m => !m.hidden); }
   open(id, fromPause = false) {
+    if (id === 'friends') { MPUI.open(); return; }   // friends rooms: 83_mp_lobby.js owns this dialog
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
     if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard();

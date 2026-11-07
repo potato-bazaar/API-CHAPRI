@@ -8,8 +8,11 @@
     "build:bike": "node tools/model/build-model.mjs",
     "build:rider": "node tools/model/build-rider.mjs",
     "test": "vitest run",
+    "test:server": "vitest run tests/server",
+    "test:e2e": "npm run build && vitest run --config vitest.e2e.config.mjs",
     "test:race": "npm run build && node tools/t17.mjs mumbai-central 1",
-    "test:all": "npm test && npm run test:race",
+    "test:all": "npm test && npm run test:race && npm run test:e2e",
+    "server": "npm run build && node server/index.mjs",
     "golden:capture": "node tests/golden/capture.mjs"
   },
   "license": "UNLICENSED",
@@ -21,10 +24,13 @@
     "@gltf-transform/extensions": "^4.1.1",
     "@gltf-transform/functions": "^4.1.1",
     "meshoptimizer": "^0.22.0",
+    "socket.io": "4.8.4",
     "three": "^0.160.0"
   },
   "private": true,
   "devDependencies": {
-    "playwright": "^1.63.0"
+    "playwright": "^1.63.0",
+    "socket.io-client": "4.8.4",
+    "vitest": "5.0.5"
   }
 }

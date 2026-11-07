@@ -169,7 +169,9 @@ const SAVE_KEY = 'chapri-racer-save-v1';
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 function defaultSave() {
   return {
-    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
+    // ugV1 and cosV2 mark the migrations in loadSave as done. A new save must carry both, or the first reload would
+    // run a migration on choices the player has just made (cosV2 used to be missing: a free hair or shades pick reverted).
+    name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true, cosV2: true,
     build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
@@ -182,14 +184,215 @@ function defaultSave() {
   };
 }
 let SAVE = defaultSave();
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.ugV1) { SAVE.setup.track = 'mumbai-underground'; SAVE.setup.laps = 2; if (SAVE.setup.mode === 'police') SAVE.setup.mode = 'quick'; SAVE.ugV1 = true; } if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
-  } catch (e) { /* storage blocked: play with defaults */ }
-  if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
+const isPlainObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+// JSON.parse keeps "__proto__" as an ordinary key; copying it by assignment would replace the target's prototype
+const ownKeys = (o) => Object.keys(o).filter(k => k !== '__proto__');
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+// Rebuilds a usable save from whatever was stored. A known field keeps its stored value only when it has the shape the
+// game reads, otherwise it falls back to its default, so a hand-edited, truncated or older save can not crash the boot,
+// the menu or a race (a null `daily` or `upgrades`, a key binding that is not a list, or an unknown quality tier all
+// used to). Fields this build does not know are kept as they were, as the old Object.assign merge did.
+function cleanSave(s) {
+  const D = defaultSave();
+  if (!isPlainObj(s)) return D;
+  const num = (v, d, lo = 0, hi = Infinity) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
+  const bool = (v, d) => (typeof v === 'boolean' ? v : d);
+  const oneOf = (v, list, d) => (list.includes(v) ? v : d);
+  const extras = (src, dst) => { for (const k of ownKeys(src)) if (!hasOwn(dst, k)) dst[k] = src[k]; return dst; };
+  // { id: true } maps. The free items in the default save stay owned whatever the stored map says.
+  const flags = (v, d) => { const o = Object.assign({}, d); if (isPlainObj(v)) for (const k of ownKeys(v)) if (v[k] === true) o[k] = true; return o; };
+  // maps whose entries are checked one by one: a bad entry is dropped, the rest of the map survives
+  const map = (v, fn) => { const o = {}; if (isPlainObj(v)) for (const k of ownKeys(v)) { const x = fn(v[k], k); if (x !== undefined) o[k] = x; } return o; };
+  const finite = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : undefined);
+
+  extras(s, D);
+  if (typeof s.name === 'string' && s.name.trim()) D.name = s.name.slice(0, 16);
+  for (const k of ['coins', 'parts', 'xp', 'streak', 'wins', 'races']) D[k] = num(s[k], D[k]);
+  D.loginDays = Math.round(num(s.loginDays, D.loginDays, 0, 7));
+  D.lastLogin = typeof s.lastLogin === 'string' ? s.lastLogin : null;
+  D.seenHelp = bool(s.seenHelp, D.seenHelp);
+  D.owned = flags(s.owned, D.owned);
+  if (typeof s.build === 'string' && D.owned[s.build] && BUILDS.some(b => b.id === s.build)) D.build = s.build;
+  D.upgrades = map(s.upgrades, (u) => (isPlainObj(u) ? map(u, (n) => (finite(n) === undefined ? undefined : clamp(Math.round(n), 0, 5))) : undefined));
+  D.paint = map(s.paint, (c) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : undefined));
+  D.mods = map(s.mods, (m) => (isPlainObj(m) ? map(m, (id) => (typeof id === 'string' ? id : undefined)) : undefined));
+  D.ownedMods = flags(s.ownedMods, D.ownedMods);
+  if (isPlainObj(s.cos)) for (const k of Object.keys(D.cos)) if (COSMETICS[k].some(c => c.id === s.cos[k])) D.cos[k] = s.cos[k];
+  D.ownedCos = flags(s.ownedCos, D.ownedCos);
+  // records hold one object per track, plus the championship's best place as a bare number
+  D.records = map(s.records, (r, k) => (k === 'cupBest' ? (finite(r) >= 1 ? Math.round(r) : undefined) : isPlainObj(r) ? map(r, finite) : undefined));
+  // a time-trial ghost is a list of samples, each one a list of numbers (Race.updateGhost indexes into every sample)
+  D.ghosts = map(s.ghosts, (g) => (Array.isArray(g) && g.every(Array.isArray) ? g : undefined));
+  const dl = s.daily;
+  if (isPlainObj(dl) && dl.date === todayStr()) D.daily = { date: dl.date, prog: map(dl.prog, (n) => (finite(n) >= 0 ? n : undefined)), claimed: flags(dl.claimed, {}), bonus: dl.bonus === true };
+
+  const S = s.settings, DS = D.settings;
+  if (isPlainObj(S)) {
+    extras(S, DS);
+    for (const k of ['sfx', 'engine', 'music']) DS[k] = num(S[k], DS[k], 0, 1);   // an AudioParam throws on NaN
+    for (const k of ['comic', 'wheelieAssist', 'manualGears', 'tilt', 'vibration', 'smoking', 'steerAssist', 'guide']) DS[k] = bool(S[k], DS[k]);
+    DS.camera = oneOf(S.camera, [0, 1, 2], DS.camera);
+    DS.quality = oneOf(S.quality, ['auto', 'low', 'medium', 'high'], DS.quality);   // an unknown tier has no QUALITY entry
+    DS.traffic = oneOf(S.traffic, ['off', 'light', 'jam'], DS.traffic);
+    // INPUT calls .some() on every bound action, so each one must be a list of key codes
+    const keys = map(S.keys, (v, k) => (hasOwn(DEFAULT_KEYS, k) && Array.isArray(v) && v.length && v.every(c => typeof c === 'string') ? v : undefined));
+    DS.keys = Object.keys(keys).length ? keys : null;
+    if (hasOwn(DS, 'detected') && !['low', 'medium', 'high'].includes(DS.detected)) delete DS.detected;
+    if (hasOwn(DS, 'musicStyle') && !['mass', 'dhinchak'].includes(DS.musicStyle)) delete DS.musicStyle;
+    if (hasOwn(DS, 'entry') && typeof DS.entry !== 'boolean') delete DS.entry;
+  }
+  const U = s.setup, DU = D.setup;
+  if (isPlainObj(U)) {
+    extras(U, DU);
+    DU.mode = oneOf(U.mode, Object.keys(MODES).filter(k => !MODES[k].mp), DU.mode);   // the solo setup never holds the friends mode
+    DU.track = oneOf(U.track, TRACKS.map(t => t.id), DU.track);
+    DU.laps = Number.isInteger(U.laps) && U.laps >= 1 && U.laps <= 20 ? U.laps : DU.laps;
+    DU.diff = oneOf(U.diff, Object.keys(DIFFICULTY), DU.diff);
+    DU.time = oneOf(U.time, ['auto', ...Object.keys(TIMES)], DU.time);
+    DU.weather = oneOf(U.weather, ['clear', 'monsoon'], DU.weather);
+    DU.combat = bool(U.combat, DU.combat);
+  }
+  // one-off migrations, keyed on the flags of the save as it was stored (the cleaned save always has both set)
+  if (!s.ugV1) { DU.track = 'mumbai-underground'; DU.laps = 2; if (DU.mode === 'police') DU.mode = 'quick'; }
+  if (!s.cosV2) { if (D.cos.hair === 'quiff-copper') D.cos.hair = 'pomp-brown'; if (D.cos.shades === 'white') D.cos.shades = 'gold'; }
+  return D;
 }
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* ignore */ } }
+
+// ── One save, several tabs ──
+// Every tab of a browser shares the one stored save but works on its own copy in memory, read at boot. Writing that
+// whole copy back used to wipe out whatever another tab had saved since (a race reward, a purchase, a new name): the
+// last tab to write won. That is likely with friends rooms, where the ?room= invite link is often opened in a second
+// tab. So a write first checks whether the stored save is still the one this tab last read or wrote. If another tab has
+// written since, the two are merged against that last common save: counters add both tabs' changes, records keep the
+// better value, and every other field takes this tab's value only where this tab changed it. A tab idling in the menus
+// also takes another tab's save as soon as it is written (the 'storage' event), so its screens stay current. A tab in a
+// race, in a friends room or still loading waits until it is back in the menus; its own next write merges anyway.
+// `raw` is the stored text this tab last read or wrote, `obj` the SAVE object it belonged to: a SAVE replaced as a
+// whole (Reset progress) is written as it is, without a merge.
+const SAVE_SYNC = { raw: null, obj: null, timer: 0 };
+const cloneJson = (v) => JSON.parse(JSON.stringify(v));
+// deep equality of two JSON values; key order does not matter
+function sameJson(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((v, i) => sameJson(v, b[i]));
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every(k => hasOwn(b, k) && sameJson(a[k], b[k]));
+}
+// a stored save as this build reads it, or null when there is no usable one
+function storedSave(raw) {
+  if (typeof raw !== 'string') return null;
+  try { const s = JSON.parse(raw); return isPlainObj(s) ? cleanSave(s) : null; } catch (e) { return null; }
+}
+// How a field both tabs changed is settled, by its path in the save. Counters add both changes (two race rewards both
+// count, a purchase in one tab still costs). Best times and places keep the better one; upgrade levels the higher one.
+const MERGE_SUM = /^(coins|parts|xp|races|wins|daily\.prog\.[^.]+)$/;
+const MERGE_LEAST = /^records\.(cupBest|[^.]+\.(bestLap|bestPos|bestEscape))$/;
+const MERGE_MOST = /^(records\.[^.]+\.bestStunt|upgrades\.[^.]+\.[^.]+)$/;
+function mergeSaves(base, mine, theirs) {
+  const lapOf = (s, k) => { const r = isPlainObj(s.records) ? s.records[k] : null; return isPlainObj(r) && Number.isFinite(r.bestLap) ? r.bestLap : Infinity; };
+  const walk = (path, b, m, t) => {
+    if (path === 'daily' && isPlainObj(m) && isPlainObj(t)) {
+      if (m.date !== t.date) return t.date === todayStr() ? t : m;   // a tab left open overnight still holds yesterday's
+      if (!isPlainObj(b) || b.date !== m.date) b = { date: m.date, prog: {}, claimed: {}, bonus: false };
+    }
+    if (MERGE_SUM.test(path)) {   // before the equality checks: two tabs that each add 1 make 2
+      const n = [b, m, t].map(v => (v === undefined ? 0 : v));
+      if (n.every(Number.isFinite)) return Math.max(0, n[2] + n[1] - n[0]);
+    }
+    if (sameJson(m, t) || sameJson(t, b)) return m;
+    if (sameJson(m, b)) return t;
+    if (isPlainObj(m) && isPlainObj(t)) {
+      const bo = isPlainObj(b) ? b : {}, o = {};
+      for (const k of new Set([...ownKeys(m), ...ownKeys(t)])) { const v = walk(path ? path + '.' + k : k, bo[k], m[k], t[k]); if (v !== undefined) o[k] = v; }
+      return o;
+    }
+    const both = [m, t].filter(Number.isFinite);
+    if (MERGE_LEAST.test(path) && both.length) return Math.min(...both);
+    if (MERGE_MOST.test(path) && both.length) return Math.max(...both);
+    if (path.startsWith('ghosts.')) { const k = path.slice(7); return lapOf(theirs, k) < lapOf(mine, k) ? t : m; }   // the ghost of the better lap
+    return m;
+  };
+  return cleanSave(walk('', base, mine, theirs));   // cleaned again: e.g. a bike picked here that the other tab's reset took away
+}
+// Makes dst equal src in place. Screens keep references into the save (the Settings handlers hold SAVE.settings), so the
+// objects stay the same objects.
+function syncInto(dst, src) {
+  for (const k of Object.keys(dst)) if (!hasOwn(src, k)) delete dst[k];
+  for (const k of ownKeys(src)) { if (isPlainObj(src[k]) && isPlainObj(dst[k])) syncInto(dst[k], src[k]); else dst[k] = src[k]; }
+}
+// Folds the save another tab stored (raw) into this tab's SAVE. Returns false when that save is unusable.
+function takeStored(raw) {
+  const theirs = storedSave(raw); if (!theirs) return false;
+  syncInto(SAVE, mergeSaves(storedSave(SAVE_SYNC.raw) || defaultSave(), cloneJson(SAVE), theirs));
+  SAVE_SYNC.raw = raw;   // memory now holds that save: it is the base of the next merge, whether or not the next write lands
+  return true;
+}
+
+// A new browser, blocked storage or an unreadable save all start from defaultSave(). An unreadable save is copied to a
+// side key first: the next checkpoint overwrites the main key, and the copy keeps the old progress recoverable by hand.
+function loadSave() {
+  let raw = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { /* storage blocked: play with defaults */ }
+  SAVE = defaultSave();
+  if (raw) {
+    let ok = false;
+    try { const s = JSON.parse(raw); if (isPlainObj(s)) { SAVE = cleanSave(s); ok = true; } } catch (e) { SAVE = defaultSave(); }
+    if (!ok) { try { localStorage.setItem(SAVE_KEY + '-unreadable', raw); } catch (e) { /* storage full or blocked */ } }
+  }
+  if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
+  SAVE_SYNC.raw = raw; SAVE_SYNC.obj = SAVE;
+}
+// Writes the whole save, merged first with anything another tab stored meanwhile (see above). A failure is most likely a
+// full storage quota; the time-trial ghosts are the bulk of a save and the one part worth giving up, so the progress
+// itself still gets written. Blocked storage fails both times, and the game plays on from memory. Returns whether the
+// save reached storage.
+function persist() {
+  if (SAVE_SYNC.obj && SAVE === SAVE_SYNC.obj) {
+    let cur = SAVE_SYNC.raw;
+    try { cur = localStorage.getItem(SAVE_KEY); } catch (e) { /* unreadable: write as before */ }
+    if (cur !== SAVE_SYNC.raw && cur !== null) takeStored(cur);
+  }
+  const write = (json) => {
+    try { localStorage.setItem(SAVE_KEY, json); } catch (e) { return false; }
+    SAVE_SYNC.raw = json; SAVE_SYNC.obj = SAVE; return true;
+  };
+  if (write(JSON.stringify(SAVE))) return true;
+  return isPlainObj(SAVE.ghosts) && Object.keys(SAVE.ghosts).length > 0 && write(JSON.stringify(Object.assign({}, SAVE, { ghosts: {} })));
+}
+// Only the menus take another tab's save at once. GAME and MP are defined further on in the bundle; this runs from events.
+function saveIdle() {
+  try { return !!(GAME && GAME.ui && ['menu', 'garage', 'store'].includes(GAME.state) && !(typeof MP !== 'undefined' && MP && MP.room)); } catch (e) { return false; }
+}
+function takeOtherTabSave() {
+  if (!SAVE_SYNC.obj || SAVE !== SAVE_SYNC.obj) return;   // not loaded yet, or a reset this tab could not store: it wins at its next write
+  let cur; try { cur = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
+  if (cur === SAVE_SYNC.raw || cur === null) return;
+  if (!saveIdle()) { if (!SAVE_SYNC.timer) SAVE_SYNC.timer = setTimeout(() => { SAVE_SYNC.timer = 0; takeOtherTabSave(); }, 1500); return; }
+  const before = cloneJson(SAVE);
+  if (takeStored(cur)) refreshAfterSync(before);
+}
+// Redraws what shows the save: the menu, the open screen and dialogs, the menu bike and the backdrop.
+function refreshAfterSync(before) {
+  const g = GAME, ui = g.ui, now = SAVE;
+  const changed = (...keys) => keys.some(k => !sameJson(before[k], now[k]));
+  const shown = (id) => { const el = document.getElementById(id); return !!el && !el.hidden; };
+  ui.renderMenu();
+  if (g.state === 'garage') ui.renderGarage(); else if (g.state === 'store') ui.renderStore();
+  if (shown('settings') && changed('settings', 'name')) ui.renderSettings();
+  if (shown('setup') && changed('setup')) ui.renderSetup();
+  if (shown('board') && changed('records', 'wins', 'races')) ui.renderBoard();
+  if (changed('settings')) {
+    if (typeof AUDIO !== 'undefined') AUDIO.applyVolumes();
+    if (g.state === 'menu' && (before.settings.quality !== now.settings.quality || before.settings.detected !== now.settings.detected)) g.applyQuality(true);
+  }
+  if (g.state === 'menu' && ['track', 'time', 'weather'].some(k => before.setup[k] !== now.setup[k])) g.previewTrack(now.setup.track);   // also redraws the bike
+  else if (changed('build', 'paint', 'mods', 'cos')) g.refreshMenuRig(g.state === 'garage' ? ui.gSel : undefined);
+}
+if (typeof addEventListener === 'function') addEventListener('storage', (e) => { if (e.key === SAVE_KEY || e.key === null) takeOtherTabSave(); });
+// For tests and debugging only (like window.__chapri): a copy of the save this tab holds in memory. Reading it changes nothing.
+if (typeof window !== 'undefined') window.__save = () => cloneJson(SAVE);
 const levelFromXp = (xp) => { let lvl = 1, need = 1000, acc = 0; while (xp >= acc + need) { acc += need; lvl++; need = Math.round(need * 1.18 / 10) * 10; } return { lvl, into: xp - acc, need }; };
 const keymap = () => Object.assign({}, DEFAULT_KEYS, SAVE.settings.keys || {});
 

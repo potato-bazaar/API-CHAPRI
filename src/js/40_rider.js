@@ -11,10 +11,14 @@ class Rider {
     this.race = race; this.idx = idx; this.cfg = cfg; this.isPlayer = !!cfg.isPlayer;
     this.name = cfg.name; this.short = cfg.short || cfg.name;
     this.st = cfg.stats;
+    // a remote racer in a friends race: no physics, no AI; placed from the network snapshots (placeNet)
+    this.net = cfg.net ? { seat: cfg.seat, buf: [], finishT: null, gone: false } : null;
+    // ?autopilot drives the player in solo only; a multiplayer race ignores it
+    const auto = DEBUG.autopilot && !(race && race.mp);
     this.vTop = this.st.top / 3.6; this.A = 5.9 * this.st.acc; this.brakeF = 9.0 * this.st.brake; this.brakeR = 4.2;
     this.maxLean = THREE.MathUtils.degToRad(this.st.lean); this.gripLat = G * Math.tan(this.maxLean) * this.st.grip * 1.06;   // arcade grip: a touch more than a real tyre
     // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
-    this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
+    this.assist = this.isPlayer && !auto && SAVE.settings.steerAssist !== false;
     if (this.assist) this.gripLat *= 1.1;   // arcade handling for the human: tighter lines than the AI's tyres allow
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
@@ -30,12 +34,25 @@ class Rider {
     this.strafe = 0; this.hopCD = 0; this.hopT = 9; this.flatT = 0; this.crashDur = 2.0;
     this.ai = { laneBias: (RNG() - 0.5) * 1.2, nextThink: 0, attackCD: 2 + RNG() * 3, mistakeT: 0, target: 0, wheelieT: 0 };
     this.wheelieDist = 0; this.slideDist = 0; this.wheeliesDone = 0;
-    this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? DEBUG.autopilot : RNG() < 0.4; this.ai.jumper = this.isPlayer ? DEBUG.autopilot : RNG() < 0.55;
+    this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? auto : RNG() < 0.4; this.ai.jumper = this.isPlayer ? auto : RNG() < 0.55;
   }
   get halfW() { return this.race.track.wAt(this.s) / 2 - 0.42; }
   place(dist, d) { const T = this.race.track; this.dist = dist; this.s = ((dist % T.L) + T.L) % T.L; this.d = d; this.psi = 0; this.v = 0; this.y = T.yAt(this.s); }
+  // a remote racer's pose from an (interpolated) snapshot. `st` holds numbers already checked by the race (45_race.js).
+  placeNet(st) {
+    const T = this.race.track;
+    this.dist = st.dist; this.s = ((st.dist % T.L) + T.L) % T.L; this.d = st.d; this.y = st.y; this.psi = st.psi;
+    this.v = st.v; this.lean = st.lean; this.pitch = st.pitch; this.lap = st.lap; this.boost = st.boost; this.crashed = st.crashed;
+    if (st.finished && !this.finished) { this.finished = true; this.finishT = st.finishT; }
+    // what the rig, the engine sound and the exhaust read: a believable gear, rev and throttle for the speed
+    this.air = this.y > T.gy(this.s, this.d) + 0.25;
+    const f = clamp(this.v / Math.max(1, this.vTop), 0, 1.1), g = f < 0.34 ? 1 : f < 0.58 ? 2 : f < 0.8 ? 3 : 4, lo = [0, 0.34, 0.58, 0.8][g - 1], hi = [0.34, 0.58, 0.8, 1][g - 1];
+    this.gear = g; this.rpm = clamp(3000 + (f - lo) / (hi - lo) * 6000, 1600, 9800);
+    this.input.throttle = this.crashed ? 0 : st.accel > 0.3 ? 1 : this.v > 2 ? 0.5 : 0;
+  }
   // ── one physics step ──
   step(dt, raceT) {
+    if (this.net) return;   // remote racers are placed from snapshots, never simulated here
     const T = this.race.track, inp = this.input;
     this.invuln = Math.max(0, this.invuln - dt); this.kickCD = Math.max(0, this.kickCD - dt); this.gripT = Math.max(0, this.gripT - dt); this.splatT = Math.max(0, this.splatT - dt); this.wobbleT += dt;
     if (this.crashed) return this.stepCrash(dt);
@@ -215,7 +232,7 @@ class Rider {
   }
   addWobble(n, quiet) { if (this.invuln > 0) return; this.wobble += n; if (!quiet) this.wobbleT = 0; else this.wobbleT = Math.min(this.wobbleT, 0.3); }
   crash(reason) {
-    if (this.crashed) return;
+    if (this.crashed || this.net) return;
     this.crashed = true; this.crashT = 0; this.wheelie = false; this.stoppie = false; this.pitch = 0; this.boosting = false; this.sliding = false; this.crashLean = this.lean >= 0 ? 1 : -1;
     this._crashes = (this._crashes || 0) + 1; this.crashKind = reason; this.race.onCrash(this, reason);
   }
@@ -227,6 +244,7 @@ class Rider {
     if (this.crashT > this.crashDur) { this.crashDur = 2.0; this.respawn(); }
   }
   respawn() {
+    if (this.net) return;
     const T = this.race.track; const cp = Math.floor(this.dist / T.cpSpacing) * T.cpSpacing;
     this.dist = this.dist > 0 ? Math.max(cp, this.dist - 30) : this.dist; this.s = ((this.dist % T.L) + T.L) % T.L;
     if (T.roof) { const x = T.wrapD(this.s - T.roof.s0); if (x > 0 && x < T.roof.len) { this.dist -= x + 6; this.s = ((this.dist % T.L) + T.L) % T.L; } }   // restart before the rooftop run
@@ -235,6 +253,7 @@ class Rider {
   }
   // ── AI driver ──
   think(dt, raceT, riders) {
+    if (this.net) return;
     const T = this.race.track, inp = this.input, D = this.race.diff, P = this.cfg.rival;
     if (this.crashed) { inp.throttle = 0; inp.brake = 0; return; }
     const look = 7 + this.v * 0.55; const sAhead = this.s + look;
