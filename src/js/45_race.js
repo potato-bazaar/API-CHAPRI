@@ -67,7 +67,7 @@ class Race {
   // ── frame update (fixed sub-steps) ──
   update(dt) {
     if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
-    if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; }
+    this.timeScale = 1; if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; this.timeScale = 0.32; }   // the camera needs to know: it runs on real time
     const P = this.player;
     if (this.state === 'countdown') {
       const before = this.raceT; this.raceT += dt;

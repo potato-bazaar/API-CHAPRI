@@ -423,7 +423,10 @@ class Game {
       // landings and gear shifts nod it, and hard snaps (walls, contacts) are filtered before they reach the screen.
       const far = this.camMode === 1, C = this.cr || (this.cr = {});
       if (!this.camInit) Object.assign(C, { psi: P.psi * 0.5, psiV: 0, su: 0, d: P.d, dv: 0, y: P.y, yv: 0, lean: P.lean, nod: 0, nodV: 0, gear: P.gear, air: P.air, side: 0, dist: P.dist, v: P.v });
-      if (Math.abs(P.dist - C.dist) > 30) { C.dist = P.dist; C.v = P.v; }
+      // the camera runs on real time; in slow motion (big jumps, takedowns) the bike covers ground at a fraction of its
+      // speed, so the follow spring must use that, or the lens overtakes the rider and ends up looking down at the road
+      const vS = P.v * (R.timeScale || 1) * (this.entry ? this.entry.ts : 1);
+      if (Math.abs(P.dist - C.dist) > 30) { C.dist = P.dist; C.v = vS; }
       if (Math.abs(P.d - C.d) > 3) { C.d = P.d; C.dv = 0; }
       if (Math.abs(P.y - C.y) > 9) { C.y = P.y; C.yv = 0; }
       // springs, substepped so they stay stable on slow frames. Heading: a soft late swing. Distance and lateral are
@@ -431,7 +434,7 @@ class Game {
       // toward the lens over a few frames instead of the whole view stopping dead with it. Height rides a soft spring.
       for (let i = 0, n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; i < n; i++) {
         C.psiV += ((P.psi * 0.55 - C.psi) * 22 - C.psiV * 9.4) * h; C.psi += C.psiV * h;
-        C.v += ((P.dist - C.dist) * 64 + (P.v - C.v) * 16) * h; C.dist += C.v * h;
+        C.v += ((P.dist - C.dist) * 64 + (vS - C.v) * 16) * h; C.dist += C.v * h;
         C.dv += ((P.d - C.d) * 100 - C.dv * 20) * h; C.d += C.dv * h;
         C.yv += ((P.y - C.y) * 95 - C.yv * 17.5) * h; C.y += C.yv * h;
         C.nodV += (-C.nod * 130 - C.nodV * 13) * h; C.nod += C.nodV * h;
@@ -442,7 +445,9 @@ class Game {
       C.air = P.air;
       C.side = smooth(C.side, -C.lean * 0.28, 4, dt);   // drift a little to the outside of a turn, so you see the lean
       const pk = this.portraitK();   // portrait: a higher, longer camera (Auto Rush style) so you see the road ahead past the bike
-      const back = (far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring) + pk * 1.6, up = (far ? 3.4 : 1.62) - fx.dip + pk * 1.0;
+      // udaan: high in the air (bridge gap, rooftop jumps) the lens eases back and up so you see the rider and the drop below
+      C.airK = smooth(C.airK || 0, P.air ? clamp((P.y - T.gy(P.s, P.d) - 1.5) / 4, 0, 1) : 0, P.air ? 3 : 2, dt);
+      const back = (far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring) + pk * 1.6 + C.airK * 1.4, up = (far ? 3.4 : 1.62) - fx.dip + pk * 1.0 + C.airK * 0.45;
       const cs = ((C.dist - back * Math.cos(C.psi)) % T.L + T.L) % T.L; let cd = C.d + C.side - back * Math.sin(C.psi);
       const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 1.8) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
       const g0 = T.roof && T.gapAt(cs) ? C.y : T.yAt(cs); C.gy = C.gy === undefined || !this.camInit ? g0 : smooth(C.gy, clamp(g0, C.y - 2, C.y + 2), 6, dt);   // ground under the lens, smoothed (breaker humps, roof gaps)
@@ -452,7 +457,7 @@ class Game {
       // look ahead along the camera's heading, leaning a little into the coming bend
       const la = (far ? 6 : 4.6) + pk * 5, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
       const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
-      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35, lp.z + Math.cos(yawL) * la);
+      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5, lp.z + Math.cos(yawL) * la);
       cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }
     // field of view opens with speed; boost adds a punch that settles back
