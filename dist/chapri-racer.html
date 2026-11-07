@@ -6735,24 +6735,28 @@ class HeroEntry {
 //   pops: backfires when you snap off   crackle: idle-down crackle   band: [rpm on, rpm full, peak Hz, dB] powerband scream
 //   low: loudness below the powerband   pan: twin pipes alternate left/right
 const ENGINE_VOICES = {
-  stock:   { body: [96, 18, 0.62], res: [[182, 15, 0.5], [530, 9, 0.34], [1260, 5, 0.16]], noise: [0.16, 950, 9], tone: 2100, drive: 1.5, gain: 1.0, misfire: 0.38, pops: 0, crackle: 0 },
-  free:    { body: [112, 13, 0.82], res: [[245, 12, 0.6], [790, 10, 0.5], [1900, 7, 0.36], [3300, 4, 0.2]], noise: [0.42, 1700, 11], tone: 4400, drive: 2.3, gain: 1.08, misfire: 0.46, pops: 2, crackle: 0.05 },
-  chamber: { body: [86, 11, 0.48], res: [[165, 10, 0.32], [640, 15, 0.46], [1480, 24, 0.58], [2900, 9, 0.16]], noise: [0.24, 2300, 9], tone: 2600, drive: 1.9, gain: 0.95, misfire: 0.3, pops: 1, crackle: 0.02, band: [5400, 8000, 1500, 9], low: 0.72 },
-  long:    { body: [70, 26, 0.92], res: [[128, 21, 0.62], [415, 12, 0.34], [960, 6, 0.14]], noise: [0.14, 700, 10], tone: 1250, drive: 1.7, gain: 1.02, misfire: 0.42, pops: 2, crackle: 0.02 },
-  twin:    { body: [101, 16, 0.72], res: [[205, 12, 0.5], [610, 10, 0.4], [1520, 6, 0.24]], noise: [0.28, 1250, 10], tone: 2700, drive: 1.8, gain: 1.9, misfire: 0.36, pops: 1, crackle: 0.02, pan: 0.42 },
-  dragon:  { body: [90, 14, 0.7], res: [[212, 10, 0.44], [910, 8, 0.44], [2650, 6, 0.42]], noise: [0.68, 2700, 16], tone: 5200, drive: 3.0, gain: 1.15, misfire: 0.5, pops: 4, crackle: 0.08 },
+  // RX character: a sharp blow-down click every firing, formants from ~450 Hz up to ~2.5 kHz, a metallic "ring" (thin pipe and
+  // cylinder fins) around 3.5–4.5 kHz and a raspy gas hiss: the crisp dirt-bike / GP "ktrrrr" riders describe, not a muffled hum.
+  //   click: blow-down strength   ring: [Hz, decay ms, amp]
+  stock:   { click: 1.8, body: [130, 7, 0.35], res: [[440, 9, 0.55], [1180, 8, 0.6], [2350, 6, 0.45]], ring: [3700, 16, 0.18], noise: [0.45, 2600, 6], tone: 5200, drive: 2.6, gain: 1.0, misfire: 0.4, pops: 1, crackle: 0.03 },
+  free:    { click: 2.2, body: [140, 6, 0.4], res: [[500, 8, 0.6], [1400, 8, 0.65], [2800, 6, 0.55], [4200, 4, 0.3]], ring: [3900, 12, 0.2], noise: [0.85, 3000, 7], tone: 7500, drive: 3.2, gain: 1.08, misfire: 0.48, pops: 3, crackle: 0.07 },
+  chamber: { click: 1.8, body: [110, 6, 0.3], res: [[380, 8, 0.35], [900, 12, 0.45], [1650, 26, 0.65], [3300, 10, 0.3]], ring: [4400, 18, 0.18], noise: [0.5, 2900, 6], tone: 6000, drive: 2.6, gain: 0.75, misfire: 0.32, pops: 1, crackle: 0.03, band: [5400, 8000, 1650, 9], low: 0.72 },
+  long:    { click: 1.5, body: [95, 14, 0.7], res: [[300, 14, 0.6], [820, 10, 0.5], [1700, 7, 0.35]], ring: [3200, 14, 0.14], noise: [0.4, 1800, 7], tone: 3800, drive: 2.3, gain: 1.02, misfire: 0.42, pops: 2, crackle: 0.03 },
+  twin:    { click: 1.9, body: [125, 8, 0.42], res: [[460, 9, 0.55], [1250, 8, 0.6], [2500, 6, 0.45]], ring: [3600, 14, 0.2], noise: [0.6, 2500, 6], tone: 5600, drive: 2.7, gain: 1.6, misfire: 0.38, pops: 1, crackle: 0.03, pan: 0.42 },
+  dragon:  { click: 2.0, body: [120, 7, 0.4], res: [[520, 8, 0.5], [1500, 7, 0.55], [3100, 6, 0.55]], ring: [4000, 10, 0.2], noise: [1.0, 3300, 10], tone: 9000, drive: 3.6, gain: 1.05, misfire: 0.5, pops: 4, crackle: 0.09 },
 };
-// one pulse as an AudioBuffer: kind 'n' normal, 'w' weak (4-stroke miss), 'p' pop (backfire)
+// one pulse as an AudioBuffer: kind 'n' normal, 'm' the softer second beat of the idle heartbeat, 'w' weak (4-stroke miss), 'p' pop (backfire)
 function enginePulse(c, V, kind, rng) {
   const sr = c.sampleRate, dur = kind === 'p' ? 0.17 : 0.08, n = Math.floor(sr * dur), buf = c.createBuffer(1, n, sr), d = buf.getChannelData(0);
-  const amp = kind === 'w' ? 0.32 : kind === 'p' ? 1.0 : 0.84 + rng() * 0.16;
+  const amp = kind === 'w' ? 0.32 : kind === 'm' ? 0.6 : kind === 'p' ? 1.0 : 0.84 + rng() * 0.16;
   const res = V.res.map(([f, dec, a]) => [2 * Math.PI * f * (1 + (rng() - 0.5) * 0.06), 1000 / dec, a * (0.85 + rng() * 0.3), rng() * 6.283]);
   const [bf, bd, ba] = V.body, w0 = 2 * Math.PI * bf, kb = 1000 / bd;
   const [na, nf, nd] = V.noise, nA = kind === 'p' ? na * 2.6 + 0.5 : kind === 'w' ? na * 1.4 : na, kn = 1000 / (nd * (kind === 'p' ? 4 : 1));
   const F = 2 * Math.sin(Math.PI * Math.min(nf, sr / 6) / sr), q = 0.9; let lo = 0, bp = 0;   // state-variable band-pass for the gas noise
-  const ta = 0.0005 + rng() * 0.0003;
+  const ta = 0.0002 + rng() * 0.00015, ck = V.click || 1.1, [rf, rd, ra] = V.ring || [0, 1, 0], wr = 2 * Math.PI * rf * (1 + (rng() - 0.5) * 0.04), kr = 1000 / rd;   // a sharp port-opening click
   for (let i = 0; i < n; i++) {
-    const t = i / sr; let s = 1.1 * (t / ta) * Math.exp(1 - t / ta);                 // blow-down click
+    const t = i / sr; let s = ck * (t / ta) * Math.exp(1 - t / ta);                  // blow-down click
+    if (ra) s += ra * Math.exp(-t * kr) * Math.sin(wr * t);                            // metallic ring
     s += ba * Math.exp(-t * kb) * Math.sin(w0 * t);                                   // body thump
     for (let k = 0; k < res.length; k++) { const r = res[k]; s += r[2] * Math.exp(-t * r[1]) * Math.sin(r[0] * t + r[3]); }
     const x = Math.random() * 2 - 1; lo += F * bp; const hi = x - lo - q * bp; bp += F * hi;
@@ -6775,7 +6779,7 @@ const AUDIO = {
     this.sfxG = c.createGain(); this.sfxG.connect(this.master); this.engG = c.createGain();
     // engine bus: cut the sub rumble phone speakers can't play (it only pumps the compressor) and lift the 2–3 kHz bite they can
     const eHP = c.createBiquadFilter(); eHP.type = 'highpass'; eHP.frequency.value = 65; eHP.Q.value = 0.7;
-    const ePres = c.createBiquadFilter(); ePres.type = 'peaking'; ePres.frequency.value = 2300; ePres.Q.value = 0.8; ePres.gain.value = 4.5;
+    const ePres = c.createBiquadFilter(); ePres.type = 'peaking'; ePres.frequency.value = 2300; ePres.Q.value = 0.8; ePres.gain.value = 3;
     this.engG.connect(eHP); eHP.connect(ePres); ePres.connect(this.master);
     this.applyVolumes();
     const len = c.sampleRate * 2; this.noiseBuf = c.createBuffer(1, len, c.sampleRate); const ch = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
@@ -6803,9 +6807,9 @@ const AUDIO = {
   pulses(ex) {
     const P = this._pulses || (this._pulses = {}); if (P[ex]) return P[ex];
     const V = ENGINE_VOICES[ex] || ENGINE_VOICES.stock, rng = mulberry32(hashStr(ex)), mk = (k, n) => Array.from({ length: n }, () => enginePulse(this.ctx, V, k, rng));
-    const set = { n: mk('n', 6), w: mk('w', 3), p: mk('p', 3) };
+    const set = { n: mk('n', 6), m: mk('m', 3), w: mk('w', 3), p: mk('p', 3) };
     let pk = 0; for (const b of set.n) { const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); }   // same loudness for every silencer before its own gain
-    const k = 0.5 / Math.max(1e-3, pk); for (const b of [...set.n, ...set.w, ...set.p]) { const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] *= k; }
+    const k = 0.5 / Math.max(1e-3, pk); for (const b of [...set.n, ...set.m, ...set.w, ...set.p]) { const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] *= k; }
     return (P[ex] = set);
   },
   // drive one engine voice: schedules the next ~0.1 s of firings and sets the tone for this moment
@@ -6820,8 +6824,9 @@ const AUDIO = {
     if (thr > 0.6 && (e.thrLo ?? 1) < 0.35) e.punch = 1; e.thrLo = thr < 0.35 ? thr : thr > 0.6 ? 1 : (e.thrLo ?? 1);
     e.tone.frequency.setTargetAtTime(Math.min(16000, V.tone * (0.5 + 0.5 * thr) * (0.75 + 0.6 * rN) + (boost ? 1800 : 0) + e.punch * 2600), t, 0.03);
     const lowK = V.band ? V.low + (1 - V.low) * band : 1, rateK = 1 / (0.6 + 0.4 * Math.sqrt(f / 25));   // a pulse train gets louder as it speeds up; keep that, but tamed
+    const fl0 = 0.18 + 0.16 * clamp((3200 - rpm) / 1700, 0, 1);   // closed-throttle level: the idle heartbeat stays audible, a lift at speed drops right away
     const under = e === this.eng && this.imp ? clamp((this.imp.end - t) / 0.45, 0, 1) : 0;   // the takeover hit leads; the live engine slides back in as it ends
-    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (0.2 + 0.8 * Math.pow(thr, 1.5)) * (1 + 0.55 * e.punch) * 2.1 * (1 - 0.72 * under), t, 0.03);   // closed → open is ~+14 dB; part throttle stays well under full
+    e.out.gain.setTargetAtTime(vol * V.gain * lowK * rateK * (fl0 + (1 - fl0) * Math.pow(thr, 1.5)) * (1 + 0.55 * e.punch) * 2.1 * (1 - 0.72 * under), t, 0.03);   // closed → open is ~+14 dB; part throttle stays well under full
     // throttle snapped shut at high revs → a burst of pops
     if (V.pops && (e.thr || 0) > 0.7 && thr < 0.2 && rpm > 5200) e.popUntil = t + 0.22 + V.pops * 0.07; e.thr = thr;
     if (vol < 0.01) { e.next = 0; return; }
@@ -6831,10 +6836,11 @@ const AUDIO = {
       let kind = 'n';
       if (e.next < (e.popUntil || 0) && Math.random() < 0.5) kind = 'p';
       else if (thr < 0.25 && rpm > 3800 && Math.random() < V.crackle * (1 - thr) * 4) kind = 'p';
-      else { const mis = V.misfire * (1 - thr) * (rpm < 6200 ? 1 : 0.35); if (e.weak) { e.weak = false; } else if (Math.random() < mis) { kind = 'w'; e.weak = true; } }   // 4-stroking: weak, strong, weak…
-      const pool = B[kind], s = c.createBufferSource(); s.buffer = pool[(Math.random() * pool.length) | 0]; s.playbackRate.value = temp * (kind === 'p' ? 0.85 + Math.random() * 0.3 : 1);
-      s.connect(V.pan ? ((e.side ^= 1) ? e.L : e.R) : e.inp); s.start(e.next);
-      const jit = 1 + (Math.random() - 0.5) * (thr < 0.3 ? 0.09 : 0.04);   // a real engine never fires exactly on the beat
+      else if (rpm < 2700 && thr < 0.2) { e.hb = ((e.hb || 0) + 1) % 4; kind = e.hb === 0 ? 'n' : e.hb === 1 ? 'm' : Math.random() < 0.2 ? 'w' : null; }   // idle "heartbeat": lub, dub, breathe, breathe
+      else { const mis = V.misfire * (1 - thr) * (rpm < 6200 ? 1 : 0.35); if (e.weak) { e.weak = false; } else if (Math.random() < mis) { kind = 'w'; e.weak = true; } }   // 4-stroking: weak, strong, weak… the "ring-ding"
+      if (kind) { const pool = B[kind], s = c.createBufferSource(); s.buffer = pool[(Math.random() * pool.length) | 0]; s.playbackRate.value = temp * (kind === 'p' ? 0.85 + Math.random() * 0.3 : 1);
+        s.connect(V.pan ? ((e.side ^= 1) ? e.L : e.R) : e.inp); s.start(e.next); }
+      const jit = (1 + (Math.random() - 0.5) * (thr < 0.3 ? 0.09 : 0.04)) * (kind === 'm' ? 0.8 : kind === null ? 1.1 : 1);   // a real engine never fires exactly on the beat; the dub comes early
       e.next += jit / f;
     }
   },

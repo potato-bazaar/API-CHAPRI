@@ -101,7 +101,9 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   Each step ticks off when the player does it, or moves on after a few seconds. It's skippable, runs once per save, and **Help → Coach me in my next race** brings it back. Saves that already have races skip it. `?coach` forces it for testing.
 - **Share your race.** **Share** on the results screen makes a 1080×1920 card: a close hero shot of your rider, position, track, time, best lap, top speed, coins and overtakes. It opens the phone's share sheet (WhatsApp, Instagram…) where the browser supports sharing files, and always offers **Save image**.
 - **Engine sound.** The two-stroke is played as a train of exhaust pulses, one per revolution (about 25 a second at idle, about 150 at the limiter), not a steady tone.
-  - Each pulse is a short burst made in code, with no audio files: the blow-down click, a body thump, the pipe's resonances ringing down, and a puff of gas noise.
+  - Each pulse is a short burst made in code, with no audio files: a sharp blow-down click, a short body thump, formants from about 450 Hz to 2.5 kHz, a metallic ring around 3.5–4.5 kHz (thin pipe and cylinder fins), and a raspy gas hiss.
+  - The aim is the RX100 riders describe: 98 cc, 11 hp at 7,500 rpm, a note "similar to that of a dirt bike", "ktrrrr trrrr", a "Grand Prix sound". It should be crisp and loud, not a muffled hum. Stock sits at about 2.9 kHz average brightness at full throttle.
+  - Idle is the RX "heartbeat": lub, dub, breathe, breathe. A strong firing, a softer one hard on its heels, then two skipped cycles, about seven beats a second.
   - The silencer sets those resonances, its loudness and its saturation:
     - **Stock:** muffled crisp beat.
     - **Free Flow:** hard, loud and crackly.
