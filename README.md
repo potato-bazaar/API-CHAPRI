@@ -48,10 +48,17 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 - **Boost ring and speed tag.** A segmented ring on the road around your bike is your boost meter: it fills from the back on both sides and pulses when full; while you boost it steps aside for the electricity. Boosting is speed-force electricity, like the Flash running: neon cyan and pink lightning crackles over the rider and bike and streams out behind along the path you rode, zig-zagging and re-striking every few frames and spitting sparks; the BOOST! banner shows the charge draining. Your position and speed float next to your rider.
 - **Rain.** Denser, longer streaks, splash crowns landing on the road around you, and a lavender-grey overcast sky.
 - **Times of day.** Morning has a hard white sun, a blue sky, crisp shadows and street lamps off; golden hour has a low orange sun and a warm grade; night has the violet neon grade. The Underground keeps its storm sky and lightning for night and monsoon only.
-- **Chapri wardrobe (Store).** Tabs for Tops, Chaddi, Jeans, Body, Hair, Helmet and Shades; tap an item to try it on (the camera turns to show it: the back for the waistband, the face for shades), buy it with coins.
+- **Chapri wardrobe (Store).** Tabs for Tops, Chaddi, Jeans, Body, Hair, Helmet, Shades and Cape; tap an item to try it on (the camera turns to show it: the back for the waistband and capes, the face for shades), buy it with coins.
   - Tops: the shirts, plus jackets (denim, olive bomber, neon windcheater, leopard print), a baniyan in white, black or pink, or no shirt at all.
   - Chaddi: the waistband showing above the jeans, with the brand printed on it (`UW_BRAND` in `src/js/00_core.js`), leopard, a pink pantie band with bows, or lace. With a shirt on, the back of the shirt is cropped so the band shows.
   - Jeans: blue, black, acid wash, white, red, olive cargo. Body: slim, fit, muscular, gym bhai (arms, chest, back, traps and thighs grow; a bare torso gets pecs and abs).
+  - Capes: long capes (about 1.55 m) in our own designs, not superhero logos:
+    - **Raat:** black, scalloped hem, pink lining, glowing edges.
+    - **Hero:** red, gold trim, Chapri crown crest.
+    - **Neon:** purple, scalloped hem, cyan glowing edges.
+    - **Raja:** gold brocade, maroon lining, crown crest.
+
+    Each cape is a verlet cloth pinned across the shoulder blades. At speed it streams straight back (about 13° below horizontal at 95 km/h) with a flapping wave that runs down to the hem. Stopped, it drapes over the seat and tail, and it billows in a breeze on the menu.
   - Rivals wear the wardrobe too: baniyans, a bare-chested gym bhai, waistbands on show.
 - **Ink outlines and contact shadows.** Every rider and bike near the camera gets a clean black ink outline (a back-face shell pushed out along the normals, sized by distance so it stays about 3 px thick, and skinned so it bends with the rider). Every bike has a soft contact shadow on the road, day or night, that shrinks when it's airborne. Phones render at up to 2× pixel density (the governor steps down to 60% if frames run long).
 - **Look.** A colour grade that lifts night shadows into violet and pushes saturation, brighter night lighting and more street lamps, neon rim lights and an underglow on your bike, and thick two-stroke smoke with backfire flames.
