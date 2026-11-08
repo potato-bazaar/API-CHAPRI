@@ -15,7 +15,7 @@ class StreetOps {
       for (const z of T.trafficZones || []) { const zi = this.zones.length, n = Math.max(1, Math.round((z.b - z.a) / gap)); this.zones.push({ a: z.a, b: z.b, fresh: true });
         for (let i = 0; i < n; i++) { const kind = kinds[ki++ % kinds.length], K = TRAFFIC_KINDS[kind], g = new THREE.Group(); const body = new THREE.Mesh(geo[kind].body, this.mats.body); body.castShadow = G.quality === 'high'; g.add(body, new THREE.Mesh(geo[kind].lights, this.mats.lights)); race.group.add(g);
           const c = { kind, K, g, zi, s: 0, d: 0, v: K.v[0] * slow, vT: (K.v[0] + RNG() * (K.v[1] - K.v[0])) * slow, lane: i % 2 ? 1 : -1, laneT: 3 + RNG() * 6, hornT: 0, prevDs: null, lastNear: -9 };
-          c.obs = { s: 0, d: 0, hw: K.hw, hl: K.hl, kind: 'traffic' }; W.obstacles.push(c.obs); this.cars.push(c); } }
+          c.obs = { s: 0, d: 0, hw: K.hw, hl: K.hl, kind: 'traffic', car: c }; W.obstacles.push(c.obs); this.cars.push(c); } }   // car: speed and weight for the crash rules
       this.zones.forEach((zn, zi) => this.spread(zi)); }
     // ── direction guide ──
     this.guideOn = SAVE.settings.guide !== false; this.nG = 14;

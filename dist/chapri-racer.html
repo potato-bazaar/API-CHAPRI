@@ -1092,13 +1092,17 @@ const RIVALS = [
   { name: 'Raju Rocket', short: 'Raju', style: 'latebrake', weapon: 'kick', shirt: '#2d8a4e', helmet: '#c8202f', skill: 1.0, corner: 1.04, aggr: 1.0 },
   { name: 'Dabbu', short: 'Dabbu', style: 'squeeze', weapon: 'belt', shirt: '#e8a317', helmet: null, skill: 0.98, corner: 0.98, aggr: 1.0 },
   { name: 'Lucky Lambu', short: 'Lambu', style: 'slider', weapon: 'chain', shirt: '#5b2a86', helmet: null, skill: 0.97, corner: 1.0, aggr: 1.1 },
-  { name: 'Tinu', short: 'Tinu', style: 'clean', weapon: null, shirt: '#ececec', helmet: '#1d6fb8', skill: 1.0, corner: 1.0, aggr: 0 },
+  // the boss: a maxed-out bike, no mistakes, boosts on straights. Off the grid on Easy (Tinu rides instead).
+  { name: 'Toofan Bhai', short: 'Toofan', style: 'boss', weapon: 'chain', shirt: '#141414', helmet: '#d4a017', skill: 1.04, corner: 1.04, aggr: 1.0, boss: true },
 ];
+const RIVAL_EASY = { name: 'Tinu', short: 'Tinu', style: 'clean', weapon: null, shirt: '#ececec', helmet: '#1d6fb8', skill: 1.0, corner: 1.0, aggr: 0 };
 
 const DIFFICULTY = {
-  easy: { label: 'Easy', mult: 0.8, pace: 0.88, corner: 0.84, aggr: 0.25, mistakes: 1, wobbleRecover: 1.5 },
-  normal: { label: 'Normal', mult: 1, pace: 0.95, corner: 0.93, aggr: 0.6, mistakes: 0.4, wobbleRecover: 1 },
-  hard: { label: 'Hard', mult: 1.5, pace: 1.0, corner: 1.0, aggr: 1.0, mistakes: 0.1, wobbleRecover: 1 },
+  // pace/corner: how hard the field rides · catchup: extra pace for a rival far behind you · ease: a rival far ahead lifts a touch
+  // sev: how hard crashes into traffic and obstacles hit you · boss: Toofan's speed relative to your bike's top speed
+  easy: { label: 'Easy', mult: 0.8, pace: 0.9, corner: 0.88, aggr: 0.3, mistakes: 0.8, wobbleRecover: 1.5, catchup: 0, ease: 0.93, sev: 0.7, boss: 0.97 },
+  normal: { label: 'Normal', mult: 1, pace: 1.0, corner: 0.97, aggr: 0.75, mistakes: 0.25, wobbleRecover: 1, catchup: 0.07, ease: 0.97, sev: 1.0, boss: 1.03 },
+  hard: { label: 'Hard', mult: 1.5, pace: 1.04, corner: 1.02, aggr: 1.0, mistakes: 0.05, wobbleRecover: 1, catchup: 0.11, ease: 1.0, sev: 1.15, boss: 1.08 },
 };
 const MODES = {
   quick: { label: 'Quick Race', desc: '8 riders · 1 to 5 laps', rivals: true, combat: true, laps: true },
@@ -5027,6 +5031,9 @@ class Rider {
     // steering by lean: grip budget sets the yaw-rate ceiling
     const vv = Math.max(this.v, 2.5);
     let wMax = Math.min(2.4, this.gripLat * gripMul / vv);
+    if (this.skidT > 0) { this.skidT -= dt; const sk = this.skidK * clamp(this.skidT / this.skidMax, 0, 1);
+      this.v = Math.max(0, this.v - (1.5 + this.v * 0.22) * sk * dt); wMax *= 1 - 0.6 * sk;   // tyres scrub, steering goes light
+      this.slide = smooth(this.slide, this.skidDir * 0.6 * sk, 14, dt); this.psi += this.skidDir * sk * 0.35 * dt; }
     if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.4; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
     let steer = inp.steer; if (this.splatT > 0 && !this.isPlayer) steer += Math.sin(raceT * 9 + this.idx) * 0.8;
     const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
@@ -5121,7 +5128,7 @@ class Rider {
     // visual lean + slide yaw
     const leanT = clamp(Math.atan2(this.v * this.omega, G), -this.maxLean - (this.sliding ? 0.15 : 0), this.maxLean + (this.sliding ? 0.15 : 0));
     this.lean = smooth(this.lean, this.air ? leanT * 0.6 : leanT, this.air ? 4 : 8, dt);
-    this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
+    if (!(this.skidT > 0)) this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
     // wobble recovery
     if (this.wobbleT > 0.45) this.wobble = Math.max(0, this.wobble - (Math.abs(inp.steer) < 0.6 ? 42 : 30) * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
     if (this.wobble >= 100) { this.crash('wobble'); return; }
@@ -5160,6 +5167,16 @@ class Rider {
       this.addWobble(((h.big ? 9 : 2) + Math.max(0, this.v - 12) * (h.big ? 0.8 : 0.2) + Math.abs(this.lean) * (h.big ? 12 : 3)) / this.st.wobbleRes, !h.big);
       this.race.onPothole(this, h);
     }
+  }
+  // a hit: 'clip' (stagger), 'skid' (the bike swings sideways and the speed bleeds away) or 'crash' (you go down).
+  // sev ~0.3 is a corner clipped at a modest speed; ~1 is rear-ending a car square at 60 km/h faster than it.
+  skid(dir, sev) {
+    if (this.crashed || this.invuln > 0) return 'none';
+    if (sev > 1.05 || (sev > 0.62 && RNG() < (sev - 0.62) * 2.0)) { this.crash('traffic'); return 'crash'; }
+    const k = Math.min(1, sev); this.v *= 1 - (0.1 + k * 0.38);   // 10–48 % of your speed gone at once
+    this.skidMax = this.skidT = 0.35 + k * 0.65; this.skidDir = dir; this.skidK = k;
+    this.addWobble((8 + k * 34) / this.st.wobbleRes); this.wobbleT = 0;
+    return k > 0.32 ? 'skid' : 'clip';
   }
   addWobble(n, quiet) { if (this.invuln > 0) return; this.wobble += n; if (!quiet) this.wobbleT = 0; else this.wobbleT = Math.min(this.wobbleT, 0.3); }
   crash(reason) {
@@ -5236,9 +5253,12 @@ class Rider {
     if (P && P.style === 'cop' && PL) { const gap = PL.dist - this.dist;   // pressure without being unbeatable: fast when far behind, match pace when alongside
       if (gap > 90) vT = Math.min(vT * 1.12, T.vmaxAt(this.s) * 1.08); else if (gap <= 1.5 && gap > -8) vT = Math.min(vT, PL.v + (gap > 0 ? 0.6 : -1.5)); else if (gap <= -8 && gap > -60) vT = Math.min(vT, PL.v * 0.92); }   // a cop who got ahead slows to block
     if (this.surf === 2 || T.laneAt(this.s + this.v * 0.8, this.d)) vT = Math.min(vT, 12.5);   // kachha shortcut: ride it, don't fly it (big potholes launch above 13 m/s)
-    // easy riders make mistakes; tiny rubber-band only on Easy
-    if (this.race.diffKey === 'easy' && this.race.player) { const gap = this.dist - this.race.player.dist; if (gap > 40) vT *= 0.93; }
-    this.ai.mistakeT -= dt; if (this.ai.mistakeT < 0 && RNG() < D.mistakes * 0.004) this.ai.mistakeT = 1.2;
+    // keep it a race: a rival far behind you finds extra pace, one far ahead lifts a touch (per difficulty)
+    if (PL && !(P && P.style === 'cop')) { const gap = PL.dist - this.dist;
+      if (gap > 25 && D.catchup) vT *= 1 + Math.min(D.catchup, (gap - 25) / 500); else if (gap < -90) vT *= D.ease || 1; }
+    // Toofan: a maxed bike held to a margin over yours, so he's beatable with boost, draft and fights, but only just
+    if (P && P.boss && PL) { vT = Math.min(vT, PL.vTop * (D.boss || 1.06) * (this.drafting ? 1.04 : 1)); if (PL.dist - this.dist > 60) vT *= 1.05; }
+    this.ai.mistakeT -= dt; if (this.ai.mistakeT < 0 && !(P && P.boss) && RNG() < D.mistakes * 0.004) this.ai.mistakeT = 1.2;
     if (this.ai.mistakeT > 0) vT *= 0.8;
     inp.throttle = this.v < vT - 0.3 ? 1 : this.v < vT ? 0.4 : 0;
     inp.brake = this.v > vT + 1.2 ? clamp((this.v - vT) / 5, 0.2, 1) : 0;
@@ -5249,6 +5269,7 @@ class Rider {
     if (this.ai.wheelieT > 0) { this.ai.wheelieT -= dt; inp.back = Math.abs(k) < 1 / 120; }
     inp.boost = this.boost > 40 && Math.abs(k) < 1 / 150 && this.v > this.vTop * 0.7 && RNG() < 0.02 ? true : (this.boosting && this.boost > 5 && Math.abs(k) < 1 / 120);
     if (P && P.style === 'cop' && PL && PL.dist - this.dist > 90 && this.boost > 10) inp.boost = true;
+    if (P && P.boss && this.boost > 45 && Math.abs(k) < 1 / 140 && this.v > this.vTop * 0.6) inp.boost = true;   // Toofan saves it for the long straights
   }
 }
 
@@ -5278,14 +5299,21 @@ class Race {
     this.riders.push(this.player);
     this.player.rig.addUnderglow();
     if (M.rivals) {
-      const stock = buildStatsStock();
-      RIVALS.forEach((rv, i) => {
+      const stock = buildStatsStock(), pst = this.player.st;
+      // the field rides bikes like yours: rival bikes scale with your upgrades (never below stock), a little either side of
+      // yours, so buying parts doesn't leave them behind. Toofan rides a fully maxed bike.
+      const rivalSt = (k) => Object.assign({}, stock, { top: Math.max(stock.top, pst.top) * k, acc: Math.max(1, pst.acc) * (0.55 + 0.45 * k), grip: Math.max(1, pst.grip) * 0.99, lean: Math.max(45, pst.lean - 1), brake: Math.max(1, pst.brake), wobbleRes: 1.1 });
+      const bossSt = Object.assign({}, stock, { top: 145, acc: 1.62, grip: 1.16, lean: 52, brake: 1.35, wobbleRes: 1.5, boostFill: 1.4 });
+      RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv).forEach((rv, i) => {
         const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
           // the grid is a wardrobe show too: baniyans, a bare-chested gym bhai, waistbands on display
           top: ['shirt', 'vest', 'shirt', 'bare', 'shirt', 'vest', 'shirt'][i % 7], vest: ['#f2efe6', '#26242c', '#ff4f9a'][i % 3], muscle: [0, 0.5, 0, 1.4, 0.3, 1.0, 0][i % 7],
           band: i % 3 === 2 ? null : COSMETICS.chaddi[[1, 3, 2, 5, 4, 1, 3][i % 7]],
           mods: { exhaust: ['stock', 'free', 'long', 'chamber', 'twin', 'dragon'][i % 6], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
-        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: stock, look: lk, rival: rv });
+        if (rv.boss) Object.assign(lk, { tank: '#c99a2e', accent: '#141414', chrome: true, flowers: false, top: 'shirt', shirt: '#141414', hair: 'quiff', hairColor: '#111', beard: true, goldChain: true, shades: '#111', shadesStyle: 'aviator', band: null, muscle: 1.0, cape: COSMETICS.cape.find(c => c.id === 'raat'),
+          mods: { exhaust: 'chamber', tyres: 'racing', kit: 'full', finish: 'chrome' } });   // gold tank, black kit, the Raat cape, the screaming chamber
+        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt([0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
+        if (rv.boss) this.boss = r;
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;
         this.riders.push(r);
       });
@@ -5334,6 +5362,8 @@ class Race {
     }
     this.raceT += dt;
     // launch check
+    if (this.boss && !this._bossHi && this.raceT > 0.8) { this._bossHi = true; this.hud.callout('TOOFAN BHAI IS ON THE GRID', null, 'info'); }
+    if (this.boss && !this._bossPassed && this.raceT > 3 && P.dist > this.boss.dist + 3 && !P.crashed) { this._bossPassed = true; this.hud.callout('TOOFAN KO PEECHE CHHODA!', null, 'good'); }
     if (!this.launch.done && this.raceT < 0.6 && P.input.throttle > 0.5) { this.launch.done = true; if (!this.launch.jump && this.raceT < 0.35) { P.boost = Math.min(100, P.boost + 20); this.hud.callout('PERFECT START', `+${this.award('launch', PTS.launch)}`, 'good'); } }
     if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
@@ -5383,11 +5413,15 @@ class Race {
       for (const o of this.world.obstacles) {
         let ds = a.s - o.s; if (ds > this.track.L / 2) ds -= this.track.L; if (ds < -this.track.L / 2) ds += this.track.L;
         if (Math.abs(ds) < o.hl + 0.9 && Math.abs(a.d - o.d) < o.hw + 0.38 && !a.crashed && !a.air) {
-          const sg = a.d > o.d ? 1 : -1; a.d = o.d + sg * (o.hw + 0.4);
+          const sg = a.d > o.d ? 1 : -1, head0 = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1); a.d = o.d + sg * (o.hw + 0.4);   // how square the hit was, measured before pushing clear
           if (o.kind === 'island') { a.v *= 0.94; a.addWobble(6 / a.st.wobbleRes, true); a.psi = sg * 0.06; a.shoveV = sg * 1.2; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.15); } continue; }
-          const head = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1);   // dead-centre hits cost more than clipping a corner
-          const tf = o.kind === 'traffic'; a.v *= tf ? lerp(0.93, 0.8, head) : lerp(0.88, 0.7, head); a.addWobble((tf ? 8 + 10 * head : 12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
-          if (a.isPlayer) { AUDIO.thud(1); this.rumble(0.8, 0.2); this.game.shake(0.5); this.hud.callout('THOK!', null, 'bad'); }
+          // Road Rash rules: how fast you close on it, how square you hit it and how heavy it is decide what happens.
+          // A clip staggers you, a solid hit throws the bike into a skid that bleeds speed, a hard square hit puts you down.
+          const head = head0, car = o.car;
+          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05 }[o.kind] || 0.9);
+          const sev = clamp(close / 16, 0, 1.6) * (0.4 + 0.6 * head) * mass * (this.diff.sev || 1) * (a.isPlayer ? 1 : 0.55);   // rivals are locals: traffic rarely catches them square
+          const res = a.skid(sg, sev); a.psi = sg * 0.1; a.shoveV = sg * (1.6 + sev * 2.2); if (res !== 'crash') a.rig.react && a.rig.react('hit', sg);
+          if (res !== 'none') this.onSkid(a, res, sev, o);
         }
       }
     }
@@ -5479,8 +5513,16 @@ class Race {
     }
     this.combat.dropWeapons(r); this.combat.startWreck(r);
     if (this.state === 'racing' && r.wreck && (r.isPlayer || (r.lastHitBy && r.lastHitBy.isPlayer && this.raceT - r.lastHitT < 2.5))) this.game.takedownCam && this.game.takedownCam(r);
-    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
+    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
+  }
+  // a hit that didn't put you down: tyre smoke and sparks at the bike, the callout and the thud
+  onSkid(r, res, sev, o) {
+    const T = this.track, p = T.pos(r.s, r.d, this._skp || (this._skp = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.15), near = r.isPlayer || this.distToPlayer(r) > 0.3;
+    if (near && this.combat) { const C = this.combat; for (let i = 0; i < 10 + sev * 18; i++) C.smoke.emit(p.x + (Math.random() - 0.5) * 0.6, p.y, p.z + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 3, 0.4 + Math.random() * 0.8, (Math.random() - 0.5) * 3, 0.9 + Math.random() * 0.5, 0.5, 2.2, C_SMOKE, 0.55, 1.4, -0.2);
+      for (let i = 0; i < 6 + sev * 16; i++) C.sparks.emit(p.x, p.y + 0.2, p.z, (Math.random() - 0.5) * 8, Math.random() * 4, (Math.random() - 0.5) * 8, 0.35, 0.12, 0.05, C_FIRE, 1, 1.2, 9); }
+    if (r.isPlayer) { AUDIO.thud(res === 'skid' ? 1 : 0.7); AUDIO.scrape && AUDIO.scrape(0.6 + sev * 0.4); this.rumble(0.5 + sev * 0.5, 0.25); this.game.shake(0.3 + sev * 0.5);
+      this.hud.callout(res === 'skid' ? (o && o.car ? 'GAADI SE THOKA! SKID!' : 'SKID!') : 'THOK!', null, 'bad'); }
   }
   onRespawn(r) { this.combat.endWreck(r); if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
   onPothole(r, h) {
@@ -5804,7 +5846,7 @@ class StreetOps {
       for (const z of T.trafficZones || []) { const zi = this.zones.length, n = Math.max(1, Math.round((z.b - z.a) / gap)); this.zones.push({ a: z.a, b: z.b, fresh: true });
         for (let i = 0; i < n; i++) { const kind = kinds[ki++ % kinds.length], K = TRAFFIC_KINDS[kind], g = new THREE.Group(); const body = new THREE.Mesh(geo[kind].body, this.mats.body); body.castShadow = G.quality === 'high'; g.add(body, new THREE.Mesh(geo[kind].lights, this.mats.lights)); race.group.add(g);
           const c = { kind, K, g, zi, s: 0, d: 0, v: K.v[0] * slow, vT: (K.v[0] + RNG() * (K.v[1] - K.v[0])) * slow, lane: i % 2 ? 1 : -1, laneT: 3 + RNG() * 6, hornT: 0, prevDs: null, lastNear: -9 };
-          c.obs = { s: 0, d: 0, hw: K.hw, hl: K.hl, kind: 'traffic' }; W.obstacles.push(c.obs); this.cars.push(c); } }
+          c.obs = { s: 0, d: 0, hw: K.hw, hl: K.hl, kind: 'traffic', car: c }; W.obstacles.push(c.obs); this.cars.push(c); } }   // car: speed and weight for the crash rules
       this.zones.forEach((zn, zi) => this.spread(zi)); }
     // ── direction guide ──
     this.guideOn = SAVE.settings.guide !== false; this.nG = 14;
@@ -7029,7 +7071,7 @@ const AUDIO = {
     const onRoad = !P.crashed && !P.air && P.v > 3, demand = onRoad ? Math.abs(P.omega * P.v) / Math.max(1, P.gripLat) : 0;
     const scrub = onRoad ? clamp((demand - 0.55) * 1.6, 0, 0.7) + (P.input.brake > 0.6 && P.v > 9 ? 0.35 : 0) + (P.surf === 1 || P.surf === 2 ? 0.25 : P.surf === 5 ? 0.18 : 0) : 0;
     this.scrub.gain.setTargetAtTime(scrub * 0.12 * clamp(P.v / 15, 0.3, 1), t, 0.06); this.scrub.fl.frequency.setTargetAtTime(500 + P.v * 22, t, 0.1);
-    const sq = onRoad && !race.wet && P.surf === 0 ? clamp((P.sliding ? 0.8 : 0) + (P.stoppie ? 0.6 : 0) + clamp((demand - 0.9) * 3, 0, 0.5), 0, 1) : 0;
+    const sq = onRoad && !race.wet && P.surf === 0 ? clamp((P.sliding ? 0.8 : 0) + (P.stoppie ? 0.6 : 0) + (P.skidT > 0 ? P.skidK * 1.4 : 0) + clamp((demand - 0.9) * 3, 0, 0.5), 0, 1) : 0;
     this.squealB.gain.setTargetAtTime(sq * 0.07, t, 0.05); this.squealB.fl.frequency.setTargetAtTime(1900 + P.v * 18 + (P.sliding ? 300 : 0), t, 0.08);
     this.hiss.gain.setTargetAtTime(race.wet && onRoad ? clamp(P.v / 28, 0, 1.2) * 0.1 : 0, t, 0.15);
   },
@@ -8321,6 +8363,7 @@ class Game {
     add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
+    if (R.boss && P.finished && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);   // the boss on the maxed bike
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
     SAVE.coins += total; SAVE.xp += total; SAVE.parts += M.rivals ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (M.rivals && pos === 1) SAVE.wins++;

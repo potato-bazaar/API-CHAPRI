@@ -79,6 +79,9 @@ class Rider {
     // steering by lean: grip budget sets the yaw-rate ceiling
     const vv = Math.max(this.v, 2.5);
     let wMax = Math.min(2.4, this.gripLat * gripMul / vv);
+    if (this.skidT > 0) { this.skidT -= dt; const sk = this.skidK * clamp(this.skidT / this.skidMax, 0, 1);
+      this.v = Math.max(0, this.v - (1.5 + this.v * 0.22) * sk * dt); wMax *= 1 - 0.6 * sk;   // tyres scrub, steering goes light
+      this.slide = smooth(this.slide, this.skidDir * 0.6 * sk, 14, dt); this.psi += this.skidDir * sk * 0.35 * dt; }
     if (this.sliding) wMax *= 1.6; if (this.wheelie) wMax *= 0.4; if (this.stoppie) wMax *= 0.3; if (this.air) wMax *= 0.3;   // a little air control
     let steer = inp.steer; if (this.splatT > 0 && !this.isPlayer) steer += Math.sin(raceT * 9 + this.idx) * 0.8;
     const k = T.kAt(this.s); const denom = Math.max(0.3, 1 - k * this.d);
@@ -173,7 +176,7 @@ class Rider {
     // visual lean + slide yaw
     const leanT = clamp(Math.atan2(this.v * this.omega, G), -this.maxLean - (this.sliding ? 0.15 : 0), this.maxLean + (this.sliding ? 0.15 : 0));
     this.lean = smooth(this.lean, this.air ? leanT * 0.6 : leanT, this.air ? 4 : 8, dt);
-    this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
+    if (!(this.skidT > 0)) this.slide = smooth(this.slide, this.sliding ? Math.sign(this.omega) * 0.42 : (this.wetSlip > 0.08 ? Math.sign(this.omega) * 0.4 * this.wetSlip : 0), 6, dt);
     // wobble recovery
     if (this.wobbleT > 0.45) this.wobble = Math.max(0, this.wobble - (Math.abs(inp.steer) < 0.6 ? 42 : 30) * (this.race.diff.wobbleRecover || 1) * (this.isPlayer && this.race.diffKey === 'easy' ? 1.5 : 1) * dt);
     if (this.wobble >= 100) { this.crash('wobble'); return; }
@@ -212,6 +215,16 @@ class Rider {
       this.addWobble(((h.big ? 9 : 2) + Math.max(0, this.v - 12) * (h.big ? 0.8 : 0.2) + Math.abs(this.lean) * (h.big ? 12 : 3)) / this.st.wobbleRes, !h.big);
       this.race.onPothole(this, h);
     }
+  }
+  // a hit: 'clip' (stagger), 'skid' (the bike swings sideways and the speed bleeds away) or 'crash' (you go down).
+  // sev ~0.3 is a corner clipped at a modest speed; ~1 is rear-ending a car square at 60 km/h faster than it.
+  skid(dir, sev) {
+    if (this.crashed || this.invuln > 0) return 'none';
+    if (sev > 1.05 || (sev > 0.62 && RNG() < (sev - 0.62) * 2.0)) { this.crash('traffic'); return 'crash'; }
+    const k = Math.min(1, sev); this.v *= 1 - (0.1 + k * 0.38);   // 10–48 % of your speed gone at once
+    this.skidMax = this.skidT = 0.35 + k * 0.65; this.skidDir = dir; this.skidK = k;
+    this.addWobble((8 + k * 34) / this.st.wobbleRes); this.wobbleT = 0;
+    return k > 0.32 ? 'skid' : 'clip';
   }
   addWobble(n, quiet) { if (this.invuln > 0) return; this.wobble += n; if (!quiet) this.wobbleT = 0; else this.wobbleT = Math.min(this.wobbleT, 0.3); }
   crash(reason) {
@@ -288,9 +301,12 @@ class Rider {
     if (P && P.style === 'cop' && PL) { const gap = PL.dist - this.dist;   // pressure without being unbeatable: fast when far behind, match pace when alongside
       if (gap > 90) vT = Math.min(vT * 1.12, T.vmaxAt(this.s) * 1.08); else if (gap <= 1.5 && gap > -8) vT = Math.min(vT, PL.v + (gap > 0 ? 0.6 : -1.5)); else if (gap <= -8 && gap > -60) vT = Math.min(vT, PL.v * 0.92); }   // a cop who got ahead slows to block
     if (this.surf === 2 || T.laneAt(this.s + this.v * 0.8, this.d)) vT = Math.min(vT, 12.5);   // kachha shortcut: ride it, don't fly it (big potholes launch above 13 m/s)
-    // easy riders make mistakes; tiny rubber-band only on Easy
-    if (this.race.diffKey === 'easy' && this.race.player) { const gap = this.dist - this.race.player.dist; if (gap > 40) vT *= 0.93; }
-    this.ai.mistakeT -= dt; if (this.ai.mistakeT < 0 && RNG() < D.mistakes * 0.004) this.ai.mistakeT = 1.2;
+    // keep it a race: a rival far behind you finds extra pace, one far ahead lifts a touch (per difficulty)
+    if (PL && !(P && P.style === 'cop')) { const gap = PL.dist - this.dist;
+      if (gap > 25 && D.catchup) vT *= 1 + Math.min(D.catchup, (gap - 25) / 500); else if (gap < -90) vT *= D.ease || 1; }
+    // Toofan: a maxed bike held to a margin over yours, so he's beatable with boost, draft and fights, but only just
+    if (P && P.boss && PL) { vT = Math.min(vT, PL.vTop * (D.boss || 1.06) * (this.drafting ? 1.04 : 1)); if (PL.dist - this.dist > 60) vT *= 1.05; }
+    this.ai.mistakeT -= dt; if (this.ai.mistakeT < 0 && !(P && P.boss) && RNG() < D.mistakes * 0.004) this.ai.mistakeT = 1.2;
     if (this.ai.mistakeT > 0) vT *= 0.8;
     inp.throttle = this.v < vT - 0.3 ? 1 : this.v < vT ? 0.4 : 0;
     inp.brake = this.v > vT + 1.2 ? clamp((this.v - vT) / 5, 0.2, 1) : 0;
@@ -301,5 +317,6 @@ class Rider {
     if (this.ai.wheelieT > 0) { this.ai.wheelieT -= dt; inp.back = Math.abs(k) < 1 / 120; }
     inp.boost = this.boost > 40 && Math.abs(k) < 1 / 150 && this.v > this.vTop * 0.7 && RNG() < 0.02 ? true : (this.boosting && this.boost > 5 && Math.abs(k) < 1 / 120);
     if (P && P.style === 'cop' && PL && PL.dist - this.dist > 90 && this.boost > 10) inp.boost = true;
+    if (P && P.boss && this.boost > 45 && Math.abs(k) < 1 / 140 && this.v > this.vTop * 0.6) inp.boost = true;   // Toofan saves it for the long straights
   }
 }

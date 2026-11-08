@@ -165,13 +165,17 @@ const RIVALS = [
   { name: 'Raju Rocket', short: 'Raju', style: 'latebrake', weapon: 'kick', shirt: '#2d8a4e', helmet: '#c8202f', skill: 1.0, corner: 1.04, aggr: 1.0 },
   { name: 'Dabbu', short: 'Dabbu', style: 'squeeze', weapon: 'belt', shirt: '#e8a317', helmet: null, skill: 0.98, corner: 0.98, aggr: 1.0 },
   { name: 'Lucky Lambu', short: 'Lambu', style: 'slider', weapon: 'chain', shirt: '#5b2a86', helmet: null, skill: 0.97, corner: 1.0, aggr: 1.1 },
-  { name: 'Tinu', short: 'Tinu', style: 'clean', weapon: null, shirt: '#ececec', helmet: '#1d6fb8', skill: 1.0, corner: 1.0, aggr: 0 },
+  // the boss: a maxed-out bike, no mistakes, boosts on straights. Off the grid on Easy (Tinu rides instead).
+  { name: 'Toofan Bhai', short: 'Toofan', style: 'boss', weapon: 'chain', shirt: '#141414', helmet: '#d4a017', skill: 1.04, corner: 1.04, aggr: 1.0, boss: true },
 ];
+const RIVAL_EASY = { name: 'Tinu', short: 'Tinu', style: 'clean', weapon: null, shirt: '#ececec', helmet: '#1d6fb8', skill: 1.0, corner: 1.0, aggr: 0 };
 
 const DIFFICULTY = {
-  easy: { label: 'Easy', mult: 0.8, pace: 0.88, corner: 0.84, aggr: 0.25, mistakes: 1, wobbleRecover: 1.5 },
-  normal: { label: 'Normal', mult: 1, pace: 0.95, corner: 0.93, aggr: 0.6, mistakes: 0.4, wobbleRecover: 1 },
-  hard: { label: 'Hard', mult: 1.5, pace: 1.0, corner: 1.0, aggr: 1.0, mistakes: 0.1, wobbleRecover: 1 },
+  // pace/corner: how hard the field rides · catchup: extra pace for a rival far behind you · ease: a rival far ahead lifts a touch
+  // sev: how hard crashes into traffic and obstacles hit you · boss: Toofan's speed relative to your bike's top speed
+  easy: { label: 'Easy', mult: 0.8, pace: 0.9, corner: 0.88, aggr: 0.3, mistakes: 0.8, wobbleRecover: 1.5, catchup: 0, ease: 0.93, sev: 0.7, boss: 0.97 },
+  normal: { label: 'Normal', mult: 1, pace: 1.0, corner: 0.97, aggr: 0.75, mistakes: 0.25, wobbleRecover: 1, catchup: 0.07, ease: 0.97, sev: 1.0, boss: 1.03 },
+  hard: { label: 'Hard', mult: 1.5, pace: 1.04, corner: 1.02, aggr: 1.0, mistakes: 0.05, wobbleRecover: 1, catchup: 0.11, ease: 1.0, sev: 1.15, boss: 1.08 },
 };
 const MODES = {
   quick: { label: 'Quick Race', desc: '8 riders · 1 to 5 laps', rivals: true, combat: true, laps: true },

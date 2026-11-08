@@ -23,14 +23,21 @@ class Race {
     this.riders.push(this.player);
     this.player.rig.addUnderglow();
     if (M.rivals) {
-      const stock = buildStatsStock();
-      RIVALS.forEach((rv, i) => {
+      const stock = buildStatsStock(), pst = this.player.st;
+      // the field rides bikes like yours: rival bikes scale with your upgrades (never below stock), a little either side of
+      // yours, so buying parts doesn't leave them behind. Toofan rides a fully maxed bike.
+      const rivalSt = (k) => Object.assign({}, stock, { top: Math.max(stock.top, pst.top) * k, acc: Math.max(1, pst.acc) * (0.55 + 0.45 * k), grip: Math.max(1, pst.grip) * 0.99, lean: Math.max(45, pst.lean - 1), brake: Math.max(1, pst.brake), wobbleRes: 1.1 });
+      const bossSt = Object.assign({}, stock, { top: 145, acc: 1.62, grip: 1.16, lean: 52, brake: 1.35, wobbleRes: 1.5, boostFill: 1.4 });
+      RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv).forEach((rv, i) => {
         const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
           // the grid is a wardrobe show too: baniyans, a bare-chested gym bhai, waistbands on display
           top: ['shirt', 'vest', 'shirt', 'bare', 'shirt', 'vest', 'shirt'][i % 7], vest: ['#f2efe6', '#26242c', '#ff4f9a'][i % 3], muscle: [0, 0.5, 0, 1.4, 0.3, 1.0, 0][i % 7],
           band: i % 3 === 2 ? null : COSMETICS.chaddi[[1, 3, 2, 5, 4, 1, 3][i % 7]],
           mods: { exhaust: ['stock', 'free', 'long', 'chamber', 'twin', 'dragon'][i % 6], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
-        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: stock, look: lk, rival: rv });
+        if (rv.boss) Object.assign(lk, { tank: '#c99a2e', accent: '#141414', chrome: true, flowers: false, top: 'shirt', shirt: '#141414', hair: 'quiff', hairColor: '#111', beard: true, goldChain: true, shades: '#111', shadesStyle: 'aviator', band: null, muscle: 1.0, cape: COSMETICS.cape.find(c => c.id === 'raat'),
+          mods: { exhaust: 'chamber', tyres: 'racing', kit: 'full', finish: 'chrome' } });   // gold tank, black kit, the Raat cape, the screaming chamber
+        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt([0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
+        if (rv.boss) this.boss = r;
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;
         this.riders.push(r);
       });
@@ -79,6 +86,8 @@ class Race {
     }
     this.raceT += dt;
     // launch check
+    if (this.boss && !this._bossHi && this.raceT > 0.8) { this._bossHi = true; this.hud.callout('TOOFAN BHAI IS ON THE GRID', null, 'info'); }
+    if (this.boss && !this._bossPassed && this.raceT > 3 && P.dist > this.boss.dist + 3 && !P.crashed) { this._bossPassed = true; this.hud.callout('TOOFAN KO PEECHE CHHODA!', null, 'good'); }
     if (!this.launch.done && this.raceT < 0.6 && P.input.throttle > 0.5) { this.launch.done = true; if (!this.launch.jump && this.raceT < 0.35) { P.boost = Math.min(100, P.boost + 20); this.hud.callout('PERFECT START', `+${this.award('launch', PTS.launch)}`, 'good'); } }
     if (this.launch.jump && this.raceT < 1) P.input.throttle *= 0.45;
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
@@ -128,11 +137,15 @@ class Race {
       for (const o of this.world.obstacles) {
         let ds = a.s - o.s; if (ds > this.track.L / 2) ds -= this.track.L; if (ds < -this.track.L / 2) ds += this.track.L;
         if (Math.abs(ds) < o.hl + 0.9 && Math.abs(a.d - o.d) < o.hw + 0.38 && !a.crashed && !a.air) {
-          const sg = a.d > o.d ? 1 : -1; a.d = o.d + sg * (o.hw + 0.4);
+          const sg = a.d > o.d ? 1 : -1, head0 = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1); a.d = o.d + sg * (o.hw + 0.4);   // how square the hit was, measured before pushing clear
           if (o.kind === 'island') { a.v *= 0.94; a.addWobble(6 / a.st.wobbleRes, true); a.psi = sg * 0.06; a.shoveV = sg * 1.2; if (a.isPlayer) { AUDIO.thud(0.5); this.rumble(0.4, 0.12); this.game.shake(0.15); } continue; }
-          const head = clamp(1 - Math.abs(a.d - o.d) / (o.hw + 0.38), 0, 1);   // dead-centre hits cost more than clipping a corner
-          const tf = o.kind === 'traffic'; a.v *= tf ? lerp(0.93, 0.8, head) : lerp(0.88, 0.7, head); a.addWobble((tf ? 8 + 10 * head : 12 + 14 * head) / a.st.wobbleRes); a.psi = sg * 0.1; a.shoveV = sg * 1.8; a.rig.react && a.rig.react('hit', sg);
-          if (a.isPlayer) { AUDIO.thud(1); this.rumble(0.8, 0.2); this.game.shake(0.5); this.hud.callout('THOK!', null, 'bad'); }
+          // Road Rash rules: how fast you close on it, how square you hit it and how heavy it is decide what happens.
+          // A clip staggers you, a solid hit throws the bike into a skid that bleeds speed, a hard square hit puts you down.
+          const head = head0, car = o.car;
+          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05 }[o.kind] || 0.9);
+          const sev = clamp(close / 16, 0, 1.6) * (0.4 + 0.6 * head) * mass * (this.diff.sev || 1) * (a.isPlayer ? 1 : 0.55);   // rivals are locals: traffic rarely catches them square
+          const res = a.skid(sg, sev); a.psi = sg * 0.1; a.shoveV = sg * (1.6 + sev * 2.2); if (res !== 'crash') a.rig.react && a.rig.react('hit', sg);
+          if (res !== 'none') this.onSkid(a, res, sev, o);
         }
       }
     }
@@ -224,8 +237,16 @@ class Race {
     }
     this.combat.dropWeapons(r); this.combat.startWreck(r);
     if (this.state === 'racing' && r.wreck && (r.isPlayer || (r.lastHitBy && r.lastHitBy.isPlayer && this.raceT - r.lastHitT < 2.5))) this.game.takedownCam && this.game.takedownCam(r);
-    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
+    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
+  }
+  // a hit that didn't put you down: tyre smoke and sparks at the bike, the callout and the thud
+  onSkid(r, res, sev, o) {
+    const T = this.track, p = T.pos(r.s, r.d, this._skp || (this._skp = new THREE.Vector3()), r.y - T.yAt(r.s) + 0.15), near = r.isPlayer || this.distToPlayer(r) > 0.3;
+    if (near && this.combat) { const C = this.combat; for (let i = 0; i < 10 + sev * 18; i++) C.smoke.emit(p.x + (Math.random() - 0.5) * 0.6, p.y, p.z + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 3, 0.4 + Math.random() * 0.8, (Math.random() - 0.5) * 3, 0.9 + Math.random() * 0.5, 0.5, 2.2, C_SMOKE, 0.55, 1.4, -0.2);
+      for (let i = 0; i < 6 + sev * 16; i++) C.sparks.emit(p.x, p.y + 0.2, p.z, (Math.random() - 0.5) * 8, Math.random() * 4, (Math.random() - 0.5) * 8, 0.35, 0.12, 0.05, C_FIRE, 1, 1.2, 9); }
+    if (r.isPlayer) { AUDIO.thud(res === 'skid' ? 1 : 0.7); AUDIO.scrape && AUDIO.scrape(0.6 + sev * 0.4); this.rumble(0.5 + sev * 0.5, 0.25); this.game.shake(0.3 + sev * 0.5);
+      this.hud.callout(res === 'skid' ? (o && o.car ? 'GAADI SE THOKA! SKID!' : 'SKID!') : 'THOK!', null, 'bad'); }
   }
   onRespawn(r) { this.combat.endWreck(r); if (r.isPlayer) this.hud.callout('BACK ON TRACK', null, 'info'); r.rig.anim = null; r.rig.gesture('scratch', 1); r.swagT = Math.max(r.swagT || 0, 5); }
   onPothole(r, h) {
