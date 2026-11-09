@@ -679,3 +679,49 @@ kbd { font-family: var(--f-num); }
 .rev-btn:hover { background: rgba(255, 194, 26, .22); }
 .store-item .tnew { display: inline-block; margin-left: .3rem; padding: .05rem .4rem; border-radius: .4rem; background: var(--pink); color: #fff; font-style: normal; font-weight: 800; font-size: .6rem; letter-spacing: .06em; vertical-align: middle; }
 .store-note { grid-column: 1 / -1; margin: 0 0 .2rem; padding: .55rem .7rem; border-radius: 10px; background: rgba(255, 194, 26, .12); box-shadow: inset 0 0 0 1px rgba(255, 194, 26, .45); color: #ffe7a6; font-size: .85rem; line-height: 1.35; }
+/* ───────── Safar (career) ───────── */
+.safar-btn { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 3rem; padding: .3rem .8rem; border-radius: 14px; text-align: left; color: #fff; background: linear-gradient(100deg, #3a1250, #7a1f5c 55%, #c2185b); box-shadow: inset 0 0 0 2px rgba(255, 194, 26, .75), 0 4px 0 #1a0a22; }
+.safar-btn:active { transform: translateY(2px); }
+.safar-btn .sb-ico { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: var(--marigold); color: #3a1250; font-size: 1.3rem; }
+.safar-btn .sb-txt { flex: 1; min-width: 0; display: grid; line-height: 1.1; }
+.safar-btn .sb-txt b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.55rem; letter-spacing: .04em; color: var(--marigold); }
+.safar-btn .sb-txt b small { font-family: inherit; font-size: .62em; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.safar-btn .sb-txt i { font-style: normal; font-size: .86rem; color: #ffe1ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.safar-btn em { flex: none; font-style: normal; font-family: var(--f-num); font-size: 1.35rem; color: var(--marigold); }
+.safar-btn .chev { flex: none; font-size: 1.6rem; color: #fff; }
+#career h2 small { font-size: .5em; color: var(--muted); font-style: normal; letter-spacing: .06em; }
+.cr-stars { margin-left: auto; margin-right: .8rem; font-family: var(--f-num); font-size: 1.9rem; color: var(--marigold); } .cr-stars small { font-size: .6em; color: var(--muted); }
+.cr-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+.cr-tabs button { display: grid; justify-items: start; gap: 0; padding: .35rem .55rem; border-radius: 10px; background: rgba(255, 255, 255, .07); color: #fff; text-align: left; line-height: 1.15; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.cr-tabs button b { font-family: var(--f-num); font-size: 1.3rem; color: var(--marigold); line-height: 1; } .cr-tabs button span { font-size: .82rem; font-weight: 700; } .cr-tabs button small { font-size: .72rem; color: var(--muted); }
+.cr-tabs button.on { background: rgba(255, 46, 136, .28); box-shadow: inset 0 0 0 2px var(--pink); } .cr-tabs button.lock { opacity: .6; }
+.cr-line { margin: .6rem 0 .5rem; color: #ffe1ee; font-style: italic; } .cr-line b { font-style: normal; color: var(--marigold); }
+.cr-list { display: grid; gap: .5rem; }
+.cr-card { display: grid; grid-template-columns: 5.4rem 1fr auto; gap: .7rem; align-items: center; padding: .5rem .6rem; border-radius: 12px; background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.cr-card.next { box-shadow: inset 0 0 0 2px var(--marigold); } .cr-card.lock { opacity: .55; }
+.cr-card.boss { background: linear-gradient(100deg, rgba(194, 24, 91, .35), rgba(255, 138, 31, .16)); }
+.cr-thumb svg { display: block; width: 100%; border-radius: 8px; }
+.cr-info h4 { margin: 0; font-family: var(--f-num); font-weight: 600; font-size: 1.5rem; letter-spacing: .03em; color: #fff; line-height: 1; } .cr-info h4 em { font-style: normal; font-size: .62em; padding: .05em .4em; border-radius: .3em; background: var(--pink); vertical-align: middle; }
+.cr-meta { margin: .1rem 0 .2rem; font-size: .8rem; color: var(--muted); } .cr-say { margin: 0 0 .2rem; font-size: .86rem; font-style: italic; color: #ffd1a6; }
+.cr-info ul, .cr-res ul, .sh-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .08rem; font-size: .86rem; }
+.cr-info li i, .cr-res li i, .sh-card li i { font-style: normal; margin-right: .35em; color: rgba(255, 255, 255, .28); } .cr-info li.ok i, .cr-res li.ok i, .cr-res li.had i { color: var(--marigold); } .cr-info li.ok { color: #fff; } .cr-info li { color: var(--muted); }
+.cr-go { display: grid; justify-items: center; gap: .3rem; } .cr-go button { min-height: 2.4rem; padding: .2em .9em; font-size: 1.15rem; white-space: nowrap; }
+.cr-st i { font-style: normal; font-size: 1.35rem; color: rgba(255, 255, 255, .22); } .cr-st i.on { color: var(--marigold); text-shadow: 0 0 8px rgba(255, 194, 26, .7); }
+.cr-lock { font-size: .78rem; color: var(--muted); text-align: center; max-width: 7rem; }
+.cr-don { margin: .7rem 0 0; padding: .5rem .7rem; border-radius: 10px; background: rgba(255, 194, 26, .14); color: var(--marigold); font-weight: 700; text-align: center; }
+.cr-res { margin-bottom: .8rem; padding: .55rem .7rem; border-radius: 12px; background: rgba(255, 194, 26, .1); box-shadow: inset 0 0 0 2px rgba(255, 194, 26, .6); } .cr-res.fail { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .05); }
+.cr-res h3 { margin: 0; font-size: 1.05rem; color: var(--muted); } .cr-ev { display: block; font-family: var(--f-num); font-size: 1.6rem; font-weight: 600; line-height: 1.1; margin-bottom: .2rem; }
+.cr-res li { color: var(--muted); font-size: .95rem; } .cr-res li.ok { color: #fff; } .cr-res li.ok i { text-shadow: 0 0 8px rgba(255, 194, 26, .7); } .cr-res li em { font-style: normal; margin-left: .5em; padding: 0 .35em; border-radius: .3em; background: var(--pink); font-size: .72em; font-weight: 800; }
+.cr-coins, .cr-prize { margin: .35rem 0 0; font-weight: 700; color: var(--good); } .cr-prize { color: var(--marigold); }
+.safar-hud { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.sh-card { position: absolute; left: 50%; top: 24%; translate: -50% 0; width: min(24rem, 86vw); padding: .6rem .9rem .7rem; border-radius: 14px; background: rgba(26, 10, 34, .9); box-shadow: inset 0 0 0 2px var(--marigold), 0 10px 30px rgba(0, 0, 0, .5); opacity: 0; transition: opacity .5s, translate .5s; translate: -50% -12px; }
+.safar-hud.intro .sh-card { opacity: 1; translate: -50% 0; }
+.sh-card small { display: block; color: var(--muted); letter-spacing: .08em; font-size: .78rem; } .sh-card b { display: block; font-family: var(--f-num); font-style: italic; font-size: 2rem; line-height: 1.05; color: var(--marigold); }
+.sh-card q { display: block; margin: .1rem 0 .3rem; font-style: italic; color: #ffd1a6; font-size: .95rem; } .sh-card ul { font-size: 1rem; gap: .15rem; margin-top: .3rem; } .sh-card li i { color: var(--marigold); }
+.sh-stars { position: absolute; display: flex; gap: .25rem; padding: .1rem .5rem; border-radius: 999px; background: rgba(26, 10, 34, .78); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.sh-stars i { font-style: normal; font-size: 1.25rem; color: rgba(255, 255, 255, .28); transition: color .3s, text-shadow .3s; } .sh-stars i.on { color: var(--marigold); text-shadow: 0 0 10px rgba(255, 194, 26, .9); } .sh-stars i.off { color: rgba(255, 75, 92, .55); }
+@media (orientation: portrait) { .cr-tabs { grid-template-columns: repeat(5, 1fr); gap: .25rem; } .cr-tabs button { padding: .3rem .3rem; } .cr-tabs button span { font-size: .66rem; } .cr-tabs button small { font-size: .62rem; }
+  .cr-card { grid-template-columns: 3.6rem 1fr auto; gap: .5rem; padding: .45rem .5rem; } .cr-info h4 { font-size: 1.3rem; } .cr-go button { padding: .2em .6em; font-size: 1rem; } .cr-st i { font-size: 1.1rem; }
+  .safar-btn { min-height: 2.7rem; padding: .2rem .6rem; } .safar-btn .sb-txt b { font-size: 1.3rem; } .safar-btn .sb-ico { width: 1.8rem; height: 1.8rem; font-size: 1.1rem; } }
+@media (max-height: 520px) { .safar-btn { min-height: 2.15rem; padding: .1rem .6rem; } .safar-btn .sb-ico { width: 1.5rem; height: 1.5rem; font-size: .95rem; } .safar-btn .sb-txt b { font-size: 1.25rem; } .safar-btn .sb-txt { display: flex; align-items: baseline; gap: .6rem; } .sh-card { top: 16%; }
+  #menu .setup-line { display: none; } #menu .start-btn { height: 3.5rem; font-size: 2.4rem; } }

@@ -54,7 +54,7 @@ class UI {
   open(id, fromPause = false) {
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
-    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard();
+    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); }
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = false; $('#' + id).hidden = false; this.returnToPause = fromPause;
     const f = $('#' + id).querySelector('button'); if (f) f.focus({ preventScroll: true });
   }
@@ -82,7 +82,7 @@ class UI {
     const bonus = $('#dailyBonus');
     if (allDone && !d.bonus) { bonus.innerHTML = `<button class="claim" type="button" id="claimBonus">CLAIM +${DAILY_BONUS_ALL} BONUS</button>`; $('#claimBonus').addEventListener('click', () => { SAVE.daily.bonus = true; SAVE.coins += DAILY_BONUS_ALL; persist(); AUDIO.pickup(); this.renderMenu(); }); }
     else bonus.textContent = d.bonus ? 'All done for today. New challenges tomorrow.' : `→ ALL 3 DONE → +${DAILY_BONUS_ALL} BONUS`;
-    $('#bellDot').hidden = SAVE.lastLogin === todayStr();
+    $('#bellDot').hidden = SAVE.lastLogin === todayStr(); CAREER.renderButton();
   }
   statRows(st, withUp) {
     const rows = [['speed', 'SPEED', st.top / 140, Math.round(st.top)], ['accel', 'ACCEL', clamp((12 - st.zeroTo100) / 8, 0.05, 1), st.zeroTo100.toFixed(1) + 's'], ['grip', 'GRIP', (st.lean - 38) / 18, (st.grip * 4.2).toFixed(1)], ['brake', 'BRAKES', (st.brake - 0.6) / 0.9, (st.brake * 4.1).toFixed(1)]];
@@ -246,8 +246,9 @@ class UI {
     $('#rList').innerHTML = res.items.map(([l, v]) => `<li><span>${l}</span><b>+${fmtNum(v)}</b></li>`).join('') || '<li><span>No points this time</span><b>+0</b></li>';
     $('#rTotal').textContent = '+' + fmtNum(res.total); $('#rMult').textContent = res.multText;
     $('#rOrder').innerHTML = res.order.map((r, i) => `<li class="${r.isPlayer ? 'me' : ''}"><span>${i + 1}</span><b>${r.isPlayer ? SAVE.name + ' (You)' : r.name}</b><small>${r.eliminated ? 'OUT' : r.finished ? fmtTime(r.laps.reduce((a, b) => a + b, 0)) : 'racing'}</small></li>`).join('');
+    $('#rCareer').innerHTML = res.careerHtml || ''; $('#rCareer').hidden = !res.careerHtml;
     const d = SAVE.daily; $('#rDaily').innerHTML = '<h3>DAILY CHALLENGES</h3>' + DAILY.map(c => `<div>${(d.prog[c.id] || 0) >= c.goal ? '✅' : '⬜'} ${c.label} <span class="muted">${Math.min(c.goal, d.prog[c.id] || 0)}/${c.goal}</span></div>`).join('') + (res.cupTable || '');
-    $('#rNext').textContent = this.game.cup ? (this.game.cup.idx < CUP_TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
+    $('#rNext').textContent = this.game.career ? (this.game.careerNext ? 'NEXT EVENT ›' : 'SAFAR MAP ›') : this.game.cup ? (this.game.cup.idx < CUP_TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
   }
 }
 function trackThumb(t) {

@@ -232,7 +232,7 @@ function defaultSave() {
     cos: { rider: 'chapri', shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim', cape: 'none' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
-    records: {}, ghosts: {},
+    records: {}, ghosts: {}, career: { stars: {}, paid: {} },
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },
     streak: 0, wins: 0, races: 0, lastLogin: null, loginDays: 0,
     seenHelp: false,

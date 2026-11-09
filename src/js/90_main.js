@@ -70,7 +70,7 @@ class Game {
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC, OST };
-    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; }
+    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; window.__career = CAREER; }
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.hideLoader(); this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -193,8 +193,10 @@ class Game {
     if (id === 'menu' || id === 'garage' || id === 'store') { this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.nav === 'home' && id === 'menu')); }
   }
   // ── race lifecycle ──
-  startFromSetup() { if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; return this.startRace(Object.assign({}, SAVE.setup)); }
-  startCup() { const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[0].id }), this.cup); }
+  startFromSetup() { this.career = null; if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; return this.startRace(Object.assign({}, SAVE.setup)); }
+  // a career event (84_career.js): its own track, mode and rules, with three goals to meet
+  startCareer(id) { const e = CAREER.find(id); if (!e) return; this.cup = null; this.career = id; return this.startRace(CAREER.setupOf(e), null); }
+  startCup() { this.career = null; const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[0].id }), this.cup); }
   // async with a loading screen: building a map and compiling its shaders takes seconds on a phone, so the player sees
   // the track name, a moving bar and tips instead of a frozen menu.
   async startRace(setup, cup = this.cup) {
@@ -217,7 +219,7 @@ class Game {
       this.setLoad(0.5, 'Lining up the riders…'); await painted();
       this.race = new Race(this, setup, cup); this.scene.add(this.race.group);
       [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
-      this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
+      this.hud.setupRace(this.race); this.lastSetup = setup; if (this.career) CAREER.hudStart(this, this.race); else CAREER.hudStop(); this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
       this.camPsi = 0; this.camInit = false; this.camMode = SAVE.settings.camera || 0;
       this.setLoad(0.66, 'Warming up the engine…'); await painted();
       await this.compileScene(true, (f) => this.setLoad(0.66 + f * 0.3));
@@ -274,10 +276,10 @@ class Game {
   pause() { if (this.state !== 'race') return; this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
   resume() { this.ui.returnToPause = false; this.ui.closeModal(); if (this.state === 'paused') { this.state = 'race'; this.setMusic('race'); this.last = performance.now(); } }
   restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
-  quitRace() { this.cup = null; this.toMenu(); }
+  quitRace() { this.cup = null; const wasCareer = !!this.career; this.toMenu().then(() => { if (wasCareer) this.ui.open('career'); }); }
   async toMenu() {
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
-    this.endRace(); if (this.cup && this.cup.done) this.cup = null;
+    this.endRace(); if (this.cup && this.cup.done) this.cup = null; this.career = null; CAREER.hudStop();
     const def = TRACKS.find(t => t.id === SAVE.setup.track) || TRACKS[0], rebuild = this.worldKey !== def.id + '|' + this.quality;
     if (rebuild) { this.state = 'loading'; this.showLoader(null); this.setLoad(0.25, `Building ${def.short || def.name}…`); await painted(); }
     this.loadTrack(SAVE.setup.track); this.refreshMenuRig(); this.scene.add(this.menuRig.root);
@@ -285,12 +287,13 @@ class Game {
     this.showScreen('menu');
   }
   nextTrack() {
+    if (this.career) { const nx = this.careerNext; if (nx) return this.startCareer(nx); return this.toMenu().then(() => this.ui.open('career')); }
     if (this.cup) { if (this.cup.done) { this.cup = null; return this.toMenu(); } this.cup.idx++; if (this.cup.idx >= CUP_TRACKS.length) { this.cup.done = true; return this.toMenu(); } return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[this.cup.idx].id }), this.cup); }
     const pool = this.lastSetup.mode === 'police' ? TRACKS.filter(t => t.police) : CUP_TRACKS; const i = pool.findIndex(t => t.id === this.lastSetup.track); const nx = pool[(i + 1) % pool.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
-    const res = this.computeResults(R); this.lastRes = res; this.state = 'results'; this.setMusic('menu');
+    const res = this.computeResults(R); if (this.career) { res.careerHtml = CAREER.finish(this, R); persist(); } this.lastRes = res; this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
   }

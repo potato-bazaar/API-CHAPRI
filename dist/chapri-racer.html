@@ -685,6 +685,52 @@ kbd { font-family: var(--f-num); }
 .rev-btn:hover { background: rgba(255, 194, 26, .22); }
 .store-item .tnew { display: inline-block; margin-left: .3rem; padding: .05rem .4rem; border-radius: .4rem; background: var(--pink); color: #fff; font-style: normal; font-weight: 800; font-size: .6rem; letter-spacing: .06em; vertical-align: middle; }
 .store-note { grid-column: 1 / -1; margin: 0 0 .2rem; padding: .55rem .7rem; border-radius: 10px; background: rgba(255, 194, 26, .12); box-shadow: inset 0 0 0 1px rgba(255, 194, 26, .45); color: #ffe7a6; font-size: .85rem; line-height: 1.35; }
+/* ───────── Safar (career) ───────── */
+.safar-btn { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 3rem; padding: .3rem .8rem; border-radius: 14px; text-align: left; color: #fff; background: linear-gradient(100deg, #3a1250, #7a1f5c 55%, #c2185b); box-shadow: inset 0 0 0 2px rgba(255, 194, 26, .75), 0 4px 0 #1a0a22; }
+.safar-btn:active { transform: translateY(2px); }
+.safar-btn .sb-ico { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: var(--marigold); color: #3a1250; font-size: 1.3rem; }
+.safar-btn .sb-txt { flex: 1; min-width: 0; display: grid; line-height: 1.1; }
+.safar-btn .sb-txt b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.55rem; letter-spacing: .04em; color: var(--marigold); }
+.safar-btn .sb-txt b small { font-family: inherit; font-size: .62em; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.safar-btn .sb-txt i { font-style: normal; font-size: .86rem; color: #ffe1ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.safar-btn em { flex: none; font-style: normal; font-family: var(--f-num); font-size: 1.35rem; color: var(--marigold); }
+.safar-btn .chev { flex: none; font-size: 1.6rem; color: #fff; }
+#career h2 small { font-size: .5em; color: var(--muted); font-style: normal; letter-spacing: .06em; }
+.cr-stars { margin-left: auto; margin-right: .8rem; font-family: var(--f-num); font-size: 1.9rem; color: var(--marigold); } .cr-stars small { font-size: .6em; color: var(--muted); }
+.cr-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+.cr-tabs button { display: grid; justify-items: start; gap: 0; padding: .35rem .55rem; border-radius: 10px; background: rgba(255, 255, 255, .07); color: #fff; text-align: left; line-height: 1.15; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.cr-tabs button b { font-family: var(--f-num); font-size: 1.3rem; color: var(--marigold); line-height: 1; } .cr-tabs button span { font-size: .82rem; font-weight: 700; } .cr-tabs button small { font-size: .72rem; color: var(--muted); }
+.cr-tabs button.on { background: rgba(255, 46, 136, .28); box-shadow: inset 0 0 0 2px var(--pink); } .cr-tabs button.lock { opacity: .6; }
+.cr-line { margin: .6rem 0 .5rem; color: #ffe1ee; font-style: italic; } .cr-line b { font-style: normal; color: var(--marigold); }
+.cr-list { display: grid; gap: .5rem; }
+.cr-card { display: grid; grid-template-columns: 5.4rem 1fr auto; gap: .7rem; align-items: center; padding: .5rem .6rem; border-radius: 12px; background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.cr-card.next { box-shadow: inset 0 0 0 2px var(--marigold); } .cr-card.lock { opacity: .55; }
+.cr-card.boss { background: linear-gradient(100deg, rgba(194, 24, 91, .35), rgba(255, 138, 31, .16)); }
+.cr-thumb svg { display: block; width: 100%; border-radius: 8px; }
+.cr-info h4 { margin: 0; font-family: var(--f-num); font-weight: 600; font-size: 1.5rem; letter-spacing: .03em; color: #fff; line-height: 1; } .cr-info h4 em { font-style: normal; font-size: .62em; padding: .05em .4em; border-radius: .3em; background: var(--pink); vertical-align: middle; }
+.cr-meta { margin: .1rem 0 .2rem; font-size: .8rem; color: var(--muted); } .cr-say { margin: 0 0 .2rem; font-size: .86rem; font-style: italic; color: #ffd1a6; }
+.cr-info ul, .cr-res ul, .sh-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .08rem; font-size: .86rem; }
+.cr-info li i, .cr-res li i, .sh-card li i { font-style: normal; margin-right: .35em; color: rgba(255, 255, 255, .28); } .cr-info li.ok i, .cr-res li.ok i, .cr-res li.had i { color: var(--marigold); } .cr-info li.ok { color: #fff; } .cr-info li { color: var(--muted); }
+.cr-go { display: grid; justify-items: center; gap: .3rem; } .cr-go button { min-height: 2.4rem; padding: .2em .9em; font-size: 1.15rem; white-space: nowrap; }
+.cr-st i { font-style: normal; font-size: 1.35rem; color: rgba(255, 255, 255, .22); } .cr-st i.on { color: var(--marigold); text-shadow: 0 0 8px rgba(255, 194, 26, .7); }
+.cr-lock { font-size: .78rem; color: var(--muted); text-align: center; max-width: 7rem; }
+.cr-don { margin: .7rem 0 0; padding: .5rem .7rem; border-radius: 10px; background: rgba(255, 194, 26, .14); color: var(--marigold); font-weight: 700; text-align: center; }
+.cr-res { margin-bottom: .8rem; padding: .55rem .7rem; border-radius: 12px; background: rgba(255, 194, 26, .1); box-shadow: inset 0 0 0 2px rgba(255, 194, 26, .6); } .cr-res.fail { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .05); }
+.cr-res h3 { margin: 0; font-size: 1.05rem; color: var(--muted); } .cr-ev { display: block; font-family: var(--f-num); font-size: 1.6rem; font-weight: 600; line-height: 1.1; margin-bottom: .2rem; }
+.cr-res li { color: var(--muted); font-size: .95rem; } .cr-res li.ok { color: #fff; } .cr-res li.ok i { text-shadow: 0 0 8px rgba(255, 194, 26, .7); } .cr-res li em { font-style: normal; margin-left: .5em; padding: 0 .35em; border-radius: .3em; background: var(--pink); font-size: .72em; font-weight: 800; }
+.cr-coins, .cr-prize { margin: .35rem 0 0; font-weight: 700; color: var(--good); } .cr-prize { color: var(--marigold); }
+.safar-hud { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.sh-card { position: absolute; left: 50%; top: 24%; translate: -50% 0; width: min(24rem, 86vw); padding: .6rem .9rem .7rem; border-radius: 14px; background: rgba(26, 10, 34, .9); box-shadow: inset 0 0 0 2px var(--marigold), 0 10px 30px rgba(0, 0, 0, .5); opacity: 0; transition: opacity .5s, translate .5s; translate: -50% -12px; }
+.safar-hud.intro .sh-card { opacity: 1; translate: -50% 0; }
+.sh-card small { display: block; color: var(--muted); letter-spacing: .08em; font-size: .78rem; } .sh-card b { display: block; font-family: var(--f-num); font-style: italic; font-size: 2rem; line-height: 1.05; color: var(--marigold); }
+.sh-card q { display: block; margin: .1rem 0 .3rem; font-style: italic; color: #ffd1a6; font-size: .95rem; } .sh-card ul { font-size: 1rem; gap: .15rem; margin-top: .3rem; } .sh-card li i { color: var(--marigold); }
+.sh-stars { position: absolute; display: flex; gap: .25rem; padding: .1rem .5rem; border-radius: 999px; background: rgba(26, 10, 34, .78); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.sh-stars i { font-style: normal; font-size: 1.25rem; color: rgba(255, 255, 255, .28); transition: color .3s, text-shadow .3s; } .sh-stars i.on { color: var(--marigold); text-shadow: 0 0 10px rgba(255, 194, 26, .9); } .sh-stars i.off { color: rgba(255, 75, 92, .55); }
+@media (orientation: portrait) { .cr-tabs { grid-template-columns: repeat(5, 1fr); gap: .25rem; } .cr-tabs button { padding: .3rem .3rem; } .cr-tabs button span { font-size: .66rem; } .cr-tabs button small { font-size: .62rem; }
+  .cr-card { grid-template-columns: 3.6rem 1fr auto; gap: .5rem; padding: .45rem .5rem; } .cr-info h4 { font-size: 1.3rem; } .cr-go button { padding: .2em .6em; font-size: 1rem; } .cr-st i { font-size: 1.1rem; }
+  .safar-btn { min-height: 2.7rem; padding: .2rem .6rem; } .safar-btn .sb-txt b { font-size: 1.3rem; } .safar-btn .sb-ico { width: 1.8rem; height: 1.8rem; font-size: 1.1rem; } }
+@media (max-height: 520px) { .safar-btn { min-height: 2.15rem; padding: .1rem .6rem; } .safar-btn .sb-ico { width: 1.5rem; height: 1.5rem; font-size: .95rem; } .safar-btn .sb-txt b { font-size: 1.25rem; } .safar-btn .sb-txt { display: flex; align-items: baseline; gap: .6rem; } .sh-card { top: 16%; }
+  #menu .setup-line { display: none; } #menu .start-btn { height: 3.5rem; font-size: 2.4rem; } }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -737,6 +783,7 @@ kbd { font-family: var(--f-num); }
         </div>
         <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
         <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
+        <button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
         <div class="two-btns three">
           <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
           <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
@@ -853,6 +900,7 @@ kbd { font-family: var(--f-num); }
         <p class="muted small" id="rMult"></p>
       </div>
       <div class="panel res-side">
+        <div id="rCareer" hidden></div>
         <h3>FINISHING ORDER</h3><ol class="res-order" id="rOrder"></ol>
         <div class="res-daily" id="rDaily"></div>
       </div>
@@ -911,6 +959,10 @@ kbd { font-family: var(--f-num); }
     <header><h2 id="cfTitle">Are you sure?</h2></header>
     <div class="modal-body"><p id="cfText"></p></div>
     <footer><button class="btn-pink" type="button" id="cfYes">Yes</button><button class="btn-dark" type="button" id="cfNo">Cancel</button></footer>
+  </div>
+  <div id="career" class="modal panel wide" role="dialog" aria-modal="true" aria-labelledby="crTitle" hidden>
+    <header><h2 id="crTitle">SAFAR <small>gali se Don tak</small></h2><span class="cr-stars" id="crStars"></span><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body" id="crBody"></div>
   </div>
   <div id="cupModal" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="cupTitle" hidden>
     <header><h2 id="cupTitle">CHAMPIONSHIP</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
@@ -1162,7 +1214,7 @@ function defaultSave() {
     cos: { rider: 'chapri', shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim', cape: 'none' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
-    records: {}, ghosts: {},
+    records: {}, ghosts: {}, career: { stars: {}, paid: {} },
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },
     streak: 0, wins: 0, races: 0, lastLogin: null, loginDays: 0,
     seenHelp: false,
@@ -5414,7 +5466,9 @@ class Race {
       // yours, so buying parts doesn't leave them behind. Toofan rides a fully maxed bike.
       const rivalSt = (k) => Object.assign({}, stock, { top: Math.max(stock.top, pst.top) * k, acc: Math.max(1, pst.acc) * (0.55 + 0.45 * k), grip: Math.max(1, pst.grip) * 0.99, lean: Math.max(45, pst.lean - 1), brake: Math.max(1, pst.brake), wobbleRes: 1.1 });
       const bossSt = Object.assign({}, stock, { top: 145, acc: 1.62, grip: 1.16, lean: 52, brake: 1.35, wobbleRes: 1.5, boostFill: 1.4 });
-      RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv).forEach((rv, i) => {
+      // setup.duel (career bosses): a one-on-one against that rival alone; setup.duelK scales his bike and skill against yours (0.97 gentle … 1.02 hard)
+      const field = setup.duel ? RIVALS.filter(rv => rv.short === setup.duel).map(rv => rv.boss ? rv : Object.assign({}, rv, { skill: Math.max(rv.skill, 1.0) * (setup.duelK || 1), corner: Math.max(rv.corner, 1.0), duel: true })) : RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv);
+      field.forEach((rv, i) => {
         const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
           // the grid is a wardrobe show too: baniyans, a bare-chested gym bhai, waistbands on display
           top: ['shirt', 'vest', 'shirt', 'bare', 'shirt', 'vest', 'shirt'][i % 7], vest: ['#f2efe6', '#26242c', '#ff4f9a'][i % 3], muscle: [0, 0.5, 0, 1.4, 0.3, 1.0, 0][i % 7],
@@ -5422,7 +5476,7 @@ class Race {
           mods: { exhaust: ['stock', 'free', 'long', 'chamber', 'twin', 'dragon'][i % 6], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
         if (rv.boss) Object.assign(lk, { tank: '#c99a2e', accent: '#141414', chrome: true, flowers: false, top: 'shirt', shirt: '#141414', hair: 'quiff', hairColor: '#111', beard: true, goldChain: true, shades: '#111', shadesStyle: 'aviator', band: null, muscle: 1.0, cape: COSMETICS.cape.find(c => c.id === 'raat'),
           mods: { exhaust: 'chamber', tyres: 'racing', kit: 'full', finish: 'chrome' } });   // gold tank, black kit, the Raat cape, the screaming chamber
-        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt([0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
+        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt(rv.duel ? (setup.duelK || 1) : [0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
         if (rv.boss) this.boss = r;
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;
         this.riders.push(r);
@@ -5601,6 +5655,7 @@ class Race {
   playerDone(pos) {
     if (this.state === 'finished') return;
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
+    this.finishLead = this.riders.reduce((m, r) => r.isPlayer || r.isCop ? m : Math.min(m, this.player.dist - r.dist), 1e9);   // metres clear of the next rider at the flag (career goals)
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
     // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results
@@ -7797,7 +7852,7 @@ class UI {
   open(id, fromPause = false) {
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
-    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard();
+    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); }
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = false; $('#' + id).hidden = false; this.returnToPause = fromPause;
     const f = $('#' + id).querySelector('button'); if (f) f.focus({ preventScroll: true });
   }
@@ -7825,7 +7880,7 @@ class UI {
     const bonus = $('#dailyBonus');
     if (allDone && !d.bonus) { bonus.innerHTML = `<button class="claim" type="button" id="claimBonus">CLAIM +${DAILY_BONUS_ALL} BONUS</button>`; $('#claimBonus').addEventListener('click', () => { SAVE.daily.bonus = true; SAVE.coins += DAILY_BONUS_ALL; persist(); AUDIO.pickup(); this.renderMenu(); }); }
     else bonus.textContent = d.bonus ? 'All done for today. New challenges tomorrow.' : `→ ALL 3 DONE → +${DAILY_BONUS_ALL} BONUS`;
-    $('#bellDot').hidden = SAVE.lastLogin === todayStr();
+    $('#bellDot').hidden = SAVE.lastLogin === todayStr(); CAREER.renderButton();
   }
   statRows(st, withUp) {
     const rows = [['speed', 'SPEED', st.top / 140, Math.round(st.top)], ['accel', 'ACCEL', clamp((12 - st.zeroTo100) / 8, 0.05, 1), st.zeroTo100.toFixed(1) + 's'], ['grip', 'GRIP', (st.lean - 38) / 18, (st.grip * 4.2).toFixed(1)], ['brake', 'BRAKES', (st.brake - 0.6) / 0.9, (st.brake * 4.1).toFixed(1)]];
@@ -7989,8 +8044,9 @@ class UI {
     $('#rList').innerHTML = res.items.map(([l, v]) => `<li><span>${l}</span><b>+${fmtNum(v)}</b></li>`).join('') || '<li><span>No points this time</span><b>+0</b></li>';
     $('#rTotal').textContent = '+' + fmtNum(res.total); $('#rMult').textContent = res.multText;
     $('#rOrder').innerHTML = res.order.map((r, i) => `<li class="${r.isPlayer ? 'me' : ''}"><span>${i + 1}</span><b>${r.isPlayer ? SAVE.name + ' (You)' : r.name}</b><small>${r.eliminated ? 'OUT' : r.finished ? fmtTime(r.laps.reduce((a, b) => a + b, 0)) : 'racing'}</small></li>`).join('');
+    $('#rCareer').innerHTML = res.careerHtml || ''; $('#rCareer').hidden = !res.careerHtml;
     const d = SAVE.daily; $('#rDaily').innerHTML = '<h3>DAILY CHALLENGES</h3>' + DAILY.map(c => `<div>${(d.prog[c.id] || 0) >= c.goal ? '✅' : '⬜'} ${c.label} <span class="muted">${Math.min(c.goal, d.prog[c.id] || 0)}/${c.goal}</span></div>`).join('') + (res.cupTable || '');
-    $('#rNext').textContent = this.game.cup ? (this.game.cup.idx < CUP_TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
+    $('#rNext').textContent = this.game.career ? (this.game.careerNext ? 'NEXT EVENT ›' : 'SAFAR MAP ›') : this.game.cup ? (this.game.cup.idx < CUP_TRACKS.length - 1 ? 'NEXT ROUND ›' : 'CUP RESULTS ›') : 'NEXT TRACK ›';
   }
 }
 function trackThumb(t) {
@@ -8095,6 +8151,135 @@ const SHARE = {
     if (dl) { try { await dl.save({ filename: name, data: this.blob }); } catch (e) { const c = e && e.code; if (c !== 'declined' && c !== 'rate_limited' && typeof UI_NOTE === 'function') UI_NOTE('Could not save here. Press and hold the card instead.'); } return; }
     const a = document.createElement('a'); a.href = this.url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   },
+};
+
+// ===== 84_career.js =====
+// ───────────────────────── SAFAR: THE CAREER ─────────────────────────
+// Five chapters, four events each (three races and a one-on-one boss). Every event has three goals = three stars.
+// The first goal clears the event and opens the next one; stars open chapters and pay coins; bosses pay prizes.
+// Saved in SAVE.career: stars[eventId] = bitmask of goals ever met, paid[eventId] = boss prize taken.
+const CAREER = {
+  // goal conditions: ['pos', n] finish nth or better · ['win'] · ['clean'] no falls · ['over', n] overtakes · ['ko', n] knockdowns
+  // ['lap', s] best lap ≤ s · ['stunt', pts] · ['escape'] not busted · ['naka', n] nakas jumped · ['lead', m] metres clear at the flag · ['boss'] finish ahead of Toofan
+  chapters: [
+    { id: 'c1', name: 'Gali ka Launda', line: 'Naya launda, purani bike. Pehle gali jeeto.', need: 0, diff: 'easy', events: [
+      { id: 'c1e1', name: 'Pehli Race', track: 'mumbai-central', mode: 'quick', laps: 1, time: 'golden', goals: [[['pos', 5]], [['pos', 3]], [['win']]] },
+      { id: 'c1e2', name: 'Gali Seekh', track: 'dharavi-lanes', mode: 'timetrial', laps: 2, time: 'morning', goals: [[['lap', 84]], [['lap', 76]], [['lap', 70]]] },
+      { id: 'c1e3', name: 'Stunt Dikha', track: 'bandstand-rush', mode: 'stunt', time: 'golden', goals: [[['stunt', 250]], [['stunt', 600]], [['stunt', 1000]]] },
+      { id: 'c1e4', name: 'Bunty Bhai', boss: 'Bunty', k: 0.97, say: 'Ae chhote! Yeh gali meri hai.', track: 'mumbai-central', mode: 'quick', laps: 2, time: 'night', goals: [[['win']], [['win'], ['clean']], [['win'], ['lead', 40]]], prize: { coins: 1500, parts: 3 } },
+    ] },
+    { id: 'c2', name: 'Naka King', line: 'Ab signal pe sab tera naam jaante hain.', need: 5, diff: 'normal', events: [
+      { id: 'c2e1', name: 'Sea Link Sprint', track: 'bandstand-rush', mode: 'quick', laps: 2, time: 'golden', goals: [[['pos', 3]], [['win']], [['over', 8]]] },
+      { id: 'c2e2', name: 'Gali Rumble', track: 'dharavi-lanes', mode: 'rumble', time: 'night', goals: [[['ko', 1]], [['ko', 3]], [['win']]] },
+      { id: 'c2e3', name: 'Baarish', track: 'sion-flyover', mode: 'quick', laps: 2, time: 'golden', weather: 'monsoon', goals: [[['pos', 4]], [['pos', 2]], [['pos', 4], ['clean']]] },
+      { id: 'c2e4', name: 'Sunny Speed', boss: 'Sunny', k: 0.99, say: 'Meri bike ki sirf tail-light dekhega tu.', track: 'bandstand-rush', mode: 'quick', laps: 2, time: 'morning', goals: [[['win']], [['win'], ['clean']], [['win'], ['lead', 50]]], prize: { coins: 2500, parts: 4, cape: 'hero' } },
+    ] },
+    { id: 'c3', name: 'Market Dada', line: 'Crawford se Dharavi tak, hafta tujhe milta hai.', need: 11, diff: 'normal', events: [
+      { id: 'c3e1', name: 'Market Night', track: 'crawford-market', mode: 'quick', laps: 3, time: 'night', goals: [[['pos', 3]], [['win']], [['boss']]] },
+      { id: 'c3e2', name: 'Aakhri Banda', track: 'mumbai-central', mode: 'elimination', time: 'golden', goals: [[['pos', 5]], [['pos', 3]], [['win']]] },
+      { id: 'c3e3', name: 'Bhaag!', track: 'bhaag-chapri', mode: 'police', time: 'night', goals: [[['escape']], [['escape'], ['naka', 3]], [['escape'], ['clean']]] },
+      { id: 'c3e4', name: 'Raju Rocket', boss: 'Raju', k: 1.0, say: 'Baarish mein sirf Rocket udta hai.', track: 'crawford-market', mode: 'quick', laps: 2, time: 'night', weather: 'monsoon', goals: [[['win']], [['win'], ['clean']], [['win'], ['lead', 50]]], prize: { coins: 3500, parts: 5, cape: 'neon' } },
+    ] },
+    { id: 'c4', name: 'Flyover Raja', line: 'Ab upar wali sadak bhi teri.', need: 18, diff: 'hard', events: [
+      { id: 'c4e1', name: 'Sion Showdown', track: 'sion-flyover', mode: 'quick', laps: 3, time: 'golden', goals: [[['pos', 3]], [['win']], [['win'], ['clean']]] },
+      { id: 'c4e2', name: 'Underground Lap', track: 'mumbai-underground', mode: 'timetrial', laps: 2, time: 'night', goals: [[['lap', 90]], [['lap', 83]], [['lap', 78]]] },
+      { id: 'c4e3', name: 'Danga', track: 'bandstand-rush', mode: 'rumble', time: 'night', goals: [[['ko', 2]], [['ko', 4]], [['win']]] },
+      { id: 'c4e4', name: 'Lucky Lambu', boss: 'Lambu', k: 1.02, say: 'Lambi race, lamba haath. Aaja.', track: 'dharavi-lanes', mode: 'quick', laps: 3, time: 'night', goals: [[['win']], [['win'], ['clean']], [['win'], ['lead', 60]]], prize: { coins: 5000, parts: 6 } },
+    ] },
+    { id: 'c5', name: 'Mumbai ka Don', line: 'Ek hi naam bacha hai. Toofan.', need: 26, diff: 'hard', events: [
+      { id: 'c5e1', name: 'Toofan se Pehle', track: 'mumbai-underground', mode: 'quick', laps: 2, time: 'night', weather: 'monsoon', goals: [[['pos', 3]], [['win']], [['boss']]] },
+      { id: 'c5e2', name: 'Hawa ka Raja', track: 'sion-flyover', mode: 'stunt', time: 'golden', goals: [[['stunt', 600]], [['stunt', 1200]], [['stunt', 2000]]] },
+      { id: 'c5e3', name: 'Most Wanted', track: 'bhaag-chapri', mode: 'police', time: 'night', goals: [[['escape']], [['escape'], ['naka', 4]], [['escape'], ['clean']]] },
+      { id: 'c5e4', name: 'Toofan Bhai', boss: 'Toofan', say: 'Don banna hai? Pehle mujhse aage nikal.', track: 'mumbai-underground', mode: 'quick', laps: 2, time: 'night', diff: 'normal', goals: [[['win']], [['win'], ['clean']], [['win'], ['lead', 30]]], prize: { coins: 10000, parts: 10, cape: 'raja', don: true } },
+    ] },
+  ],
+  STAR_COINS: 150,   // × chapter number, for every star earned for the first time
+  all() { return this.chapters.flatMap((c, ci) => c.events.map((e, ei) => Object.assign(e, { ch: c, ci, ei }))); },
+  find(id) { return this.all().find(e => e.id === id); },
+  save() { if (!SAVE.career || !SAVE.career.stars) SAVE.career = { stars: {}, paid: {} }; if (!SAVE.career.paid) SAVE.career.paid = {}; return SAVE.career; },
+  bits(id) { return this.save().stars[id] || 0; },
+  starsOf(id) { const b = this.bits(id); return (b & 1) + (b >> 1 & 1) + (b >> 2 & 1); },
+  total() { return this.all().reduce((a, e) => a + this.starsOf(e.id), 0); },
+  max() { return this.all().length * 3; },
+  // an event is open when its chapter is (enough stars) and the event before it has been cleared (its first goal met)
+  chapterOpen(c) { return this.total() >= c.need; },
+  open(e) { if (!this.chapterOpen(e.ch)) return false; if (e.ei === 0) return e.ci === 0 || (this.bits(this.chapters[e.ci - 1].events[3].id) & 1) === 1; return (this.bits(e.ch.events[e.ei - 1].id) & 1) === 1; },
+  next() { return this.all().find(e => this.open(e) && !(this.bits(e.id) & 1)) || null; },   // the first open event not yet cleared
+  setupOf(e) { return { mode: e.mode, track: e.track, laps: e.laps || 2, diff: e.diff || e.ch.diff, time: e.time || 'auto', weather: e.weather || 'clear', combat: true, duel: e.boss || null, duelK: e.k || 1, career: e.id }; },
+  // ── goals ──
+  condText(c) { const n = c[1]; switch (c[0]) {
+    case 'pos': return `Finish ${n}${ordinal(n).toLowerCase()} or better`; case 'win': return 'Win'; case 'clean': return 'no falls'; case 'over': return `${n} overtakes`; case 'ko': return `${n} knockdown${n > 1 ? 's' : ''}`;
+    case 'lap': return `Lap under ${fmtTime(n).replace(/\.\d+$/, '')}`; case 'stunt': return `${fmtNum(n)} stunt points`; case 'escape': return 'Escape the police'; case 'naka': return `jump ${n} nakas`; case 'lead': return `by ${n} m`; case 'boss': return 'Finish ahead of Toofan Bhai'; } return ''; },
+  goalText(g) { const t = g.map(c => this.condText(c)); return t[0] + (t.length > 1 ? (['clean', 'naka'].includes(g[1][0]) ? ', ' : ' ') + t.slice(1).join(', ') : ''); },
+  // live state of one condition during the race: 1 met (for now), 0 not yet, -1 gone for good
+  condLive(c, R) { const P = R.player, S = R.score, n = c[1], rank = R.ranking(), pos = R.playerPos || rank.indexOf(P) + 1; switch (c[0]) {
+    case 'pos': return pos <= n ? 1 : 0; case 'win': return pos === 1 ? 1 : 0; case 'clean': return R.clean ? 1 : -1; case 'over': return (S.overtakeCount || 0) >= n ? 1 : 0; case 'ko': return (S.knockCount || 0) >= n ? 1 : 0;
+    case 'lap': return isFinite(P.bestLap) && P.bestLap <= n ? 1 : 0; case 'stunt': return (S.stunts || 0) >= n ? 1 : 0; case 'escape': return R.police && R.police.busted ? -1 : 1; case 'naka': return (S.nakaCount || 0) >= n ? 1 : 0;
+    case 'lead': { const o = R.riders.find(r => !r.isPlayer); return o && P.dist - o.dist >= n ? 1 : 0; }
+    case 'boss': return R.boss ? (R.boss.dist < P.dist ? 1 : 0) : 1; } return 0; },
+  // the verdict at the flag
+  condDone(c, R) { const P = R.player; switch (c[0]) {
+    case 'pos': case 'win': return !!MODES[R.mode].rivals && this.condLive(c, R) === 1;
+    case 'lead': return (R.finishLead || 0) >= c[1]; case 'boss': return !R.boss || (P.finished && (!R.boss.finished || P.finishT < R.boss.finishT));
+    case 'escape': return !!R.police && !R.police.busted; default: return this.condLive(c, R) === 1; } },
+  // ── results: bank the stars, pay out, and describe it ──
+  finish(game, R) {
+    const e = this.find(game.career); if (!e) return ''; const C = this.save(), before = this.bits(e.id), wasTotal = this.total();
+    const met = e.goals.map(g => g.every(c => this.condDone(c, R))); let now = before; met.forEach((m, i) => { if (m) now |= 1 << i; });
+    const fresh = [0, 1, 2].filter(i => (now >> i & 1) && !(before >> i & 1)).length, coins = fresh * this.STAR_COINS * (e.ci + 1); C.stars[e.id] = now; SAVE.coins += coins;
+    let prize = ''; if (e.prize && (now & 1) && !C.paid[e.id]) { C.paid[e.id] = true; const p = e.prize; SAVE.coins += p.coins; SAVE.parts += p.parts; const bits = [`${coinI}${fmtNum(p.coins)}`, `${p.parts} parts`];
+      if (p.cape) { const cp = COSMETICS.cape.find(x => x.id === p.cape); if (cp && !SAVE.ownedCos[cp.id]) { SAVE.ownedCos[cp.id] = true; bits.push(`the ${cp.name} cape`); } }
+      if (p.don) { C.don = true; bits.push('the title Mumbai ka Don'); }
+      prize = `<p class="cr-prize">${e.boss === 'Toofan' ? 'TOOFAN GIRA DIYA!' : e.ch.events[3].name.toUpperCase() + ' HARA DIYA!'} Prize: ${bits.join(' + ')}</p>`; }
+    const opened = this.chapters.filter(c => wasTotal < c.need && this.total() >= c.need && c.need > 0).map(c => c.name);
+    const nx = this.next(); game.careerNext = (now & 1) && nx && nx.id !== e.id ? nx.id : null;
+    return `<div class="cr-res${now & 1 ? '' : ' fail'}"><h3>SAFAR · ${e.ch.name.toUpperCase()}</h3><b class="cr-ev">${e.boss ? 'BOSS: ' : ''}${e.name}</b>
+      <ul>${e.goals.map((g, i) => `<li class="${met[i] ? 'ok' : (now >> i & 1) ? 'had' : ''}"><i>★</i><span>${this.goalText(g)}</span>${met[i] && !(before >> i & 1) ? '<em>NEW</em>' : ''}</li>`).join('')}</ul>
+      ${coins ? `<p class="cr-coins">${fresh} new star${fresh > 1 ? 's' : ''}: +${coinI}${fmtNum(coins)}</p>` : ''}${prize}${opened.length ? `<p class="cr-prize">Chapter open: ${opened.join(', ')}</p>` : ''}
+      ${now & 1 ? '' : `<p class="muted small">Not cleared yet: ${this.goalText(e.goals[0])} to move on.</p>`}</div>`;
+  },
+  // ── the map (a modal) ──
+  render(game) {
+    const tot = this.total(), nx = this.next(), sel = this.sel != null ? this.sel : (nx ? nx.ci : this.chapters.length - 1); this.sel = sel; const c = this.chapters[sel];
+    const star = (on) => `<i class="${on ? 'on' : ''}">★</i>`;
+    $('#crStars').innerHTML = `★ ${tot}<small>/${this.max()}</small>`;
+    $('#crBody').innerHTML = `<div class="cr-tabs">${this.chapters.map((ch, i) => { const got = ch.events.reduce((a, e) => a + this.starsOf(e.id), 0), op = this.chapterOpen(ch) && (i === 0 || (this.bits(this.chapters[i - 1].events[3].id) & 1));
+        return `<button type="button" class="${i === sel ? 'on' : ''}${op ? '' : ' lock'}" data-ch="${i}"><b>${i + 1}</b><span>${ch.name}</span><small>${op ? `★ ${got}/12` : `🔒 ${tot < ch.need ? ch.need + '★' : 'beat the boss'}`}</small></button>`; }).join('')}</div>
+      <p class="cr-line">${c.line}${this.chapterOpen(c) ? '' : ` <b>Needs ${c.need} stars (you have ${tot}).</b>`}</p>
+      <div class="cr-list">${c.events.map(e0 => { const e = this.find(e0.id), op = this.open(e), b = this.bits(e.id), t = TRACKS.find(x => x.id === e.track), M = MODES[e.mode], laps = M.fixedLaps || e.laps || 2;
+        return `<article class="cr-card${e.boss ? ' boss' : ''}${op ? '' : ' lock'}${nx && nx.id === e.id ? ' next' : ''}">
+          <div class="cr-thumb">${trackThumb(t)}</div>
+          <div class="cr-info"><h4>${e.boss ? '<em>BOSS</em> ' : ''}${e.name}</h4><p class="cr-meta">${e.boss ? 'One on one' : M.label} · ${t.short} · ${laps} lap${laps > 1 ? 's' : ''}${e.weather === 'monsoon' ? ' · Rain' : ''} · ${DIFFICULTY[e.diff || c.diff].label}</p>
+            ${e.boss ? `<p class="cr-say">“${e.say}”</p>` : ''}
+            <ul>${e.goals.map((g, i) => `<li class="${b >> i & 1 ? 'ok' : ''}"><i>★</i>${this.goalText(g)}</li>`).join('')}</ul></div>
+          <div class="cr-go"><span class="cr-st">${star(b & 1)}${star(b & 2)}${star(b & 4)}</span>${op ? `<button type="button" class="${b & 1 ? 'btn-dark' : 'btn-yellow'}" data-ev="${e.id}">${b & 1 ? 'REPLAY' : 'RACE ›'}</button>` : `<span class="cr-lock">🔒 ${this.chapterOpen(c) ? 'Clear the one before' : c.need + ' stars'}</span>`}</div></article>`; }).join('')}</div>
+      ${this.save().don ? '<p class="cr-don">👑 MUMBAI KA DON. Toofan rides behind you now. Go back for every star.</p>' : ''}`;
+    $$('#crBody [data-ch]').forEach(b => b.addEventListener('click', () => { AUDIO.click(); this.sel = +b.dataset.ch; this.render(game); }));
+    $$('#crBody [data-ev]').forEach(b => b.addEventListener('click', () => { AUDIO.click(); game.ui.closeModal(); game.startCareer(b.dataset.ev); }));
+  },
+  // the home-screen button: where you are in the story
+  renderButton() {
+    const el = $('#safarBtn'); if (!el) return; const nx = this.next(), tot = this.total();
+    $('#safarSub').textContent = this.save().don && !nx ? 'Mumbai ka Don · every event cleared' : nx ? `${nx.boss ? 'Boss: ' : ''}${nx.name} · ${nx.ch.name}` : `Earn ${this.chapters.find(c => !this.chapterOpen(c)).need} stars to open the next chapter`;
+    $('#safarStars').textContent = `★ ${tot}/${this.max()}`;
+  },
+  // ── in the race: an intro card with the three goals, then three live stars under the minimap ──
+  hudStart(game, R) {
+    this.hudStop(); const e = this.find(game.career); if (!e) return;
+    const el = document.createElement('div'); el.id = 'safarHud'; el.className = 'safar-hud intro';
+    el.innerHTML = `<div class="sh-card"><small>SAFAR · ${e.ch.name}</small><b>${e.boss ? 'BOSS: ' : ''}${e.name}</b>${e.boss ? `<q>${e.say}</q>` : ''}<ul>${e.goals.map(g => `<li><i>★</i>${this.goalText(g)}</li>`).join('')}</ul></div>
+      <div class="sh-stars" aria-hidden="true">${e.goals.map(() => '<i>★</i>').join('')}</div>`;
+    $('#hud').appendChild(el); this.hudEl = el; this.hudState = [0, 0, 0];
+    const place = () => { const mm = $('.minimap'); if (!mm) return; const r = mm.getBoundingClientRect(), a = $('#app').getBoundingClientRect(); el.querySelector('.sh-stars').style.cssText = `top:${Math.round(r.bottom - a.top + 6)}px;right:${Math.round(a.right - r.right)}px`; }; place();
+    this.hudTimer = setInterval(() => {
+      if (game.race !== R || !el.isConnected) return this.hudStop(); if (game.state !== 'race') return;
+      if (el.classList.contains('intro')) { place(); if (R.raceT > 1.2) el.classList.remove('intro'); }   // the card stays through the countdown, then gets out of the way
+      const stars = el.querySelectorAll('.sh-stars i');
+      e.goals.forEach((g, i) => { const st = g.map(c => this.condLive(c, R)), v = st.includes(-1) ? -1 : st.every(x => x === 1) ? 1 : 0;
+        if (v !== this.hudState[i]) { this.hudState[i] = v; stars[i].className = v === 1 ? 'on' : v === -1 ? 'off' : ''; if (v === 1 && R.raceT > 2 && !['pos', 'win', 'lead', 'boss', 'clean', 'escape'].includes(g[0][0])) { R.hud.callout('★ ' + this.goalText(g).toUpperCase(), '', 'gold'); AUDIO.pickup(); } } });
+    }, 400);
+  },
+  hudStop() { clearInterval(this.hudTimer); this.hudTimer = 0; if (this.hudEl) this.hudEl.remove(); this.hudEl = null; },
 };
 
 // ===== 85_input.js =====
@@ -8238,7 +8423,7 @@ class Game {
     addEventListener('resize', () => this.resize()); addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'race') this.pause(); });
     window.__chapri = this; window.__audio = { AUDIO, MUSIC, OST };
-    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; }
+    if (DEBUG.test) { window.__DEBUG = DEBUG; window.__SAVE = () => SAVE; window.__RM = RIDER_MODEL; window.__career = CAREER; }
     if (DEBUG.test) window.__setMods = (md, paint) => { SAVE.mods[SAVE.build] = md; if (paint) SAVE.paint[SAVE.build] = paint; this.refreshMenuRig(); };
     this.hideLoader(); this.showScreen('menu');
     this.last = performance.now(); requestAnimationFrame((t) => this.loop(t));
@@ -8361,8 +8546,10 @@ class Game {
     if (id === 'menu' || id === 'garage' || id === 'store') { this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.nav === 'home' && id === 'menu')); }
   }
   // ── race lifecycle ──
-  startFromSetup() { if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; return this.startRace(Object.assign({}, SAVE.setup)); }
-  startCup() { const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[0].id }), this.cup); }
+  startFromSetup() { this.career = null; if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; return this.startRace(Object.assign({}, SAVE.setup)); }
+  // a career event (84_career.js): its own track, mode and rules, with three goals to meet
+  startCareer(id) { const e = CAREER.find(id); if (!e) return; this.cup = null; this.career = id; return this.startRace(CAREER.setupOf(e), null); }
+  startCup() { this.career = null; const s = SAVE.setup; this.cup = { idx: 0, points: {}, setup: Object.assign({}, s, { mode: 'quick' }) }; return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[0].id }), this.cup); }
   // async with a loading screen: building a map and compiling its shaders takes seconds on a phone, so the player sees
   // the track name, a moving bar and tips instead of a frozen menu.
   async startRace(setup, cup = this.cup) {
@@ -8385,7 +8572,7 @@ class Game {
       this.setLoad(0.5, 'Lining up the riders…'); await painted();
       this.race = new Race(this, setup, cup); this.scene.add(this.race.group);
       [this.race.combat.smoke, this.race.combat.stars, this.race.combat.sparks, this.race.combat.mud, this.race.combat.spray].forEach(p => (p.mat.uniforms.scale.value = this.vh * 0.6));
-      this.hud.setupRace(this.race); this.lastSetup = setup; this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
+      this.hud.setupRace(this.race); this.lastSetup = setup; if (this.career) CAREER.hudStart(this, this.race); else CAREER.hudStop(); this.fx.reset(this.race); this.accSm = 0; this._pv = 0;
       this.camPsi = 0; this.camInit = false; this.camMode = SAVE.settings.camera || 0;
       this.setLoad(0.66, 'Warming up the engine…'); await painted();
       await this.compileScene(true, (f) => this.setLoad(0.66 + f * 0.3));
@@ -8442,10 +8629,10 @@ class Game {
   pause() { if (this.state !== 'race') return; this.state = 'paused'; this.setMusic('pause'); $('#pauseInfo').textContent = `${this.race.def.name} · Lap ${clamp(Math.max(0, this.race.player.lap) + 1, 1, this.race.laps)}/${this.race.laps}. The race waits for you.`; this.ui.open('pause'); }
   resume() { this.ui.returnToPause = false; this.ui.closeModal(); if (this.state === 'paused') { this.state = 'race'; this.setMusic('race'); this.last = performance.now(); } }
   restart() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; const s = this.lastSetup; if (this.cup && this.cup.done) this.cup = null; this.startRace(s, this.cup); }
-  quitRace() { this.cup = null; this.toMenu(); }
+  quitRace() { this.cup = null; const wasCareer = !!this.career; this.toMenu().then(() => { if (wasCareer) this.ui.open('career'); }); }
   async toMenu() {
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true;
-    this.endRace(); if (this.cup && this.cup.done) this.cup = null;
+    this.endRace(); if (this.cup && this.cup.done) this.cup = null; this.career = null; CAREER.hudStop();
     const def = TRACKS.find(t => t.id === SAVE.setup.track) || TRACKS[0], rebuild = this.worldKey !== def.id + '|' + this.quality;
     if (rebuild) { this.state = 'loading'; this.showLoader(null); this.setLoad(0.25, `Building ${def.short || def.name}…`); await painted(); }
     this.loadTrack(SAVE.setup.track); this.refreshMenuRig(); this.scene.add(this.menuRig.root);
@@ -8453,12 +8640,13 @@ class Game {
     this.showScreen('menu');
   }
   nextTrack() {
+    if (this.career) { const nx = this.careerNext; if (nx) return this.startCareer(nx); return this.toMenu().then(() => this.ui.open('career')); }
     if (this.cup) { if (this.cup.done) { this.cup = null; return this.toMenu(); } this.cup.idx++; if (this.cup.idx >= CUP_TRACKS.length) { this.cup.done = true; return this.toMenu(); } return this.startRace(Object.assign({}, this.cup.setup, { track: CUP_TRACKS[this.cup.idx].id }), this.cup); }
     const pool = this.lastSetup.mode === 'police' ? TRACKS.filter(t => t.police) : CUP_TRACKS; const i = pool.findIndex(t => t.id === this.lastSetup.track); const nx = pool[(i + 1) % pool.length]; SAVE.setup.track = nx.id; persist(); this.startRace(Object.assign({}, this.lastSetup, { track: nx.id }));
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
-    const res = this.computeResults(R); this.lastRes = res; this.state = 'results'; this.setMusic('menu');
+    const res = this.computeResults(R); if (this.career) { res.careerHtml = CAREER.finish(this, R); persist(); } this.lastRes = res; this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
   }

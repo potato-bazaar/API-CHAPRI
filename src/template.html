@@ -56,6 +56,7 @@
         </div>
         <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
         <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
+        <button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
         <div class="two-btns three">
           <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
           <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
@@ -172,6 +173,7 @@
         <p class="muted small" id="rMult"></p>
       </div>
       <div class="panel res-side">
+        <div id="rCareer" hidden></div>
         <h3>FINISHING ORDER</h3><ol class="res-order" id="rOrder"></ol>
         <div class="res-daily" id="rDaily"></div>
       </div>
@@ -230,6 +232,10 @@
     <header><h2 id="cfTitle">Are you sure?</h2></header>
     <div class="modal-body"><p id="cfText"></p></div>
     <footer><button class="btn-pink" type="button" id="cfYes">Yes</button><button class="btn-dark" type="button" id="cfNo">Cancel</button></footer>
+  </div>
+  <div id="career" class="modal panel wide" role="dialog" aria-modal="true" aria-labelledby="crTitle" hidden>
+    <header><h2 id="crTitle">SAFAR <small>gali se Don tak</small></h2><span class="cr-stars" id="crStars"></span><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body" id="crBody"></div>
   </div>
   <div id="cupModal" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="cupTitle" hidden>
     <header><h2 id="cupTitle">CHAMPIONSHIP</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>

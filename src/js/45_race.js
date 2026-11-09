@@ -28,7 +28,9 @@ class Race {
       // yours, so buying parts doesn't leave them behind. Toofan rides a fully maxed bike.
       const rivalSt = (k) => Object.assign({}, stock, { top: Math.max(stock.top, pst.top) * k, acc: Math.max(1, pst.acc) * (0.55 + 0.45 * k), grip: Math.max(1, pst.grip) * 0.99, lean: Math.max(45, pst.lean - 1), brake: Math.max(1, pst.brake), wobbleRes: 1.1 });
       const bossSt = Object.assign({}, stock, { top: 145, acc: 1.62, grip: 1.16, lean: 52, brake: 1.35, wobbleRes: 1.5, boostFill: 1.4 });
-      RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv).forEach((rv, i) => {
+      // setup.duel (career bosses): a one-on-one against that rival alone; setup.duelK scales his bike and skill against yours (0.97 gentle … 1.02 hard)
+      const field = setup.duel ? RIVALS.filter(rv => rv.short === setup.duel).map(rv => rv.boss ? rv : Object.assign({}, rv, { skill: Math.max(rv.skill, 1.0) * (setup.duelK || 1), corner: Math.max(rv.corner, 1.0), duel: true })) : RIVALS.map(rv => rv.boss && setup.diff === 'easy' ? RIVAL_EASY : rv);
+      field.forEach((rv, i) => {
         const lk = { tank: PAINTS[(i * 3 + 2) % PAINTS.length], accent: '#e8e8ec', chrome: i % 3 === 0, shirt: rv.shirt, flowers: i % 2 === 1, helmet: rv.helmet, shades: i % 3 === 1 ? '#111' : null, hair: ['pomp', 'buzz', 'long', 'quiff', 'pomp', 'buzz', 'pomp'][i % 7], hairColor: HAIR_DYES[(i + 1) % HAIR_DYES.length], beard: i % 4 === 3, stubble: i % 2 === 0, goldChain: i % 3 === 0, shadesStyle: i % 3 === 1 ? 'aviator' : null, jeans: pick(['#26304f', '#3a3a3a', '#4a3a2a', '#2f4a6e']),
           // the grid is a wardrobe show too: baniyans, a bare-chested gym bhai, waistbands on display
           top: ['shirt', 'vest', 'shirt', 'bare', 'shirt', 'vest', 'shirt'][i % 7], vest: ['#f2efe6', '#26242c', '#ff4f9a'][i % 3], muscle: [0, 0.5, 0, 1.4, 0.3, 1.0, 0][i % 7],
@@ -36,7 +38,7 @@ class Race {
           mods: { exhaust: ['stock', 'free', 'long', 'chamber', 'twin', 'dragon'][i % 6], tyres: ['stock', 'fat', 'racing'][(i * 2) % 3], kit: ['none', 'guard', 'cafe', 'full', 'none', 'guard'][(i + 1) % 6], finish: ['gloss', 'matte', 'flake', 'chrome'][(i * 3 + 1) % 4] } };
         if (rv.boss) Object.assign(lk, { tank: '#c99a2e', accent: '#141414', chrome: true, flowers: false, top: 'shirt', shirt: '#141414', hair: 'quiff', hairColor: '#111', beard: true, goldChain: true, shades: '#111', shadesStyle: 'aviator', band: null, muscle: 1.0, cape: COSMETICS.cape.find(c => c.id === 'raat'),
           mods: { exhaust: 'chamber', tyres: 'racing', kit: 'full', finish: 'chrome' } });   // gold tank, black kit, the Raat cape, the screaming chamber
-        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt([0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
+        const r = new Rider(this, i + 1, { name: rv.name, short: rv.short, stats: rv.boss ? bossSt : rivalSt(rv.duel ? (setup.duelK || 1) : [0.95, 0.97, 0.99, 1.01, 0.96, 0.98, 1.0][i % 7]), look: lk, rival: rv });
         if (rv.boss) this.boss = r;
         r.ai.laneBias = ((i % 3) - 1) * 0.7 + (RNG() - 0.5) * 0.4;
         this.riders.push(r);
@@ -215,6 +217,7 @@ class Race {
   playerDone(pos) {
     if (this.state === 'finished') return;
     this.state = 'finished'; this.playerPos = pos; this.player.finished = true; this.finishWall = performance.now();
+    this.finishLead = this.riders.reduce((m, r) => r.isPlayer || r.isCop ? m : Math.min(m, this.player.dist - r.dist), 1e9);   // metres clear of the next rider at the flag (career goals)
     this.hud.finish(pos, this.riders.length > 1 ? this.riders.length : 0, this.mode);
     AUDIO.finish(pos === 1);
     // a win (or a clean escape from the police) gets the hero entry; anything else goes straight to the results

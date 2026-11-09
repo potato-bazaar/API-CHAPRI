@@ -32,6 +32,13 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
   - **Namak Khet:** a salt-pan kachha road with dust, fences, pylons, floodlight poles, ground fog and a broken-down HORN OK PLEASE truck.
   - **Lokhandwala:** market neon and chasing festoon bulbs back to the finish.
   - Shaving past traffic scores a PEEP PEEP! near miss.
+- **Safar, the career.** A story ladder on the home screen (the **SAFAR** button): five chapters from *Gali ka Launda* to *Mumbai ka Don*, 20 events and 60 stars.
+  - Each chapter has three events and a **one-on-one boss race**: Bunty Bhai, Sunny Speed, Raju Rocket, Lucky Lambu and finally Toofan Bhai. Events use every mode: races, time trials, stunt runs, Gali Rumble, Elimination and Police Express+.
+  - Every event has three goals, one star each (for example: finish 3rd or better, win, win without falling). The first goal clears the event and opens the next one. Chapters open at 5, 11, 18 and 26 stars.
+  - In the race, a card shows the goals through the countdown, then three stars under the minimap light up live as you meet them (and go red if a goal is lost, such as a fall on a no-falls goal).
+  - New stars pay coins (150 × the chapter number each). Beating a boss pays a prize once: coins, parts, and the Hero, Neon and Raja capes along the way. Beating Toofan gives the title Mumbai ka Don.
+  - The results screen shows the stars you earned and **Next event**. Events can be replayed for missing stars.
+  - Data lives in `src/js/84_career.js` (`CAREER.chapters`); a boss event sets `duel` and `duelK` (his bike and skill against yours) on the race setup. Lap and stunt targets were set from autopilot runs, not human play, so expect to tune them.
 - **Rival taunts.** On every track, rivals now and then shout Hinglish lines in speech bubbles when they pass you, when you pass them, or when you hit them.
 - **Controls.** Steering answers at once: the bike starts sliding toward the side you press while the heading catches up. On touch, the two arrows act as one pad, so you can slide your thumb across. Tap weight-back (Q) to hop over slicks, glass and potholes; hold it for a wheelie in any gear. A wheelie is also a speed trick (more pull, a higher top speed, less steering).
 - **Fights.**
