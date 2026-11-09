@@ -4110,6 +4110,10 @@ const RIDER_HOOK = `#include <map_fragment>
   diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * rG, rM.r);
   diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);
   diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;
+  if (riderTop < 0.5) { // a shirt is on: its back and sides are the shirt all the way round. (The cloth back panel rides over this; when the
+    // arms reach for the bars the shoulder blades push through it, and white baniyan showing there read as a torn shirt.)
+    float bk = max(smoothstep(0.03, -0.01, vRB.z), smoothstep(0.12, 0.16, abs(vRB.x))) * step(1.0, vRB.y) * step(vRB.y, 1.52) * step(abs(vRB.x), 0.27);
+    diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * 0.9, bk); }
   { // wardrobe, decided from the bind-pose position (the same space the texture was painted in, tools/model/paint-rider.py)
     float aX = abs(vRB.x), y = vRB.y;
     float vestP = step(0.995, y) * step(y, 1.375) * step(aX, 0.2);                 // the painted white baniyan
@@ -4159,7 +4163,7 @@ function riderBodyMat(shirtTex, jeans, low, stubble, o = {}) {
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
   const U = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } }, riderWardrobeU(o, o.lod ? 'body_lod' : 'body'));
   m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
-  m.customProgramCacheKey = () => low ? 'rider-l2' : 'rider-s2'; m.userData.riderU = U;
+  m.customProgramCacheKey = () => low ? 'rider-l3' : 'rider-s3'; m.userData.riderU = U;
   RIDER_MODEL.mats.set(key, m); return m;
 }
 // cloth + hair streaming in the wind: displaced after skinning, in the rider's own space (+z forward), scaled per vertex
@@ -4328,7 +4332,8 @@ class RiderModel {
           this.ik(B['thigh_' + s], B['calf_' + s], B['foot_' + s], tgt, pole, this.ax['leg_' + s]);
           alignBone(B['foot_' + s], this.ax['foot_' + s].aim, this.ax['foot_' + s].up, _rv[8].copy(_FOOT_AIM).applyQuaternion(R.quaternion), AX[1]); continue;
         }
-        const tgt = toModel(V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
+        const fo = rig.footOff ? rig.footOff[s] : null;   // a foot off its peg: down on the road at a stop, out in a slide, a dab at the gear lever
+        const tgt = toModel(fo ? V[1].set(sg * F.ankle[0] + fo.x, F.ankle[1] + fo.y, F.ankle[2] + fo.z) : V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
         if (leg.rotation.x || leg.rotation.z) { const d = V[2].subVectors(tgt, hip).applyEuler(leg.rotation); tgt.copy(hip).add(d); }
         const inside = Math.sign(ln) === sg ? Math.min(1, Math.abs(ln) * 1.6) : 0;   // chapri style: knees flung wide, the inside one even more
         const pole = toModel(V[3].set(sg * (1.0 + 1.4 * inside), 0.82 - 0.35 * inside, 0.6 - 0.3 * inside));
@@ -4642,6 +4647,7 @@ function partRadius(o) {
   else { o.updateWorldMatrix(true, false); s = o.matrixWorld.getMaxScaleOnAxis(); }
   return g.boundingSphere.radius * s;
 }
+const STOP_G = new THREE.PlaneGeometry(0.62, 0.42);
 class BikeRig {
   constructor(o) {
     this.o = o;
@@ -4662,7 +4668,7 @@ class BikeRig {
       this.body.add(modelPart(o.lod ? P.lod : P.body, null, pick, cast));
       this.wheelR = modelPart(P.wheelR, [0, WHEEL_R_M, REAR_Z], pick, cast); this.wheelF = modelPart(P.wheelF, [0, WHEEL_R_M, FRONT_Z], pick, cast);
       this.body.add(this.wheelR, this.wheelF);
-      const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights);
+      const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights); this.addStopLamp();
       if (o.mods && !o.ghost) this.mods = addBikeMods(this, o, low, cast);
       if (!o.ghost) { const W = wheelBlurAssets(); this.blurMat = new THREE.MeshLambertMaterial({ map: W.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 }); this.blurs = [];
         for (const [wh, geo] of [[this.wheelF, W.gF], [this.wheelR, W.gR]]) { const grp = new THREE.Group(); for (const sx of [1, -1]) { const m = new THREE.Mesh(geo, this.blurMat); m.position.x = sx * 0.058; m.renderOrder = 2; grp.add(m); } grp.visible = false; this.body.add(grp); this.blurs.push({ grp, wh }); }
@@ -4675,7 +4681,7 @@ class BikeRig {
       this.wheelR = new THREE.Mesh(WHEEL_GEOM, BIKE_MAT); this.wheelR.position.set(0, WHEEL_R, REAR_Z); this.wheelR.castShadow = true;
       this.wheelF = new THREE.Mesh(WHEEL_GEOM, BIKE_MAT); this.wheelF.position.set(0, WHEEL_R, FRONT_Z); this.wheelF.castShadow = true;
       this.body.add(this.wheelR, this.wheelF);
-      const lg = lightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights);
+      const lg = lightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights); this.addStopLamp();
       const dg = decalGeom(o); this.geoms.push(dg); this.body.add(new THREE.Mesh(dg, DECAL_MAT));
     }
     // rider: the skinned model when it loaded, else the built-in primitive rider. The groups below carry the pose either way.
@@ -4718,6 +4724,9 @@ class BikeRig {
   // neon underglow: a pink-to-cyan pool of light under the bike (the player's ride)
   // outline shells for every solid, opaque part (skips glows, blur discs, eyes and anything transparent)
   // minR: smallest part (real size, metres) that gets a shell — rivals skip brows, buckles and bolts nobody sees at speed
+  // the stop lamp's glow behind the tail light (its own material: every bike brakes on its own)
+  addStopLamp() { const sm = new THREE.MeshBasicMaterial({ map: TEX.glow, color: '#ff2414', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.16, side: THREE.DoubleSide, fog: false });
+    this.stopLamp = new THREE.Mesh(STOP_G, sm); this.stopLamp.position.set(MODEL_FIT.tail[0], MODEL_FIT.tail[1], MODEL_FIT.tail[2] - 0.03); this.stopLamp.userData.dyn = this.stopLamp.userData.noOutline = true; this.stopLamp.userData.noRefl = true; this.stopLamp.renderOrder = 3; this.body.add(this.stopLamp); }
   addOutlines(minR = 0.025) {
     if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal || m.userData.cloth || m.userData.noOutline) return; const M = m.material;   // (capes: no shell, it would show through the scalloped hem)
@@ -4800,8 +4809,26 @@ class BikeRig {
     if (this.mods && this.mods.siren) { const ph = Math.floor((this.t + this.mods.sirenPh) * 7) % 4; this.mods.siren[0].visible = ph < 2 && ph !== 1 || ph === 1; this.mods.siren[1].visible = ph >= 2; }
     if (this.mods && this.mods.flames.length) { const on = !!st.boost && !st.crashed; for (const f of this.mods.flames) { f.visible = on; if (on) { const k = 0.75 + Math.random() * 0.5; f.scale.set(k, k, 0.6 + Math.random() * 0.9); } } }
     if (this.glow) { this.glow.visible = !st.crashed; this.glowMat.opacity = st.boost ? 0.25 : 0.6; }
-    this.lean.rotation.z = -st.lean * 1.12; this.lean.rotation.y = st.slide || 0; this.leanNow = st.lean || 0;
-    this.setPitch(st.pitch || 0);
+    // ── the small things that make a bike read as a machine with a rider on it ──
+    const h = Math.min(dt, 0.05), sp = st.speed || 0, live = !st.crashed && !this.free;
+    // weight transfer: the forks dive on the brakes and the back squats under power (from how the speed is changing)
+    const acc = this._pSp === undefined || dt <= 0 ? 0 : clamp((sp - this._pSp) / Math.max(dt, 1e-3), -14, 9); this._pSp = sp;
+    this.accSm = smooth(this.accSm || 0, live && !st.air ? acc : 0, 9, h); const dive = clamp(-this.accSm * 0.0062, -0.04, 0.075);
+    // a stop: left foot down, the bike resting a few degrees onto it
+    this.footK = smooth(this.footK || 0, live && sp < 1.3 && !st.weightBack ? 1 : 0, sp < 1.3 ? 5 : 9, h);
+    // a gear change: the left toe dabs the lever and the bike nods
+    if (st.gear !== undefined && this._gear !== undefined && st.gear !== this._gear && live) this.shiftT = 0.22; this._gear = st.gear; this.shiftT = Math.max(0, (this.shiftT || 0) - dt); const shift = Math.sin(clamp(this.shiftT / 0.22, 0, 1) * Math.PI);
+    // a slide: the inside boot comes off the peg and skims the road, flat-track style
+    const inSide = (st.lean || 0) > 0 ? 'l' : 'r'; this.slideK = smooth(this.slideK || 0, live && Math.abs(st.slide || 0) > 0.14 && Math.abs(st.lean || 0) > 0.2 && sp > 6 ? 1 : 0, 8, h);
+    if (!this.footOff) this.footOff = { l: new THREE.Vector3(), r: new THREE.Vector3() };
+    for (const s of ['l', 'r']) { const sk = s === inSide ? this.slideK : 0, fk = s === 'l' ? this.footK : 0, o = this.footOff[s];
+      o.set(0.15 * fk + 0.2 * sk, -0.315 * fk - 0.2 * sk + (s === 'l' ? 0.035 * shift : 0), 0.1 * fk + 0.24 * sk); }
+    // the engine shakes the whole bike at a standstill, harder as it revs
+    const vib = live && sp < 3 && st.rpm ? (1 - sp / 3) * (0.0009 + clamp((st.rpm - 1500) / 7000, 0, 1) * 0.0022) : 0;
+    this.lean.rotation.z = -st.lean * 1.12 - 0.055 * this.footK + (vib ? Math.sin(this.t * 173) * vib * 1.6 : 0); this.lean.rotation.y = st.slide || 0; this.leanNow = st.lean || 0;
+    this.setPitch(st.pitch || 0); this.body.rotation.x = dive + shift * 0.012; this.body.position.x = vib ? Math.sin(this.t * 211) * vib : 0;
+    // brake light: glows at night, flares when he's on the brakes
+    if (this.stopLamp) { const bk = live && (st.brake || 0) > 0.15 ? 1 : 0; this.brakeK = smooth(this.brakeK || 0, bk, 22, h); this.stopLamp.material.opacity = 0.16 + this.brakeK * 0.84; const k = 0.75 + this.brakeK * 0.75; this.stopLamp.scale.set(k, k, 1); }
     // suspension: the frame bounces on the wheels; the rider's weight lags behind it
     const su = (st.susp || 0) * 0.9, wr = this.model ? WHEEL_R_M : WHEEL_R; this.body.position.y = su + (this.mods ? this.mods.lift : 0); this.wheelR.position.y = wr - su; this.wheelF.position.y = wr - su;
     this.bobV = (this.bobV || 0) + (((su - (this.bob || 0)) * 140) - this.bobV * 10) * Math.min(dt, 0.05); this.bob = (this.bob || 0) + this.bobV * Math.min(dt, 0.05);
@@ -4817,7 +4844,8 @@ class BikeRig {
     const tuckTarget = st.idle ? 0.12 : st.weightBack ? -0.05 : 0.32 + 0.38 * (st.tuck || 0) + Math.min(0.32, Math.abs(st.lean) * 0.5);   // dives low into corners
     this.tuck = smooth(this.tuck, tuckTarget, 6, dt);
     this.torsoG.rotation.x = this.tuck; this.torsoG.rotation.z = -st.lean * 0.55; this.torsoG.rotation.y = 0; this.torsoG.position.y = this.fit.hipY + this.riderLag;
-    this.headG.rotation.set(-this.tuck * 0.7 + (st.idle ? -0.35 : 0), this.head.yaw, -st.lean * 0.2);
+    // the head stays level with the horizon and looks through the corner
+    this.headG.rotation.set(-this.tuck * 0.7 + (st.idle ? -0.35 : 0), this.head.yaw + clamp((st.lean || 0) * 0.55, -0.4, 0.4), (st.lean || 0) * 0.42);
     // limbs default: hands on grips, feet on pegs
     this.legL.rotation.set(0, 0, 0); this.legR.rotation.set(0, 0, 0);
     const G = this.fit.grip; let armLTarget = this._gL.set(G[0], G[1], G[2]), armRTarget = this._gR.set(-G[0], G[1], G[2]);
@@ -4927,7 +4955,7 @@ class BikeRig {
     this.cig.position.addScaledVector(ax, 0.035);   // most of it sticks out past the knuckles
   }
   aimArm(arm, sh, target) { arm.position.copy(sh); this._dir.subVectors(target, sh); const len = this._dir.length(); this._dir.normalize(); arm.quaternion.setFromUnitVectors(Z_AXIS, this._dir); arm.scale.set(1, 1, clamp(len / 0.57, 0.6, 1.25)); }
-  dispose() { this.geoms.forEach(g => g.dispose()); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.swooshMat) this.swooshMat.dispose(); if (this.glow) { this.glow.geometry.dispose(); this.glowMat.dispose(); this.glowTex.dispose(); } if (this.can) this.can.material.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
+  dispose() { this.geoms.forEach(g => g.dispose()); if (this.stopLamp) this.stopLamp.material.dispose(); if (this.shirtMat) this.shirtMat.dispose(); if (this.blurMat) this.blurMat.dispose(); if (this.swooshMat) this.swooshMat.dispose(); if (this.glow) { this.glow.geometry.dispose(); this.glowMat.dispose(); this.glowTex.dispose(); } if (this.can) this.can.material.dispose(); if (this.rm) this.rm.dispose(); this.blob.geometry.dispose(); this.blob.material.dispose(); if (this.mods && this.mods.ownMats) this.mods.ownMats.forEach(m => m.dispose()); }
 }
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _wv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], _wq = new THREE.Quaternion();
@@ -4965,12 +4993,14 @@ class ShirtCloth {
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)
   panel([cols, rows], a0, a1, y0, y1, seams, seamY = 1.15, trimCol = -1) {
-    const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1);
+    const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1), hug = new Float32Array(n), bone = new Int8Array(n);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y, this.torso); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
       B[i * 3] = (hw + o) * Math.cos(th); B[i * 3 + 1] = y; B[i * 3 + 2] = cz + (hd + o) * Math.sin(th);
       const seamCol = (seams.includes(0) && c === 0) || (seams.includes(1) && c === cols - 1);
       if (r === 0 || (seamCol && y >= seamY)) pin[i] = boneForY(y);
+      // tailoring: how firmly this point keeps the shirt's cut on the body (the back sits on the back; hems and the open front edges are free to flap)
+      { const v = r / (rows - 1), cu = seams.length > 1 ? 0 : c / (cols - 1); hug[i] = this.jacket ? (y >= 1.02 ? 0.5 * (1 - 0.6 * cu) : 0) : seams.length > 1 ? lerp(0.55, 0.1, Math.pow(v, 1.4)) : lerp(0.45, 0.05, v) * (1 - 0.8 * cu); bone[i] = boneForY(y); }
     }
     const E = []; const link = (a, b, k) => { const dx = B[a * 3] - B[b * 3], dy = B[a * 3 + 1] - B[b * 3 + 1], dz = B[a * 3 + 2] - B[b * 3 + 2]; E.push(a, b, Math.hypot(dx, dy, dz), k); };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const i = r * cols + c;
@@ -4985,7 +5015,7 @@ class ShirtCloth {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     const idx = []; for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) { const i = r * cols + c; idx.push(i, i + cols, i + 1, i + 1, i + cols, i + cols + 1); }
     g.setIndex(idx); g.computeVertexNormals();
-    return { cols, rows, n, B, P, Q, pin, E: new Float32Array(E), g, pos, mesh: new THREE.Mesh(g, this.mat) };
+    return { cols, rows, n, B, P, Q, pin, hug, bone, E: new Float32Array(E), g, pos, mesh: new THREE.Mesh(g, this.mat) };
   }
   // called from RiderModel.pose (model space, root detached): remember how each torso bone moved since the bind pose
   capture(bones, invBind, sc, px, py, pz) { for (let k = 0; k < 4; k++) this.D[k].multiplyMatrices(bones[CLOTH_BONES[k]].matrixWorld, invBind[k]); this.sc = sc; this.off.set(px, py, pz); this.fresh = true;
@@ -4994,7 +5024,7 @@ class ShirtCloth {
   step(dt, speed, far) {
     if (!this.fresh) return;
     const rig = this.rig; this._q.copy(rig.lean.quaternion).multiply(rig.pitchG.quaternion).invert(); this.g.set(0, -9.81, 0).applyQuaternion(this._q);
-    for (let s = 0; s < 4; s++) { const S = this.spheres[s]; this.toBody(S[4], S[0], S[1], S[2], this.sw[s][0]); this.sw[s][1] = S[3] * this.sc; }
+    for (let s = 0; s < this.spheres.length; s++) { const S = this.spheres[s]; this.toBody(S[4], S[0], S[1], S[2], this.sw[s][0]); this.sw[s][1] = S[3] * this.sc; }
     if (!this.ready) { for (const p of this.panels) for (let i = 0; i < p.n; i++) { this.toBody(p.pin[i] >= 0 ? p.pin[i] : boneForY(p.B[i * 3 + 1]), p.B[i * 3], p.B[i * 3 + 1], p.B[i * 3 + 2], this._v); p.P.set([this._v.x, this._v.y, this._v.z], i * 3); p.Q.set([this._v.x, this._v.y, this._v.z], i * 3); } this.ready = true; }
     const h = 1 / 60; this.acc = Math.min(this.acc + dt, far ? 1 / 60 : 0.05);
     while (this.acc >= h) { this.acc -= h; this.t += h; for (const p of this.panels) this.sub(p, h, speed); }
@@ -5009,10 +5039,12 @@ class ShirtCloth {
       const vx = (P[i3] - Q[i3]) / h, vy = (P[i3 + 1] - Q[i3 + 1]) / h, vz = (P[i3 + 2] - Q[i3 + 2]) / h;
       // air rushing back over the rider (slightly upward off the leaning back) + flapping turbulence
       const ph = t * (9 + v1 * 0.5) + i * 0.83;
-      const wx = Math.sin(ph * 1.3) * turb * 0.9, wy = v1 * 0.14 + Math.sin(ph * 0.9 + 1.7) * turb * 0.7, wz = -v1 + Math.cos(ph) * turb * 0.6;
+      const ex = 1 - Math.min(0.85, p.hug[i] * 1.7);   // cloth lying on the body is out of the wind
+      const wx = Math.sin(ph * 1.3) * turb * 0.9 * ex, wy = (v1 * 0.14 + Math.sin(ph * 0.9 + 1.7) * turb * 0.7) * ex, wz = (-v1 + Math.cos(ph) * turb * 0.6) * ex;
       const ax = g.x + (wx - vx) * kd, ay = g.y + (wy - vy) * kd, az = g.z + (wz - vz) * kd;
       const nx = P[i3] + (P[i3] - Q[i3]) * 0.985 + ax * h2, ny = P[i3 + 1] + (P[i3 + 1] - Q[i3 + 1]) * 0.985 + ay * h2, nz = P[i3 + 2] + (P[i3 + 2] - Q[i3 + 2]) * 0.985 + az * h2;
       Q[i3] = P[i3]; Q[i3 + 1] = P[i3 + 1]; Q[i3 + 2] = P[i3 + 2]; P[i3] = nx; P[i3 + 1] = ny; P[i3 + 2] = nz;
+      if (p.hug[i] > 0) { const k = p.hug[i] * 0.4; this.toBody(p.bone[i], p.B[i3], p.B[i3 + 1], p.B[i3 + 2], this._v); P[i3] += (this._v.x - P[i3]) * k; P[i3 + 1] += (this._v.y - P[i3 + 1]) * k; P[i3 + 2] += (this._v.z - P[i3 + 2]) * k; }   // pulled back to its cut
     }
     const E = p.E;
     for (let it = 0; it < 3; it++) {
@@ -5875,7 +5907,7 @@ class Race {
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
       this.swagger(r, dt);
-      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
+      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, brake: r.input.brake, gas: r.input.throttle, gear: r.gear, rpm: r.rpm, grid: this.state === 'countdown', celebrate: r.finished && this.finishOrder[0] === r });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }

@@ -42,6 +42,15 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 - **The crowd.** Comic cut-out spectators line the pavements: a packed double row at the start/finish straight, a knot of people at every stall, and pairs along the road. Eight hand-drawn figures (drawn in code, `src/js/24_crowd.js`), one batched mesh, and about half of them jump and cheer. Galis with no kerb room (Dharavi) and the flyover deck stay empty.
 - **Painted sky.** Drifting cloud banks shaded in three flat tones to match the comic look and lit from the sun's side, a sun with a halo, and at night twinkling stars, a moon and moonlit cloud. Monsoon brings grey overcast banks; the Underground keeps a dark storm ceiling. Low quality uses a cheaper cloud.
 - **Swag chain.** Every bit of showing off (an overtake, a near miss, a stunt, a hit, a dodge, a naka jump) within 5 seconds of the last one builds a chain. Each link adds ×0.25 to the points, up to ×3, and tops up the kick meter. A chip on the right shows the multiplier and the 5-second fuse; 3, 5 and 8 links shout TASHAN!, BHAUKAAL! and FULL CHAPRI!. A fall breaks it (SWAG TOOTA!). The best chain pays a bonus on the results screen.
+- **A shirt that holds its cut.** The open shirt is cloth, but tailored: every cloth point is pulled back toward its place on the body (firmly across the back, loosely at the hem and the open front edges), and cloth lying on the body is out of the wind. The body under a shirt is painted as shirt on the back and sides, so shoulder blades pushing through the cloth no longer show white baniyan (it read as a torn shirt). Dogesh's jacket uses the same tailoring above the waist.
+- **Bike and rider micro-motion** (every rider, from the rig's own state):
+  - forks dive on the brakes and the rear squats under power;
+  - at a stop the left foot goes down and the bike rests a few degrees onto it (the whole grid does this before the lights);
+  - the engine shakes the bike at a standstill, harder as it revs;
+  - a gear change dabs the left toe and nods the bike;
+  - in a slide the inside boot comes off the peg, flat-track style;
+  - the head stays level with the horizon and looks through the corner;
+  - a brake light glows at the tail and flares under braking.
 - **Rival taunts.** On every track, rivals now and then shout Hinglish lines in speech bubbles when they pass you, when you pass them, or when you hit them.
 - **Controls.** Steering answers at once: the bike starts sliding toward the side you press while the heading catches up. On touch, the two arrows act as one pad, so you can slide your thumb across. Tap weight-back (Q) to hop over slicks, glass and potholes; hold it for a wheelie in any gear. A wheelie is also a speed trick (more pull, a higher top speed, less steering).
 - **Fights.**

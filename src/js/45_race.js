@@ -324,7 +324,7 @@ class Race {
       r.rig.root.rotation.y = T.yawAt(r.s) + r.psi + wob;
       r.rig.root.visible = !(r.invuln > 0 && Math.floor(this.raceT * 10) % 2 === 0);
       this.swagger(r, dt);
-      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, celebrate: r.finished && this.finishOrder[0] === r });
+      r.rig.update(dt, { boost: r.boosting, susp: r.susp, surf: r.surf, lean: r.lean + wob * 0.6, pitch: r.pitch, speed: r.v, tuck: r.tuck, weightBack: r.input.back && !r.crashed, steer: r.input.steer, crashed: r.crashed, slide: r.slide, air: r.air, brake: r.input.brake, gas: r.input.throttle, gear: r.gear, rpm: r.rpm, grid: this.state === 'countdown', celebrate: r.finished && this.finishOrder[0] === r });
       if (!r.crashed && (r.v > 1 || this.state === 'countdown')) this.combat.exhaust(r, dt);
       if (this.state === 'countdown' && r.isPlayer) this.combat.exhaust(r, dt);
     }

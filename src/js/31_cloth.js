@@ -30,12 +30,14 @@ class ShirtCloth {
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)
   panel([cols, rows], a0, a1, y0, y1, seams, seamY = 1.15, trimCol = -1) {
-    const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1);
+    const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1), hug = new Float32Array(n), bone = new Int8Array(n);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y, this.torso); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
       B[i * 3] = (hw + o) * Math.cos(th); B[i * 3 + 1] = y; B[i * 3 + 2] = cz + (hd + o) * Math.sin(th);
       const seamCol = (seams.includes(0) && c === 0) || (seams.includes(1) && c === cols - 1);
       if (r === 0 || (seamCol && y >= seamY)) pin[i] = boneForY(y);
+      // tailoring: how firmly this point keeps the shirt's cut on the body (the back sits on the back; hems and the open front edges are free to flap)
+      { const v = r / (rows - 1), cu = seams.length > 1 ? 0 : c / (cols - 1); hug[i] = this.jacket ? (y >= 1.02 ? 0.5 * (1 - 0.6 * cu) : 0) : seams.length > 1 ? lerp(0.55, 0.1, Math.pow(v, 1.4)) : lerp(0.45, 0.05, v) * (1 - 0.8 * cu); bone[i] = boneForY(y); }
     }
     const E = []; const link = (a, b, k) => { const dx = B[a * 3] - B[b * 3], dy = B[a * 3 + 1] - B[b * 3 + 1], dz = B[a * 3 + 2] - B[b * 3 + 2]; E.push(a, b, Math.hypot(dx, dy, dz), k); };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const i = r * cols + c;
@@ -50,7 +52,7 @@ class ShirtCloth {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     const idx = []; for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) { const i = r * cols + c; idx.push(i, i + cols, i + 1, i + 1, i + cols, i + cols + 1); }
     g.setIndex(idx); g.computeVertexNormals();
-    return { cols, rows, n, B, P, Q, pin, E: new Float32Array(E), g, pos, mesh: new THREE.Mesh(g, this.mat) };
+    return { cols, rows, n, B, P, Q, pin, hug, bone, E: new Float32Array(E), g, pos, mesh: new THREE.Mesh(g, this.mat) };
   }
   // called from RiderModel.pose (model space, root detached): remember how each torso bone moved since the bind pose
   capture(bones, invBind, sc, px, py, pz) { for (let k = 0; k < 4; k++) this.D[k].multiplyMatrices(bones[CLOTH_BONES[k]].matrixWorld, invBind[k]); this.sc = sc; this.off.set(px, py, pz); this.fresh = true;
@@ -59,7 +61,7 @@ class ShirtCloth {
   step(dt, speed, far) {
     if (!this.fresh) return;
     const rig = this.rig; this._q.copy(rig.lean.quaternion).multiply(rig.pitchG.quaternion).invert(); this.g.set(0, -9.81, 0).applyQuaternion(this._q);
-    for (let s = 0; s < 4; s++) { const S = this.spheres[s]; this.toBody(S[4], S[0], S[1], S[2], this.sw[s][0]); this.sw[s][1] = S[3] * this.sc; }
+    for (let s = 0; s < this.spheres.length; s++) { const S = this.spheres[s]; this.toBody(S[4], S[0], S[1], S[2], this.sw[s][0]); this.sw[s][1] = S[3] * this.sc; }
     if (!this.ready) { for (const p of this.panels) for (let i = 0; i < p.n; i++) { this.toBody(p.pin[i] >= 0 ? p.pin[i] : boneForY(p.B[i * 3 + 1]), p.B[i * 3], p.B[i * 3 + 1], p.B[i * 3 + 2], this._v); p.P.set([this._v.x, this._v.y, this._v.z], i * 3); p.Q.set([this._v.x, this._v.y, this._v.z], i * 3); } this.ready = true; }
     const h = 1 / 60; this.acc = Math.min(this.acc + dt, far ? 1 / 60 : 0.05);
     while (this.acc >= h) { this.acc -= h; this.t += h; for (const p of this.panels) this.sub(p, h, speed); }
@@ -74,10 +76,12 @@ class ShirtCloth {
       const vx = (P[i3] - Q[i3]) / h, vy = (P[i3 + 1] - Q[i3 + 1]) / h, vz = (P[i3 + 2] - Q[i3 + 2]) / h;
       // air rushing back over the rider (slightly upward off the leaning back) + flapping turbulence
       const ph = t * (9 + v1 * 0.5) + i * 0.83;
-      const wx = Math.sin(ph * 1.3) * turb * 0.9, wy = v1 * 0.14 + Math.sin(ph * 0.9 + 1.7) * turb * 0.7, wz = -v1 + Math.cos(ph) * turb * 0.6;
+      const ex = 1 - Math.min(0.85, p.hug[i] * 1.7);   // cloth lying on the body is out of the wind
+      const wx = Math.sin(ph * 1.3) * turb * 0.9 * ex, wy = (v1 * 0.14 + Math.sin(ph * 0.9 + 1.7) * turb * 0.7) * ex, wz = (-v1 + Math.cos(ph) * turb * 0.6) * ex;
       const ax = g.x + (wx - vx) * kd, ay = g.y + (wy - vy) * kd, az = g.z + (wz - vz) * kd;
       const nx = P[i3] + (P[i3] - Q[i3]) * 0.985 + ax * h2, ny = P[i3 + 1] + (P[i3 + 1] - Q[i3 + 1]) * 0.985 + ay * h2, nz = P[i3 + 2] + (P[i3 + 2] - Q[i3 + 2]) * 0.985 + az * h2;
       Q[i3] = P[i3]; Q[i3 + 1] = P[i3 + 1]; Q[i3 + 2] = P[i3 + 2]; P[i3] = nx; P[i3 + 1] = ny; P[i3 + 2] = nz;
+      if (p.hug[i] > 0) { const k = p.hug[i] * 0.4; this.toBody(p.bone[i], p.B[i3], p.B[i3 + 1], p.B[i3 + 2], this._v); P[i3] += (this._v.x - P[i3]) * k; P[i3 + 1] += (this._v.y - P[i3 + 1]) * k; P[i3 + 2] += (this._v.z - P[i3 + 2]) * k; }   // pulled back to its cut
     }
     const E = p.E;
     for (let it = 0; it < 3; it++) {

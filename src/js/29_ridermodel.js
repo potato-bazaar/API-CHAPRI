@@ -78,6 +78,10 @@ const RIDER_HOOK = `#include <map_fragment>
   diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * rG, rM.r);
   diffuseColor.rgb = mix(diffuseColor.rgb, riderJeans * rG * 1.7, rM.g);
   diffuseColor.rgb *= 1.0 - rM.b * riderStubble * 0.6;
+  if (riderTop < 0.5) { // a shirt is on: its back and sides are the shirt all the way round. (The cloth back panel rides over this; when the
+    // arms reach for the bars the shoulder blades push through it, and white baniyan showing there read as a torn shirt.)
+    float bk = max(smoothstep(0.03, -0.01, vRB.z), smoothstep(0.12, 0.16, abs(vRB.x))) * step(1.0, vRB.y) * step(vRB.y, 1.52) * step(abs(vRB.x), 0.27);
+    diffuseColor.rgb = mix(diffuseColor.rgb, rShirt * 0.9, bk); }
   { // wardrobe, decided from the bind-pose position (the same space the texture was painted in, tools/model/paint-rider.py)
     float aX = abs(vRB.x), y = vRB.y;
     float vestP = step(0.995, y) * step(y, 1.375) * step(aX, 0.2);                 // the painted white baniyan
@@ -127,7 +131,7 @@ function riderBodyMat(shirtTex, jeans, low, stubble, o = {}) {
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
   const U = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } }, riderWardrobeU(o, o.lod ? 'body_lod' : 'body'));
   m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
-  m.customProgramCacheKey = () => low ? 'rider-l2' : 'rider-s2'; m.userData.riderU = U;
+  m.customProgramCacheKey = () => low ? 'rider-l3' : 'rider-s3'; m.userData.riderU = U;
   RIDER_MODEL.mats.set(key, m); return m;
 }
 // cloth + hair streaming in the wind: displaced after skinning, in the rider's own space (+z forward), scaled per vertex
@@ -296,7 +300,8 @@ class RiderModel {
           this.ik(B['thigh_' + s], B['calf_' + s], B['foot_' + s], tgt, pole, this.ax['leg_' + s]);
           alignBone(B['foot_' + s], this.ax['foot_' + s].aim, this.ax['foot_' + s].up, _rv[8].copy(_FOOT_AIM).applyQuaternion(R.quaternion), AX[1]); continue;
         }
-        const tgt = toModel(V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
+        const fo = rig.footOff ? rig.footOff[s] : null;   // a foot off its peg: down on the road at a stop, out in a slide, a dab at the gear lever
+        const tgt = toModel(fo ? V[1].set(sg * F.ankle[0] + fo.x, F.ankle[1] + fo.y, F.ankle[2] + fo.z) : V[1].set(sg * F.ankle[0], F.ankle[1], F.ankle[2]));
         if (leg.rotation.x || leg.rotation.z) { const d = V[2].subVectors(tgt, hip).applyEuler(leg.rotation); tgt.copy(hip).add(d); }
         const inside = Math.sign(ln) === sg ? Math.min(1, Math.abs(ln) * 1.6) : 0;   // chapri style: knees flung wide, the inside one even more
         const pole = toModel(V[3].set(sg * (1.0 + 1.4 * inside), 0.82 - 0.35 * inside, 0.6 - 0.3 * inside));
