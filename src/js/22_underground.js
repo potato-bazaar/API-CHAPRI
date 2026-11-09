@@ -436,7 +436,7 @@ Object.assign(World.prototype, {
     if (!this.ugRT) return;
     // the storm sky is the night (or monsoon) look only: a morning on the Underground is a real sunny morning
     const U = this.skyMat.uniforms;
-    if (nt || wet) { U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
+    if (nt || wet) { U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.cloud.value = 0.97; U.dim.value = 0.3; U.sunCol.value.multiplyScalar(0.15);   // heavy storm cloud, dark
       this.fog.color.set(wet ? '#2a2a38' : '#352a40'); this.fog.near = wet ? 26 : 34; this.fog.far = wet ? 280 : 360; }
     this.ugSky = { top: U.top.value.clone(), mid: U.mid.value.clone(), hor: U.hor.value.clone() };
     this.ugM.sign.emissive.set('#ffffff').multiplyScalar(nt ? 0.8 : 0.3); this.ugM.sea.color.set(wet ? '#0a121c' : nt ? '#0b1724' : '#2c5a78');

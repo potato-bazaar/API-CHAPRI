@@ -48,7 +48,7 @@ Object.assign(World.prototype, {
   stBulb(B, p, color = '#ffd590', r = 3.4) { B.glow.box(p.x, p.y - 0.09, p.z, 0.13, 0.17, 0.13, 0, color); this.lampHeads.push(p.clone()); const g = p.clone(); g.y = 0.2; this.stPool(g, r, '#ffb460'); },
   buildStreet(B) {
     this.streetInit();
-    this.buildNitros(B); this.buildStreetLife(B);
+    this.buildNitros(B); this.buildStreetLife(B); if (this.buildCrowd) this.buildCrowd();
     const add = (b, mat, ro = 0) => { const m = b.mesh(mat); if (m) { m.renderOrder = ro; this.group.add(m); this.disposables.push(m.geometry); } return m; };
     add(this.stB.sign, this.stM.sign); add(this.stB.nitro, this.stM.nitro, 2); add(this.stB.glowPool, this.stM.glowPool, 2); this.nitroBeams = add(this.stB.beam, this.stM.beam, 5);
   },

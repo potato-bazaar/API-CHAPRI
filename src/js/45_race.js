@@ -1,4 +1,5 @@
 // ───────────────────────── RACE MANAGER ─────────────────────────
+const SWAG_KEYS = new Set(['overtakes', 'squeeze', 'nearMiss', 'stunts', 'knockdowns', 'revenge', 'hits', 'dodges', 'weaponSnatch', 'nakas', 'barricades', 'shotsDodged', 'dogs', 'launch']);
 class Race {
   constructor(game, setup, cupInfo = null) {
     this.game = game; this.setup = setup; this.mode = setup.mode; this.cup = cupInfo;
@@ -11,7 +12,7 @@ class Race {
     this.laps = M.fixedLaps || setup.laps;
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
-    this.score = {}; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
+    this.score = {}; this.swag = { n: 0, t: 0, best: 0 }; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
     this.elimLap = 0; this.elimOrder = []; this.finishOrder = [];
     RNG = mulberry32(Date.now() & 0xffff);
     // player
@@ -70,13 +71,21 @@ class Race {
     this.prevSliding = false; this.splatShown = 0; this.contactT = new Map(); this.coinState = new Uint8Array(this.track.coins.length); this.coinsGot = 0; this.world.resetCoins && this.world.resetCoins();
   }
   distToPlayer(r) { if (!r) return 0.3; const dd = Math.abs((r.dist ?? 0) - this.player.dist) + Math.abs((r.d ?? 0) - this.player.d); return clamp(1 - dd / 40, 0, 1) * 0.8; }
-  award(key, pts) { const v = Math.round(pts); this.score[key] = (this.score[key] || 0) + v; return v; }
+  // SWAG chain: every bit of showing off (a pass, a near miss, a stunt, a hit, a dodge…) within 5 s of the last one
+  // builds a multiplier, ×1.25 per link up to ×3. It pays more points and tops up the kick meter; a fall breaks it.
+  award(key, pts) {
+    const W = this.swag; let k = 1;
+    if (W && SWAG_KEYS.has(key) && this.state !== 'countdown') { W.n = W.t > 0 ? W.n + 1 : 1; W.t = 5; W.best = Math.max(W.best, W.n); k = Math.min(3, 1 + (W.n - 1) * 0.25);
+      if (W.n > 1) { const P = this.player; P.boost = Math.min(100, P.boost + 4); const name = { 3: 'TASHAN!', 5: 'BHAUKAAL!', 8: 'FULL CHAPRI!' }[W.n]; if (name) { this.hud.callout(name, `SWAG ×${k.toFixed(k % 1 ? 2 : 0)}`, 'gold'); AUDIO.pickup(); } }
+      this.hud.swag(W.n, k, 1); }
+    const v = Math.round(pts * k); this.score[key] = (this.score[key] || 0) + v; return v; }
+  swagTick(dt) { const W = this.swag; if (!W || W.t <= 0) return; W.t -= dt; if (W.t <= 0) { W.n = 0; this.hud.swag(0, 1, 0); } else this.hud.swag(W.n, Math.min(3, 1 + (W.n - 1) * 0.25), W.t / 5); }
   rumble(strength, dur) { if (!SAVE.settings.vibration) return; INPUT.rumble(strength, dur); }
   hudWarn(side) { this.hud.warn(side); AUDIO.warn(); }
   // ── frame update (fixed sub-steps) ──
   update(dt) {
     if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
-    this.timeScale = 1; if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; this.timeScale = 0.32; }   // the camera needs to know: it runs on real time
+    this.swagTick(dt); this.timeScale = 1; if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; this.timeScale = 0.32; }   // the camera needs to know: it runs on real time
     const P = this.player;
     if (this.state === 'countdown') {
       const before = this.raceT; this.raceT += dt;
@@ -240,7 +249,7 @@ class Race {
     }
     this.combat.dropWeapons(r); this.combat.startWreck(r);
     if (this.state === 'racing' && r.wreck && (r.isPlayer || (r.lastHitBy && r.lastHitBy.isPlayer && this.raceT - r.lastHitT < 2.5))) this.game.takedownCam && this.game.takedownCam(r);
-    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
+    if (r.isPlayer) { this.clean = false; if (this.swag.n > 1) this.hud.callout('SWAG TOOTA!', '', 'bad'); this.swag.n = 0; this.swag.t = 0; this.hud.swag(0, 1, 0); this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
   }
   // a hit that didn't put you down: tyre smoke and sparks at the bike, the callout and the thud

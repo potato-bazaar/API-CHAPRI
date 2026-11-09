@@ -107,6 +107,10 @@ class HUD {
     for (const side of ['left', 'right']) { if (this.warnT[side] > 0) { this.warnT[side] -= dt; if (this.warnT[side] <= 0) this.el[side === 'left' ? 'warnL' : 'warnR'].hidden = true; } }
   }
   coinTick(n) { $$('.coinsMirror').forEach(e => { e.textContent = fmtNum(SAVE.coins); const p = e.closest('.pill'); if (p) { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); } }); }
+  // the SWAG chain chip: links, multiplier and the 5 s fuse
+  swag(n, k, f) { const el = this._sw || (this._sw = $('#swag')); if (!el) return; if (n < 2) { el.hidden = true; this._swN = 0; return; }
+    if (n !== this._swN) { this._swN = n; el.hidden = false; $('#swagN').textContent = '×' + (k % 1 ? k.toFixed(2) : k); $('#swagC').textContent = n + ' chain'; el.classList.toggle('max', k >= 3); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+    $('#swagBar').style.transform = `scaleX(${f.toFixed(3)})`; }
   callout(text, pts, cls = 'good') {
     const el = document.createElement('div'); el.className = 'callout ' + cls; el.innerHTML = `${text}${pts ? `<em>${pts}</em>` : ''}`;
     this.el.callouts.prepend(el); while (this.el.callouts.children.length > 3) this.el.callouts.lastChild.remove();

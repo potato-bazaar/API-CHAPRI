@@ -810,17 +810,37 @@ class World {
   // ── sky dome, sea, lights ──
   buildSky() {
     const g = new THREE.SphereGeometry(1400, 32, 16);
+    // a painted sky: drifting cloud banks lit by the sun (cel-shaded in three tones to match the comic look), a sun with
+    // a halo, and at night twinkling stars, a moon and moonlit cloud. `cloud` is cover (0 clear … 1 overcast).
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() }, night: { value: 0 } },
+      uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() }, night: { value: 0 }, uTime: { value: 0 }, cloud: { value: 0.45 }, lite: { value: 0 }, dim: { value: 1 } },
       vertexShader: `varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;
+      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; uniform float uTime; uniform float cloud; uniform float lite; uniform float dim; varying vec3 vP;
         float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
-        void main(){ float h = clamp(vP.y, -0.2, 1.0); vec3 c = h < 0.18 ? mix(hor, mid, smoothstep(0.0, 0.18, h)) : mix(mid, top, smoothstep(0.18, 0.75, h));
+        float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1., 0.)), f.x), mix(h2(i + vec2(0., 1.)), h2(i + vec2(1., 1.)), f.x), f.y); }
+        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + vec2(17.0, 9.0); a *= 0.5; if (lite > 0.5 && i == 1) break; } return s; }
+        void main(){ vec3 d = normalize(vP), sdir = normalize(sunDir); float h = clamp(d.y, -0.2, 1.0);
+          vec3 c = h < 0.18 ? mix(hor, mid, smoothstep(0.0, 0.18, h)) : mix(mid, top, smoothstep(0.18, 0.75, h));
           if (h < 0.0) c = hor * 0.9;
-          float sd = max(dot(normalize(vP), normalize(sunDir)), 0.0);
-          c += sunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 24.0) * 0.35 + pow(sd, 4.0) * 0.12);
-          if (night > 0.5) { vec3 q = floor(vP * 380.0); float st = step(0.9965, hash(q)) * smoothstep(0.1, 0.5, h); c += vec3(st) * 0.8; }
+          float sd = max(dot(d, sdir), 0.0);
+          if (night > 0.5) {   // stars that twinkle, and a moon where the "sun" is
+            vec3 q = floor(d * 380.0); float hs = hash(q); float st = step(0.9965, hs) * smoothstep(0.1, 0.5, h); c += vec3(st) * (0.55 + 0.45 * sin(uTime * (2.0 + hs * 40.0) + hs * 90.0));
+            float md = acos(clamp(dot(d, sdir), -1.0, 1.0)); float moon = smoothstep(0.052, 0.046, md); vec3 mc = vec3(0.95, 0.94, 0.86) * (0.82 + 0.18 * vn(d.xz * 60.0 + d.y * 40.0));
+            c = mix(c, mc, moon); c += vec3(0.5, 0.55, 0.8) * (pow(sd, 60.0) * 0.35 + pow(sd, 8.0) * 0.08);
+          } else c += sunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 24.0) * 0.35 + pow(sd, 4.0) * 0.12);
+          if (h > 0.015 && cloud > 0.01) {   // clouds on a flat layer overhead, thinning into the horizon haze
+            vec2 uv = d.xz / (d.y + 0.12) * 1.15 + vec2(uTime * 0.012, uTime * 0.004);
+            float n = fbm(uv) * 0.75 + fbm(uv * 2.7 + 5.0) * 0.25, cov = mix(0.62, 0.3, cloud), m = smoothstep(cov, cov + 0.16, n) * smoothstep(0.015, 0.14, h);
+            float n2 = fbm(uv + sdir.xz * 0.09);   // denser toward the sun = that side is in shade
+            float lit = clamp((n - n2) * 5.0 + 0.55, 0.0, 1.0); lit = floor(lit * 3.0 + 0.5) / 3.0;   // three flat tones
+            vec3 day = mix(mix(mid, vec3(0.42, 0.44, 0.56), 0.55), vec3(1.0) * 0.96 + sunCol * 0.12, lit) + sunCol * pow(sd, 6.0) * 0.5 * (1.0 - m * 0.4);
+            vec3 nite = mix(top * 1.6 + vec3(0.03, 0.03, 0.06), mid * 1.5 + vec3(0.1, 0.1, 0.16), lit) + vec3(0.5, 0.55, 0.8) * pow(sd, 10.0) * 0.5;
+            vec3 over = mix(vec3(0.36, 0.37, 0.46), vec3(0.72, 0.72, 0.8), lit) * (night > 0.5 ? 0.3 : 1.0);   // monsoon: grey banks
+            vec3 cc = mix(night > 0.5 ? nite : day, over, smoothstep(0.7, 0.95, cloud));
+            c = mix(c, cc * dim, m * mix(0.92, 0.78, night));
+          }
           gl_FragColor = vec4(c, 1.0); }`,
     });
     this.sky = new THREE.Mesh(g, this.skyMat); this.sky.frustumCulled = false; this.sky.renderOrder = -1; this.group.add(this.sky); this.disposables.push(g, this.skyMat);
@@ -868,7 +888,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     const RS = nt ? ['#100f22', '#211f38', '#3a3650'] : ['#55566f', '#8a8aa2', '#bab6c8'];   // monsoon: Auto Rush's lavender-grey overcast
     const sky = (i) => new THREE.Color(M.sky[i]).lerp(new THREE.Color(RS[i]), wet ? 0.8 : 0);
     this.skyMat.uniforms.top.value.copy(sky(0)); this.skyMat.uniforms.mid.value.copy(sky(1)); this.skyMat.uniforms.hor.value.copy(sky(2));
-    const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt && !wet ? 1 : 0;
+    const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt ? 1 : 0; this.skyMat.uniforms.cloud.value = wet ? 1 : nt ? 0.38 : M === MOODS.golden ? 0.55 : 0.42; this.skyMat.uniforms.dim.value = 1; this.skyMat.uniforms.lite.value = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low' ? 1 : 0;
     this.sun.color.set(M.sun); if (wet) this.sun.color.lerp(new THREE.Color('#dfe6f2'), 0.7); this.sun.intensity = M.sunI * (wet ? (nt ? 0.5 : 0.42) : 1);
     this.hemi.color.set(M.hemiSky); this.hemi.groundColor.set(M.hemiGround);
     if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#5a6688' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#262634' : '#5a5862'), 0.6); }
@@ -895,7 +915,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     return { fog: this.fog, exposure: M.exposure * (wet ? (nt ? 1.05 : 0.94) : 1) };
   }
   update(dt, t, camera, focus) {
-    this.sky.position.copy(camera.position);
+    this.sky.position.copy(camera.position); this.skyMat.uniforms.uTime.value = t; if (this.crowdU) this.crowdU.uTime.value = t;
     if (this.coinMesh) this.updateCoins(t);
     if (this.updateStage) this.updateStage(dt, t, focus);
     if (this.ugRT) this.updateUnderground(dt, t, camera, focus);

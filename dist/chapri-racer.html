@@ -731,6 +731,15 @@ kbd { font-family: var(--f-num); }
   .safar-btn { min-height: 2.7rem; padding: .2rem .6rem; } .safar-btn .sb-txt b { font-size: 1.3rem; } .safar-btn .sb-ico { width: 1.8rem; height: 1.8rem; font-size: 1.1rem; } }
 @media (max-height: 520px) { .safar-btn { min-height: 2.15rem; padding: .1rem .6rem; } .safar-btn .sb-ico { width: 1.5rem; height: 1.5rem; font-size: .95rem; } .safar-btn .sb-txt b { font-size: 1.25rem; } .safar-btn .sb-txt { display: flex; align-items: baseline; gap: .6rem; } .sh-card { top: 16%; }
   #menu .setup-line { display: none; } #menu .start-btn { height: 3.5rem; font-size: 2.4rem; } }
+
+/* ───────── SWAG chain ───────── */
+.swag { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 12px); top: 44%; z-index: 5; display: grid; justify-items: end; padding: .2rem .6rem .35rem; border-radius: 12px; background: rgba(26, 10, 34, .78); box-shadow: inset 0 0 0 2px var(--pink); pointer-events: none; transform-origin: right center; }
+.swag small { font-size: .7rem; letter-spacing: .14em; color: var(--muted); line-height: 1; } .swag b { font-family: var(--f-num); font-style: italic; font-size: 2.4rem; line-height: .95; color: var(--marigold); } .swag em { font-style: normal; font-size: .72rem; color: #ffe1ee; line-height: 1; }
+.swag > i { display: block; width: 4.6rem; height: 4px; margin-top: .25rem; border-radius: 2px; background: rgba(255, 255, 255, .18); overflow: hidden; } .swag > i > i { display: block; height: 100%; background: var(--pink); transform-origin: left center; }
+.swag.max { box-shadow: inset 0 0 0 2px var(--marigold), 0 0 18px rgba(255, 194, 26, .6); } .swag.max > i > i { background: var(--marigold); }
+.swag.bump { animation: swagBump .28s ease-out; } @keyframes swagBump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@media (orientation: portrait) { .swag { top: 30%; } .swag b { font-size: 2rem; } }
+@media (prefers-reduced-motion: reduce) { .swag.bump { animation: none; } }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -846,6 +855,7 @@ kbd { font-family: var(--f-num); }
     </div>
     <ol class="standings" id="standings"></ol>
     <div class="heat" id="heat" hidden><div class="heat-top"><span class="siren"><i></i><i></i></span><b>POLICE</b><em id="copGap">— m</em></div><div class="heat-bar"><i id="heatFill"></i></div><small id="heatLbl">BUSTED METER</small></div>
+    <div class="swag" id="swag" hidden><small>SWAG</small><b id="swagN">×2</b><em id="swagC">2 chain</em><i><i id="swagBar"></i></i></div>
     <div class="boost-banner" id="boostBanner" hidden><span>⚡</span><b>BOOST!</b><i class="bb-bar" aria-hidden="true"><i id="bbFill"></i></i></div>
     <div class="hud-top"><div id="toast" class="toast" hidden><span class="tico"><svg viewBox="0 0 24 24"><path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V10V5.5a1.5 1.5 0 0 1 3 0V10V6.5a1.5 1.5 0 0 1 3 0V11V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5.6-3.8L4.5 13a1.6 1.6 0 0 1 2.5-2z"/></svg></span><b id="toastTxt">Rival Hit!</b><em id="toastPts"></em></div><div id="callouts"></div></div>
     <div class="hud-tr"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b><span class="plus">+</span></span><span class="pill parts"><i class="ico-wrench"></i><b class="partsMirror">0</b><span class="plus">+</span></span><button id="pauseBtn" class="pause-btn" type="button" aria-label="Pause"><i></i><i></i></button></div>
@@ -2936,17 +2946,37 @@ class World {
   // ── sky dome, sea, lights ──
   buildSky() {
     const g = new THREE.SphereGeometry(1400, 32, 16);
+    // a painted sky: drifting cloud banks lit by the sun (cel-shaded in three tones to match the comic look), a sun with
+    // a halo, and at night twinkling stars, a moon and moonlit cloud. `cloud` is cover (0 clear … 1 overcast).
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() }, night: { value: 0 } },
+      uniforms: { top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() }, night: { value: 0 }, uTime: { value: 0 }, cloud: { value: 0.45 }, lite: { value: 0 }, dim: { value: 1 } },
       vertexShader: `varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;
+      fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; uniform float uTime; uniform float cloud; uniform float lite; uniform float dim; varying vec3 vP;
         float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
-        void main(){ float h = clamp(vP.y, -0.2, 1.0); vec3 c = h < 0.18 ? mix(hor, mid, smoothstep(0.0, 0.18, h)) : mix(mid, top, smoothstep(0.18, 0.75, h));
+        float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1., 0.)), f.x), mix(h2(i + vec2(0., 1.)), h2(i + vec2(1., 1.)), f.x), f.y); }
+        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + vec2(17.0, 9.0); a *= 0.5; if (lite > 0.5 && i == 1) break; } return s; }
+        void main(){ vec3 d = normalize(vP), sdir = normalize(sunDir); float h = clamp(d.y, -0.2, 1.0);
+          vec3 c = h < 0.18 ? mix(hor, mid, smoothstep(0.0, 0.18, h)) : mix(mid, top, smoothstep(0.18, 0.75, h));
           if (h < 0.0) c = hor * 0.9;
-          float sd = max(dot(normalize(vP), normalize(sunDir)), 0.0);
-          c += sunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 24.0) * 0.35 + pow(sd, 4.0) * 0.12);
-          if (night > 0.5) { vec3 q = floor(vP * 380.0); float st = step(0.9965, hash(q)) * smoothstep(0.1, 0.5, h); c += vec3(st) * 0.8; }
+          float sd = max(dot(d, sdir), 0.0);
+          if (night > 0.5) {   // stars that twinkle, and a moon where the "sun" is
+            vec3 q = floor(d * 380.0); float hs = hash(q); float st = step(0.9965, hs) * smoothstep(0.1, 0.5, h); c += vec3(st) * (0.55 + 0.45 * sin(uTime * (2.0 + hs * 40.0) + hs * 90.0));
+            float md = acos(clamp(dot(d, sdir), -1.0, 1.0)); float moon = smoothstep(0.052, 0.046, md); vec3 mc = vec3(0.95, 0.94, 0.86) * (0.82 + 0.18 * vn(d.xz * 60.0 + d.y * 40.0));
+            c = mix(c, mc, moon); c += vec3(0.5, 0.55, 0.8) * (pow(sd, 60.0) * 0.35 + pow(sd, 8.0) * 0.08);
+          } else c += sunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 24.0) * 0.35 + pow(sd, 4.0) * 0.12);
+          if (h > 0.015 && cloud > 0.01) {   // clouds on a flat layer overhead, thinning into the horizon haze
+            vec2 uv = d.xz / (d.y + 0.12) * 1.15 + vec2(uTime * 0.012, uTime * 0.004);
+            float n = fbm(uv) * 0.75 + fbm(uv * 2.7 + 5.0) * 0.25, cov = mix(0.62, 0.3, cloud), m = smoothstep(cov, cov + 0.16, n) * smoothstep(0.015, 0.14, h);
+            float n2 = fbm(uv + sdir.xz * 0.09);   // denser toward the sun = that side is in shade
+            float lit = clamp((n - n2) * 5.0 + 0.55, 0.0, 1.0); lit = floor(lit * 3.0 + 0.5) / 3.0;   // three flat tones
+            vec3 day = mix(mix(mid, vec3(0.42, 0.44, 0.56), 0.55), vec3(1.0) * 0.96 + sunCol * 0.12, lit) + sunCol * pow(sd, 6.0) * 0.5 * (1.0 - m * 0.4);
+            vec3 nite = mix(top * 1.6 + vec3(0.03, 0.03, 0.06), mid * 1.5 + vec3(0.1, 0.1, 0.16), lit) + vec3(0.5, 0.55, 0.8) * pow(sd, 10.0) * 0.5;
+            vec3 over = mix(vec3(0.36, 0.37, 0.46), vec3(0.72, 0.72, 0.8), lit) * (night > 0.5 ? 0.3 : 1.0);   // monsoon: grey banks
+            vec3 cc = mix(night > 0.5 ? nite : day, over, smoothstep(0.7, 0.95, cloud));
+            c = mix(c, cc * dim, m * mix(0.92, 0.78, night));
+          }
           gl_FragColor = vec4(c, 1.0); }`,
     });
     this.sky = new THREE.Mesh(g, this.skyMat); this.sky.frustumCulled = false; this.sky.renderOrder = -1; this.group.add(this.sky); this.disposables.push(g, this.skyMat);
@@ -2994,7 +3024,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     const RS = nt ? ['#100f22', '#211f38', '#3a3650'] : ['#55566f', '#8a8aa2', '#bab6c8'];   // monsoon: Auto Rush's lavender-grey overcast
     const sky = (i) => new THREE.Color(M.sky[i]).lerp(new THREE.Color(RS[i]), wet ? 0.8 : 0);
     this.skyMat.uniforms.top.value.copy(sky(0)); this.skyMat.uniforms.mid.value.copy(sky(1)); this.skyMat.uniforms.hor.value.copy(sky(2));
-    const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt && !wet ? 1 : 0;
+    const sd = new THREE.Vector3(...M.sunDir).normalize(); this.sunDir = sd; this.skyMat.uniforms.sunDir.value.copy(sd); this.skyMat.uniforms.sunCol.value.set(M.sunDisc).multiplyScalar(wet ? 0.12 : 1); this.skyMat.uniforms.night.value = nt ? 1 : 0; this.skyMat.uniforms.cloud.value = wet ? 1 : nt ? 0.38 : M === MOODS.golden ? 0.55 : 0.42; this.skyMat.uniforms.dim.value = 1; this.skyMat.uniforms.lite.value = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low' ? 1 : 0;
     this.sun.color.set(M.sun); if (wet) this.sun.color.lerp(new THREE.Color('#dfe6f2'), 0.7); this.sun.intensity = M.sunI * (wet ? (nt ? 0.5 : 0.42) : 1);
     this.hemi.color.set(M.hemiSky); this.hemi.groundColor.set(M.hemiGround);
     if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#5a6688' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#262634' : '#5a5862'), 0.6); }
@@ -3021,7 +3051,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     return { fog: this.fog, exposure: M.exposure * (wet ? (nt ? 1.05 : 0.94) : 1) };
   }
   update(dt, t, camera, focus) {
-    this.sky.position.copy(camera.position);
+    this.sky.position.copy(camera.position); this.skyMat.uniforms.uTime.value = t; if (this.crowdU) this.crowdU.uTime.value = t;
     if (this.coinMesh) this.updateCoins(t);
     if (this.updateStage) this.updateStage(dt, t, focus);
     if (this.ugRT) this.updateUnderground(dt, t, camera, focus);
@@ -3648,7 +3678,7 @@ Object.assign(World.prototype, {
     if (!this.ugRT) return;
     // the storm sky is the night (or monsoon) look only: a morning on the Underground is a real sunny morning
     const U = this.skyMat.uniforms;
-    if (nt || wet) { U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.sunCol.value.multiplyScalar(0.15);
+    if (nt || wet) { U.top.value.set(wet ? '#0a0b14' : '#0e0d1e'); U.mid.value.set(wet ? '#1f2030' : '#2a2140'); U.hor.value.set(wet ? '#454052' : '#6a3c48'); U.night.value = 0; U.cloud.value = 0.97; U.dim.value = 0.3; U.sunCol.value.multiplyScalar(0.15);   // heavy storm cloud, dark
       this.fog.color.set(wet ? '#2a2a38' : '#352a40'); this.fog.near = wet ? 26 : 34; this.fog.far = wet ? 280 : 360; }
     this.ugSky = { top: U.top.value.clone(), mid: U.mid.value.clone(), hor: U.hor.value.clone() };
     this.ugM.sign.emissive.set('#ffffff').multiplyScalar(nt ? 0.8 : 0.3); this.ugM.sea.color.set(wet ? '#0a121c' : nt ? '#0b1724' : '#2c5a78');
@@ -3729,7 +3759,7 @@ Object.assign(World.prototype, {
   stBulb(B, p, color = '#ffd590', r = 3.4) { B.glow.box(p.x, p.y - 0.09, p.z, 0.13, 0.17, 0.13, 0, color); this.lampHeads.push(p.clone()); const g = p.clone(); g.y = 0.2; this.stPool(g, r, '#ffb460'); },
   buildStreet(B) {
     this.streetInit();
-    this.buildNitros(B); this.buildStreetLife(B);
+    this.buildNitros(B); this.buildStreetLife(B); if (this.buildCrowd) this.buildCrowd();
     const add = (b, mat, ro = 0) => { const m = b.mesh(mat); if (m) { m.renderOrder = ro; this.group.add(m); this.disposables.push(m.geometry); } return m; };
     add(this.stB.sign, this.stM.sign); add(this.stB.nitro, this.stM.nitro, 2); add(this.stB.glowPool, this.stM.glowPool, 2); this.nitroBeams = add(this.stB.beam, this.stM.beam, 5);
   },
@@ -3817,6 +3847,89 @@ Object.assign(World.prototype, {
         for (let j = 0; j < 3; j++) B.props.geom(BLOB, q.x + (RNG() - 0.5) * 0.3, y + 0.55 + RNG() * 0.3, q.z + (RNG() - 0.5) * 0.3, RNG() * 6, 0.26, 0.24, 0.26, pick(['#3f7a2f', '#2f6a28', '#4f8a35'])); }
       const q = at(0, -0.4); for (let j = 0; j < 5; j++) B.props.geom(BLOB, q.x + (RNG() - 0.5) * 1.6, y + 0.4 + RNG() * 1.2, q.z + (RNG() - 0.5) * 0.4, RNG() * 6, 0.35, 0.3, 0.35, pick(['#ff3d9a', '#e83a8a', '#3f7a2f']));   // bougainvillea
     }
+  },
+});
+
+// ===== 24_crowd.js =====
+// ───────────────────────── THE CROWD ─────────────────────────
+// Mumbai came out to watch: comic cut-out spectators on the pavements. A packed double row at the start/finish line,
+// knots of people at every stall, and pairs dotted along the road. Each is one textured quad facing the road (drawn
+// here, no image files), in one batched mesh; about half of them jump and cheer (a hop in the vertex shader).
+const CROWD_N = 8;
+function crowdTexture() {
+  if (TEX.crowd) return TEX.crowd;
+  const CW = 128, CH = 256, [c, x] = mkCanvas(CW * CROWD_N, CH);
+  const INK = '#1a1018';
+  // one figure, drawn in flat colours on its own canvas, then inked: the silhouette stamped all round in dark, the colours on top
+  const person = (i, o) => { const [f, g] = mkCanvas(CW, CH), k = o.k || 1, base = 250, H = 232 * k, top = base - H, cx = 64;
+    const hy = top + 20 * k, hr = 17 * k, sh = top + 52 * k, hip = top + 128 * k, bw = 23 * k;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    const arm = (sx, hx, hyy, col) => { g.strokeStyle = col; g.lineWidth = 12 * k; g.beginPath(); g.moveTo(sx, sh + 6 * k); g.lineTo(hx, hyy); g.stroke(); g.fillStyle = o.skin; g.beginPath(); g.arc(hx, hyy, 6.5 * k, 0, 7); g.fill(); };
+    const armCol = o.sleeve === false ? o.skin : o.top;
+    // legs / lower
+    if (o.low === 'saree' || o.low === 'skirt') { g.fillStyle = o.lowC; g.beginPath(); g.moveTo(cx - bw, hip - 4); g.lineTo(cx + bw, hip - 4); g.lineTo(cx + bw + 8 * k, base - 6); g.lineTo(cx - bw - 8 * k, base - 6); g.closePath(); g.fill(); g.fillStyle = o.skin; g.fillRect(cx - 14 * k, base - 8, 10 * k, 8); g.fillRect(cx + 4 * k, base - 8, 10 * k, 8); }
+    else { const lt = o.low === 'lungi' ? hip + 62 * k : o.low === 'shorts' ? hip + 34 * k : base - 8;
+      g.fillStyle = o.skin; g.fillRect(cx - bw + 3, hip, 16 * k, base - hip - 6); g.fillRect(cx + bw - 3 - 16 * k, hip, 16 * k, base - hip - 6);
+      g.fillStyle = o.lowC; if (o.low === 'lungi') { g.beginPath(); g.moveTo(cx - bw, hip - 4); g.lineTo(cx + bw, hip - 4); g.lineTo(cx + bw + 3, lt); g.lineTo(cx - bw - 3, lt); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 2; for (let q = -2; q <= 2; q++) { g.beginPath(); g.moveTo(cx + q * 9 * k, hip); g.lineTo(cx + q * 10 * k, lt); g.stroke(); } }
+      else { g.fillRect(cx - bw + 1, hip - 4, 19 * k, lt - hip + 4); g.fillRect(cx + bw - 1 - 19 * k, hip - 4, 19 * k, lt - hip + 4); }
+      g.fillStyle = o.shoe || '#2a2228'; g.fillRect(cx - bw, base - 8, 21 * k, 8); g.fillRect(cx + bw - 21 * k, base - 8, 21 * k, 8); }
+    // arms behind the torso when down, in front when up
+    const L = o.arms[0], R = o.arms[1], hand = (p, s) => p === 'up' ? [cx + s * 34 * k, top + 2 * k] : p === 'wave' ? [cx + s * 44 * k, top + 26 * k] : p === 'phone' ? [cx + s * 30 * k, top + 34 * k] : [cx + s * (bw + 9 * k), hip + 6 * k];
+    if (L === 'down') arm(cx - bw, ...hand(L, -1), armCol); if (R === 'down') arm(cx + bw, ...hand(R, 1), armCol);
+    // torso
+    g.fillStyle = o.top; const tl = o.long ? hip + 44 * k : hip + 4; g.beginPath(); g.moveTo(cx - bw - 2, sh); g.quadraticCurveTo(cx, sh - 10 * k, cx + bw + 2, sh); g.lineTo(cx + bw, tl); g.lineTo(cx - bw, tl); g.closePath(); g.fill();
+    if (o.low === 'saree') { g.fillStyle = o.lowC; g.beginPath(); g.moveTo(cx + bw + 2, sh); g.lineTo(cx + bw + 2, sh + 22 * k); g.lineTo(cx - bw, hip + 2); g.lineTo(cx - bw, hip - 24 * k); g.closePath(); g.fill(); g.strokeStyle = '#ffd24a'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx + bw + 2, sh + 22 * k); g.lineTo(cx - bw, hip + 2); g.stroke(); }
+    if (o.stripe) { g.fillStyle = o.stripe; g.fillRect(cx - bw, sh + 22 * k, bw * 2, 9 * k); g.fillRect(cx - bw, sh + 44 * k, bw * 2, 9 * k); }
+    if (L !== 'down') arm(cx - bw, ...hand(L, -1), armCol); if (R !== 'down') arm(cx + bw, ...hand(R, 1), armCol);
+    if (R === 'phone') { const [px, py] = hand(R, 1); g.fillStyle = '#15151c'; g.fillRect(px - 6 * k, py - 16 * k, 12 * k, 20 * k); g.fillStyle = '#7fd8ff'; g.fillRect(px - 4 * k, py - 13 * k, 8 * k, 13 * k); }
+    // neck, head, hair
+    g.fillStyle = o.skin; g.fillRect(cx - 6 * k, hy + hr - 4, 12 * k, 14 * k); g.beginPath(); g.arc(cx, hy, hr, 0, 7); g.fill();
+    g.fillStyle = o.hair; g.beginPath(); g.arc(cx, hy - 2 * k, hr + 1, Math.PI * 1.02, Math.PI * 1.98); g.closePath(); g.fill();
+    if (o.hairLong) { g.fillRect(cx - hr - 2, hy - 4 * k, 8 * k, 40 * k); g.fillRect(cx + hr - 6 * k, hy - 4 * k, 8 * k, 40 * k); }
+    if (o.cap) { g.fillStyle = o.cap; g.beginPath(); g.arc(cx, hy - 3 * k, hr + 2, Math.PI, Math.PI * 2); g.closePath(); g.fill(); g.fillRect(cx, hy - 6 * k, hr + 12 * k, 5 * k); }
+    if (o.shades) { g.fillStyle = '#101014'; g.fillRect(cx - 13 * k, hy - 2 * k, 26 * k, 7 * k); }
+    else { g.fillStyle = INK; g.beginPath(); g.arc(cx - 6 * k, hy + 1, 2 * k, 0, 7); g.arc(cx + 6 * k, hy + 1, 2 * k, 0, 7); g.fill(); }
+    if (o.open) { g.fillStyle = '#5a1420'; g.beginPath(); g.ellipse(cx, hy + 9 * k, 5 * k, 3.6 * k, 0, 0, 7); g.fill(); }   // shouting
+    if (o.beard) { g.fillStyle = o.hair; g.beginPath(); g.arc(cx, hy + 3 * k, hr - 1, Math.PI * 0.12, Math.PI * 0.88); g.closePath(); g.fill(); }
+    // ink: the silhouette in dark, stamped around, then the colours
+    const [s2, g2] = mkCanvas(CW, CH); g2.drawImage(f, 0, 0); g2.globalCompositeOperation = 'source-in'; g2.fillStyle = INK; g2.fillRect(0, 0, CW, CH);
+    for (let a = 0; a < 12; a++) x.drawImage(s2, i * CW + Math.cos(a / 12 * 6.283) * 3.2, Math.sin(a / 12 * 6.283) * 3.2);
+    x.drawImage(f, i * CW, 0); };
+  const SK = ['#b87a52', '#8f5a3a', '#c98f66', '#a56a45'];
+  [ { skin: SK[0], top: '#e8413c', low: 'pants', lowC: '#2b3350', hair: '#17110e', arms: ['up', 'up'], open: true },
+    { skin: SK[1], top: '#f2efe6', long: true, low: 'pants', lowC: '#f2efe6', hair: '#17110e', arms: ['down', 'wave'], beard: true },
+    { skin: SK[2], top: '#d4307a', low: 'saree', lowC: '#f0a01e', hair: '#17110e', hairLong: true, sleeve: false, arms: ['down', 'wave'] },
+    { skin: SK[0], top: '#ffd21e', low: 'shorts', lowC: '#2456a8', hair: '#17110e', arms: ['up', 'up'], k: 0.7, open: true, stripe: '#e8413c' },
+    { skin: SK[3], top: '#f4f4f0', sleeve: false, low: 'lungi', lowC: '#3a7a9a', hair: '#17110e', arms: ['down', 'phone'], shades: true },
+    { skin: SK[2], top: '#2aa79b', long: true, low: 'pants', lowC: '#f0e4c8', hair: '#17110e', hairLong: true, arms: ['up', 'up'], open: true },
+    { skin: SK[1], top: '#3a6fd8', low: 'pants', lowC: '#3a3a44', hair: '#17110e', cap: '#e8413c', arms: ['down', 'up'], open: true },
+    { skin: SK[3], top: '#7a4ad0', low: 'pants', lowC: '#22222c', hair: '#c9c9c9', arms: ['phone', 'phone'].map((v, q) => q ? 'phone' : 'down'), beard: true },
+  ].forEach((o, i) => person(i, o));
+  const t = toTex(c, { mip: true }); return TEX.crowd = t;
+}
+Object.assign(World.prototype, {
+  buildCrowd() {
+    const T = this.track, th = this.theme, sw = SIDEWALK[th], p = new THREE.Vector3(); if (sw < 2 || (th === 'flyover' && !T.ug)) return;   // no room on a gali's kerb
+    const tex = crowdTexture(), B = new Batch(); let n = 0;
+    const ok = (s, side, off) => { const w = T.wAt(s) / 2;
+      if (T.yAt(s) > 0.6 || T.hallAt(s) || (T.stairsZone && T.stairsZone(s)) || (T.nala && Math.abs(T.wrapD(s - T.nala.s0 - T.nala.len / 2)) < 40) || (this.ugSkip && this.ugSkip(s, 'clutter'))) return false;
+      if (T.kickers.some(q => Math.abs(T.wrapD(s - q.s)) < 22) || T.shortcuts.some(sc => Math.abs(T.wrapD(s - sc.s)) < sc.half + 8) || T.nakas.some(q => Math.abs(T.wrapD(s - q.s)) < 40)) return false;
+      if (this.obstacles.some(o => Math.abs(T.wrapD(o.s - s)) < 4 && Math.sign(o.d) === side && Math.abs(o.d) > w - 0.5)) return false;
+      T.pos(s, side * off, p, 0); return !(T.clearance(p.x, p.z) < off - w - 0.4 || this.isSea(p.x - 2)); };
+    const put = (s, side, back = 0) => { s = ((s % T.L) + T.L) % T.L; const w = T.wAt(s) / 2, off = w + 0.45 + Math.min(sw - 0.7, 0.75 + back); if (!ok(s, side, off)) return;
+      const v = Math.floor(RNG() * CROWD_N), h = (v === 3 ? 1.22 : 1.6 + RNG() * 0.2) / (v === 3 ? 0.7 : 1) * 1.0, yaw = T.yawAt(s) + (side > 0 ? -Math.PI / 2 : Math.PI / 2) + (RNG() - 0.5) * 0.7, u0 = v / CROWD_N;
+      p.y = 0.18; this.facing(B, p, yaw, h * 0.5, 0.18, 0.18 + h, [u0 + 0.002, 0, u0 + 1 / CROWD_N - 0.002, 1]); n++; };
+    // the start / finish straight: two rows deep on both sides
+    for (let s = -55; s < 70; s += 0.75 + RNG() * 0.5) for (const side of [-1, 1]) { if (RNG() < 0.85) put(s, side, 0); if (sw > 2.6 && RNG() < 0.6) put(s + 0.4, side, 0.75); }
+    // a knot of people at every stall, and pairs along the way
+    for (const sp of this.stallSpots || []) { const k = 2 + Math.floor(RNG() * 3); for (let i = 0; i < k; i++) put(sp.s + (RNG() < 0.5 ? -1 : 1) * (1.6 + RNG() * 2.2), sp.side, RNG() * 0.5); }
+    for (let s = 90; s < T.L - 70; s += 14 + RNG() * 22) { const side = RNG() < 0.5 ? -1 : 1, k = 1 + Math.floor(RNG() * 3); for (let i = 0; i < k; i++) put(s + i * (0.7 + RNG() * 0.4), side, RNG() * 0.4); }
+    if (!n) return;
+    const U = this.crowdU = { uTime: { value: 0 } }, low = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low';
+    const m = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide, emissive: 0x30283a, emissiveMap: tex });
+    m.onBeforeCompile = (sh) => { sh.uniforms.uTime = U.uTime;   // half of them jump (each on a beat of their own, keyed off the way they face)
+      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  { float ph = fract(sin(dot(normal.xz, vec2(91.7, 37.3))) * 4375.5); float hop = max(0.0, sin(uTime * (5.0 + ph * 3.0) + ph * 40.0)); transformed.y += hop * hop * 0.17 * step(0.45, ph); }'); };
+    const mesh = B.mesh(m); if (!mesh) return; mesh.castShadow = !low; this.group.add(mesh); this.disposables.push(mesh.geometry, m); this.crowdCount = n;
   },
 });
 
@@ -5437,6 +5550,7 @@ class Rider {
 
 // ===== 45_race.js =====
 // ───────────────────────── RACE MANAGER ─────────────────────────
+const SWAG_KEYS = new Set(['overtakes', 'squeeze', 'nearMiss', 'stunts', 'knockdowns', 'revenge', 'hits', 'dodges', 'weaponSnatch', 'nakas', 'barricades', 'shotsDodged', 'dogs', 'launch']);
 class Race {
   constructor(game, setup, cupInfo = null) {
     this.game = game; this.setup = setup; this.mode = setup.mode; this.cup = cupInfo;
@@ -5449,7 +5563,7 @@ class Race {
     this.laps = M.fixedLaps || setup.laps;
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
-    this.score = {}; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
+    this.score = {}; this.swag = { n: 0, t: 0, best: 0 }; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
     this.elimLap = 0; this.elimOrder = []; this.finishOrder = [];
     RNG = mulberry32(Date.now() & 0xffff);
     // player
@@ -5508,13 +5622,21 @@ class Race {
     this.prevSliding = false; this.splatShown = 0; this.contactT = new Map(); this.coinState = new Uint8Array(this.track.coins.length); this.coinsGot = 0; this.world.resetCoins && this.world.resetCoins();
   }
   distToPlayer(r) { if (!r) return 0.3; const dd = Math.abs((r.dist ?? 0) - this.player.dist) + Math.abs((r.d ?? 0) - this.player.d); return clamp(1 - dd / 40, 0, 1) * 0.8; }
-  award(key, pts) { const v = Math.round(pts); this.score[key] = (this.score[key] || 0) + v; return v; }
+  // SWAG chain: every bit of showing off (a pass, a near miss, a stunt, a hit, a dodge…) within 5 s of the last one
+  // builds a multiplier, ×1.25 per link up to ×3. It pays more points and tops up the kick meter; a fall breaks it.
+  award(key, pts) {
+    const W = this.swag; let k = 1;
+    if (W && SWAG_KEYS.has(key) && this.state !== 'countdown') { W.n = W.t > 0 ? W.n + 1 : 1; W.t = 5; W.best = Math.max(W.best, W.n); k = Math.min(3, 1 + (W.n - 1) * 0.25);
+      if (W.n > 1) { const P = this.player; P.boost = Math.min(100, P.boost + 4); const name = { 3: 'TASHAN!', 5: 'BHAUKAAL!', 8: 'FULL CHAPRI!' }[W.n]; if (name) { this.hud.callout(name, `SWAG ×${k.toFixed(k % 1 ? 2 : 0)}`, 'gold'); AUDIO.pickup(); } }
+      this.hud.swag(W.n, k, 1); }
+    const v = Math.round(pts * k); this.score[key] = (this.score[key] || 0) + v; return v; }
+  swagTick(dt) { const W = this.swag; if (!W || W.t <= 0) return; W.t -= dt; if (W.t <= 0) { W.n = 0; this.hud.swag(0, 1, 0); } else this.hud.swag(W.n, Math.min(3, 1 + (W.n - 1) * 0.25), W.t / 5); }
   rumble(strength, dur) { if (!SAVE.settings.vibration) return; INPUT.rumble(strength, dur); }
   hudWarn(side) { this.hud.warn(side); AUDIO.warn(); }
   // ── frame update (fixed sub-steps) ──
   update(dt) {
     if (this.hitStop > 0) { this.hitStop -= dt; this.syncVisuals(0); return; }   // hit-stop: a few frames frozen on contact
-    this.timeScale = 1; if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; this.timeScale = 0.32; }   // the camera needs to know: it runs on real time
+    this.swagTick(dt); this.timeScale = 1; if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.32; this.timeScale = 0.32; }   // the camera needs to know: it runs on real time
     const P = this.player;
     if (this.state === 'countdown') {
       const before = this.raceT; this.raceT += dt;
@@ -5678,7 +5800,7 @@ class Race {
     }
     this.combat.dropWeapons(r); this.combat.startWreck(r);
     if (this.state === 'racing' && r.wreck && (r.isPlayer || (r.lastHitBy && r.lastHitBy.isPlayer && this.raceT - r.lastHitT < 2.5))) this.game.takedownCam && this.game.takedownCam(r);
-    if (r.isPlayer) { this.clean = false; this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
+    if (r.isPlayer) { this.clean = false; if (this.swag.n > 1) this.hud.callout('SWAG TOOTA!', '', 'bad'); this.swag.n = 0; this.swag.t = 0; this.hud.swag(0, 1, 0); this.hud.callout(reason === 'loop' ? 'LOOPED IT!' : reason === 'bars' ? 'OVER THE BARS!' : reason === 'traffic' ? 'GAADI SE THOKA! GIR GAYA!' : 'GIR GAYA!', null, 'bad'); AUDIO.crash(1); this.rumble(1, 0.4); this.game.shake(0.8); }
     else AUDIO.crash(this.distToPlayer(r));
   }
   // a hit that didn't put you down: tyre smoke and sparks at the bike, the callout and the thud
@@ -7683,6 +7805,10 @@ class HUD {
     for (const side of ['left', 'right']) { if (this.warnT[side] > 0) { this.warnT[side] -= dt; if (this.warnT[side] <= 0) this.el[side === 'left' ? 'warnL' : 'warnR'].hidden = true; } }
   }
   coinTick(n) { $$('.coinsMirror').forEach(e => { e.textContent = fmtNum(SAVE.coins); const p = e.closest('.pill'); if (p) { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); } }); }
+  // the SWAG chain chip: links, multiplier and the 5 s fuse
+  swag(n, k, f) { const el = this._sw || (this._sw = $('#swag')); if (!el) return; if (n < 2) { el.hidden = true; this._swN = 0; return; }
+    if (n !== this._swN) { this._swN = n; el.hidden = false; $('#swagN').textContent = '×' + (k % 1 ? k.toFixed(2) : k); $('#swagC').textContent = n + ' chain'; el.classList.toggle('max', k >= 3); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+    $('#swagBar').style.transform = `scaleX(${f.toFixed(3)})`; }
   callout(text, pts, cls = 'good') {
     const el = document.createElement('div'); el.className = 'callout ' + cls; el.innerHTML = `${text}${pts ? `<em>${pts}</em>` : ''}`;
     this.el.callouts.prepend(el); while (this.el.callouts.children.length > 3) this.el.callouts.lastChild.remove();
@@ -8663,6 +8789,7 @@ class Game {
     add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
+    if (R.swag && R.swag.best >= 3) items.push([`Best swag chain (${R.swag.best})`, R.swag.best * 25]);
     if (R.boss && P.finished && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);   // the boss on the maxed bike
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);

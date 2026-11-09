@@ -725,3 +725,12 @@ kbd { font-family: var(--f-num); }
   .safar-btn { min-height: 2.7rem; padding: .2rem .6rem; } .safar-btn .sb-txt b { font-size: 1.3rem; } .safar-btn .sb-ico { width: 1.8rem; height: 1.8rem; font-size: 1.1rem; } }
 @media (max-height: 520px) { .safar-btn { min-height: 2.15rem; padding: .1rem .6rem; } .safar-btn .sb-ico { width: 1.5rem; height: 1.5rem; font-size: .95rem; } .safar-btn .sb-txt b { font-size: 1.25rem; } .safar-btn .sb-txt { display: flex; align-items: baseline; gap: .6rem; } .sh-card { top: 16%; }
   #menu .setup-line { display: none; } #menu .start-btn { height: 3.5rem; font-size: 2.4rem; } }
+
+/* ───────── SWAG chain ───────── */
+.swag { position: absolute; right: calc(env(safe-area-inset-right, 0px) + 12px); top: 44%; z-index: 5; display: grid; justify-items: end; padding: .2rem .6rem .35rem; border-radius: 12px; background: rgba(26, 10, 34, .78); box-shadow: inset 0 0 0 2px var(--pink); pointer-events: none; transform-origin: right center; }
+.swag small { font-size: .7rem; letter-spacing: .14em; color: var(--muted); line-height: 1; } .swag b { font-family: var(--f-num); font-style: italic; font-size: 2.4rem; line-height: .95; color: var(--marigold); } .swag em { font-style: normal; font-size: .72rem; color: #ffe1ee; line-height: 1; }
+.swag > i { display: block; width: 4.6rem; height: 4px; margin-top: .25rem; border-radius: 2px; background: rgba(255, 255, 255, .18); overflow: hidden; } .swag > i > i { display: block; height: 100%; background: var(--pink); transform-origin: left center; }
+.swag.max { box-shadow: inset 0 0 0 2px var(--marigold), 0 0 18px rgba(255, 194, 26, .6); } .swag.max > i > i { background: var(--marigold); }
+.swag.bump { animation: swagBump .28s ease-out; } @keyframes swagBump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@media (orientation: portrait) { .swag { top: 30%; } .swag b { font-size: 2rem; } }
+@media (prefers-reduced-motion: reduce) { .swag.bump { animation: none; } }

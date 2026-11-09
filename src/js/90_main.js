@@ -310,6 +310,7 @@ class Game {
     add('nakas', `Nakas jumped (${S.nakaCount || 0})`); add('barricades', `Barricades smashed (${S.barricadeCount || 0})`); add('shotsDodged', `Shots dodged (${S.shotDodges || 0})`); add('dogs', 'Dogs dodged'); add('escapeGap', 'Lost the police');
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
+    if (R.swag && R.swag.best >= 3) items.push([`Best swag chain (${R.swag.best})`, R.swag.best * 25]);
     if (R.boss && P.finished && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);   // the boss on the maxed bike
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
