@@ -288,7 +288,7 @@ class BikeRig {
   // minR: smallest part (real size, metres) that gets a shell — rivals skip brows, buckles and bolts nobody sees at speed
   addOutlines(minR = 0.025) {
     if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
-    this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal || m.userData.cloth) return; const M = m.material;   // (capes: no shell, it would show through the scalloped hem)
+    this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal || m.userData.cloth || m.userData.noOutline) return; const M = m.material;   // (capes: no shell, it would show through the scalloped hem)
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
       if (partRadius(m) < minR) return; list.push(m); });
     for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
@@ -307,7 +307,7 @@ class BikeRig {
     for (const v of Object.values(this)) grab(v, 0);   // e.g. this.mods.flames / siren, this.jets, this.wRod …
     const groups = new Map(), noop = THREE.Object3D.prototype.onBeforeRender;
     this.root.traverse(o => {
-      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || keep.has(o) || !o.visible || !o.parent || o.children.length || Array.isArray(o.material) || o.onBeforeRender !== noop || o.userData.outline || o.userData.cloth) return;
+      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || keep.has(o) || !o.visible || !o.parent || o.children.length || Array.isArray(o.material) || o.onBeforeRender !== noop || o.userData.outline || o.userData.cloth || o.userData.dyn) return;   // dyn: moved every frame (the shirt / jacket cloth)
       const g = o.geometry; if (!g || g.groups.length > 1 || g.morphAttributes.position || g.attributes.tangent || !g.attributes.position) return;
       for (let p = o.parent; p && p !== this.root; p = p.parent) if (!p.visible || p === this.cig || p === this.can) return;   // props shown later (cig.children[0] is read by index)
       const key =o.material.id + '|' + o.renderOrder + '|' + o.castShadow + o.receiveShadow + o.frustumCulled + '|' + Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',');

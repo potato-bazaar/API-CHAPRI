@@ -1,6 +1,6 @@
 // Fast-forward a full race in-page (physics + rig animation, incl. crashes) and report errors.
 import { openGame } from './serve-test.mjs';
-const { browser, page, logs } = await openGame({ query: `?autopilot&q=low&laps=${process.argv[3] || 1}&track=${process.argv[2] || 'dharavi-lanes'}`, width: 480, height: 270 });
+const { browser, page, logs } = await openGame({ query: `?autopilot&q=low&laps=${process.argv[3] || 1}&track=${process.argv[2] || 'dharavi-lanes'}${process.env.QX || ''}`, width: 480, height: 270 });
 page.on('pageerror', e => console.log('PAGEERR', e.message));
 try {
   await page.waitForSelector('#hud.show', { timeout: 90000 });

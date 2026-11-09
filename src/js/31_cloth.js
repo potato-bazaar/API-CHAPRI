@@ -5,7 +5,7 @@
 const SHIRT_DIM = { hi: { back: [8, 8], front: [5, 7] }, lo: { back: [5, 5], front: [3, 5] } };
 // torso cross-section of the slimmed body (bind space): half-width, front z, back z by height
 const TORSO = [[0.93, 0.16, 0.072, -0.105], [1.0, 0.146, 0.076, -0.1], [1.1, 0.133, 0.089, -0.086], [1.2, 0.124, 0.096, -0.088], [1.3, 0.166, 0.113, -0.118], [1.4, 0.196, 0.11, -0.146]];   // fit build (tools/model/build-rider.mjs MEASURE=1)
-function torsoAt(y) { let i = 0; while (i < TORSO.length - 2 && y > TORSO[i + 1][0]) i++; const a = TORSO[i], b = TORSO[i + 1], t = clamp((y - a[0]) / (b[0] - a[0]), 0, 1);
+function torsoAt(y, T = TORSO) { let i = 0; while (i < T.length - 2 && y > T[i + 1][0]) i++; const a = T[i], b = T[i + 1], t = clamp((y - a[0]) / (b[0] - a[0]), 0, 1);
   return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)]; }
 const CLOTH_BONES = ['pelvis', 'spine_01', 'spine_02', 'spine_03'];
 const boneForY = (y) => y >= 1.31 ? 3 : y >= 1.18 ? 2 : 1;
@@ -14,25 +14,28 @@ class ShirtCloth {
   constructor(rm, rig, shirtTex, low, lod, cast, opt = {}) {
     this.rm = rm; this.rig = rig; this.acc = 0; this.t = Math.random() * 10; this.ready = false; this.inf = (opt.muscle || 0) * 0.02;   // muscle: the shirt sits further out
     const dim = lod ? SHIRT_DIM.lo : SHIRT_DIM.hi;
-    this.mat = low ? new THREE.MeshLambertMaterial({ map: shirtTex, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: shirtTex, side: THREE.DoubleSide, roughness: 0.82 });
-    this.panels = [
-      this.panel(dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, opt.hem || 0.92, [0, 1]),     // back, seams on both sides (cropped when the waistband shows)
-      this.panel(dim.front, -0.35, 1.22, 1.4, 0.97, [0]),                                     // left front (rider's left = +x)
-      this.panel(dim.front, Math.PI + 0.35, Math.PI - 1.22, 1.4, 0.97, [0]),                   // right front
-    ];
-    for (const p of this.panels) { p.mesh.castShadow = cast; p.mesh.frustumCulled = false; rig.body.add(p.mesh); }
+    // opt.torso / spheres / panels / mat: another body and cut (Dogesh's long jacket); opt.legs: drape over the thighs and shins
+    this.torso = opt.torso || TORSO; this.jacket = !!opt.jacket; this.seatX = opt.seatX || 0.17; this.sharedMat = !!opt.mat;
+    this.mat = opt.mat || (low ? new THREE.MeshLambertMaterial({ map: shirtTex, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: shirtTex, side: THREE.DoubleSide, roughness: 0.82 }));
+    this.panels = (opt.panels ? opt.panels(lod) : [
+      [dim.back, -Math.PI / 2 - 1.22, -Math.PI / 2 + 1.22, 1.4, opt.hem || 0.92, [0, 1]],     // back, seams on both sides (cropped when the waistband shows)
+      [dim.front, -0.35, 1.22, 1.4, 0.97, [0]],                                     // left front (rider's left = +x)
+      [dim.front, Math.PI + 0.35, Math.PI - 1.22, 1.4, 0.97, [0]],                   // right front
+    ]).map(d => this.panel(...d));
+    for (const p of this.panels) { p.mesh.castShadow = cast; p.mesh.frustumCulled = false; p.mesh.userData.dyn = true; p.mesh.userData.reflKeep = true; rig.body.add(p.mesh); }   // dyn: never welded into a static mesh (BikeRig.mergeParts); reflKeep: it starts zero-sized
     this.D = CLOTH_BONES.map(() => new THREE.Matrix4()); this.sc = 1; this.off = new THREE.Vector3();
-    this.spheres = [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136 + this.inf, 2], [0, 1.36, -0.018, 0.168 + this.inf * 1.2, 3]];
+    this.spheres = opt.spheres || [[0, 1.0, -0.014, 0.15, 0], [0, 1.12, -0.004, 0.14, 1], [0, 1.24, 0.004, 0.136 + this.inf, 2], [0, 1.36, -0.018, 0.168 + this.inf * 1.2, 3]];
     this.sw = this.spheres.map(() => [new THREE.Vector3(), 0]); this._v = new THREE.Vector3(); this.g = new THREE.Vector3(); this._q = new THREE.Quaternion();
+    this.legs = opt.legs ? ['l', 'r'].map(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]) : null;   // hip, knee, ankle in bike-body space
   }
   // a cols×rows sheet wrapped around the torso from angle a0 to a1, from the yoke (y0) down to the hem (y1)
-  panel([cols, rows], a0, a1, y0, y1, seams) {
+  panel([cols, rows], a0, a1, y0, y1, seams, seamY = 1.15, trimCol = -1) {
     const n = cols * rows, B = new Float32Array(n * 3), P = new Float32Array(n * 3), Q = new Float32Array(n * 3), pin = new Int8Array(n).fill(-1);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
+      const i = r * cols + c, y = lerp(y0, y1, r / (rows - 1)), th = lerp(a0, a1, c / (cols - 1)); const [hw, zf, zb] = torsoAt(y, this.torso); const cz = (zf + zb) / 2, hd = (zf - zb) / 2, o = 0.02 + this.inf;
       B[i * 3] = (hw + o) * Math.cos(th); B[i * 3 + 1] = y; B[i * 3 + 2] = cz + (hd + o) * Math.sin(th);
       const seamCol = (seams.includes(0) && c === 0) || (seams.includes(1) && c === cols - 1);
-      if (r === 0 || (seamCol && y >= 1.15)) pin[i] = boneForY(y);
+      if (r === 0 || (seamCol && y >= seamY)) pin[i] = boneForY(y);
     }
     const E = []; const link = (a, b, k) => { const dx = B[a * 3] - B[b * 3], dy = B[a * 3 + 1] - B[b * 3 + 1], dz = B[a * 3 + 2] - B[b * 3 + 2]; E.push(a, b, Math.hypot(dx, dy, dz), k); };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const i = r * cols + c;
@@ -41,13 +44,17 @@ class ShirtCloth {
       if (r < rows - 2) link(i, i + 2 * cols, 0.35); }   // bend
     const g = new THREE.BufferGeometry(); const pos = new THREE.BufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage); g.setAttribute('position', pos);
     const uv = new Float32Array(n * 2); for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { uv[(r * cols + c) * 2] = c / (cols - 1) * (cols > 6 ? 1.9 : 0.9); uv[(r * cols + c) * 2 + 1] = 1 - r / (rows - 1) * 1.5; }
+    if (this.jacket) {   // brocade by the metre (one tile = 25 cm) + gold zari along the hem and the front edge
+      const tr = new Float32Array(n); for (let r = 0; r < rows; r++) { let u = 0; for (let c = 0; c < cols; c++) { const i = r * cols + c; if (c) u += Math.hypot(B[i * 3] - B[i * 3 - 3], B[i * 3 + 2] - B[i * 3 - 1]); uv[i * 2] = u / 0.25; uv[i * 2 + 1] = (y0 - B[i * 3 + 1]) / 0.25; tr[i] = r === rows - 1 || c === trimCol ? 1 : 0; } }
+      g.setAttribute('_trim', new THREE.BufferAttribute(tr, 1)); }
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     const idx = []; for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) { const i = r * cols + c; idx.push(i, i + cols, i + 1, i + 1, i + cols, i + cols + 1); }
     g.setIndex(idx); g.computeVertexNormals();
     return { cols, rows, n, B, P, Q, pin, E: new Float32Array(E), g, pos, mesh: new THREE.Mesh(g, this.mat) };
   }
   // called from RiderModel.pose (model space, root detached): remember how each torso bone moved since the bind pose
-  capture(bones, invBind, sc, px, py, pz) { for (let k = 0; k < 4; k++) this.D[k].multiplyMatrices(bones[CLOTH_BONES[k]].matrixWorld, invBind[k]); this.sc = sc; this.off.set(px, py, pz); this.fresh = true; }
+  capture(bones, invBind, sc, px, py, pz) { for (let k = 0; k < 4; k++) this.D[k].multiplyMatrices(bones[CLOTH_BONES[k]].matrixWorld, invBind[k]); this.sc = sc; this.off.set(px, py, pz); this.fresh = true;
+    if (this.legs) ['l', 'r'].forEach((s, k) => ['thigh_', 'calf_', 'foot_'].forEach((b, j) => this.legs[k][j].setFromMatrixPosition(bones[b + s].matrixWorld).multiplyScalar(sc).add(this.off))); }
   toBody(k, x, y, z, out) { return out.set(x, y, z).applyMatrix4(this.D[k]).multiplyScalar(this.sc).add(this.off); }
   step(dt, speed, far) {
     if (!this.fresh) return;
@@ -59,7 +66,7 @@ class ShirtCloth {
     for (const p of this.panels) { p.pos.array.set(p.P); p.pos.needsUpdate = true; p.g.computeVertexNormals(); p.g.computeBoundingSphere(); }
   }
   sub(p, h, v) {
-    const P = p.P, Q = p.Q, pin = p.pin, g = this.g, t = this.t, h2 = h * h, v1 = Math.max(v, 0.4);
+    const P = p.P, Q = p.Q, pin = p.pin, g = this.g, t = this.t, h2 = h * h, v1 = Math.max(v, 0.4), off = !!this.rig.free;
     const turb = 1.2 + v1 * 0.2, kd = 1.9;
     for (let i = 0; i < p.n; i++) {
       const i3 = i * 3;
@@ -84,10 +91,20 @@ class ShirtCloth {
       // keep off the torso and out of the seat
       for (let i = 0; i < p.n; i++) { if (pin[i] >= 0) continue; const i3 = i * 3;
         for (const [c, r] of this.sw) { const dx = P[i3] - c.x, dy = P[i3 + 1] - c.y, dz = P[i3 + 2] - c.z; const d2 = dx * dx + dy * dy + dz * dz; if (d2 < r * r) { const d = Math.sqrt(d2) || 1e-6, m = (r - d) / d; P[i3] += dx * m; P[i3 + 1] += dy * m; P[i3 + 2] += dz * m; } }
-        if (Math.abs(P[i3]) < 0.17 && P[i3 + 2] < 0.05 && P[i3 + 2] > -0.8 && P[i3 + 1] < 0.9) P[i3 + 1] = 0.9; }
+        if (!off && Math.abs(P[i3]) < this.seatX && P[i3 + 2] < 0.05 && P[i3 + 2] > -0.8 && P[i3 + 1] < 0.9) P[i3 + 1] = 0.9;   // (off the bike: no seat under him)
+        if (this.legs) { for (const L of this.legs) { this.capsule(P, i3, L[0], L[1], 0.095 * this.sc); this.capsule(P, i3, L[1], L[2], 0.07 * this.sc); }   // thighs and shins (churidar + a little air)
+          if (!off && Math.abs(P[i3]) < 0.12 && P[i3 + 2] > -0.02 && P[i3 + 2] < 0.5 && P[i3 + 1] < 1.0 && P[i3 + 1] > 0.55) P[i3] = Math.sign(P[i3] || 1) * 0.12;   // the tank between the knees
+          if (P[i3 + 1] < 0.05) P[i3 + 1] = 0.05; } }
     }
   }
-  dispose() { for (const p of this.panels) { p.mesh.removeFromParent(); p.g.dispose(); } this.mat.dispose(); }
+  // push a cloth point out of a capsule a→b of radius r
+  capsule(P, i3, a, b, r) {
+    const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z, L = abx * abx + aby * aby + abz * abz; if (L < 1e-8) return;
+    const t = clamp(((P[i3] - a.x) * abx + (P[i3 + 1] - a.y) * aby + (P[i3 + 2] - a.z) * abz) / L, 0, 1);
+    const dx = P[i3] - (a.x + abx * t), dy = P[i3 + 1] - (a.y + aby * t), dz = P[i3 + 2] - (a.z + abz * t), d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < r * r) { if (d2 < 1e-10) { P[i3 + 1] += r; return; } const d = Math.sqrt(d2), m = (r - d) / d; P[i3] += dx * m; P[i3 + 1] += dy * m; P[i3 + 2] += dz * m; }
+  }
+  dispose() { for (const p of this.panels) { p.mesh.removeFromParent(); p.g.dispose(); } if (!this.sharedMat) this.mat.dispose(); }
 }
 
 // ───────────────────────── CAPE ─────────────────────────

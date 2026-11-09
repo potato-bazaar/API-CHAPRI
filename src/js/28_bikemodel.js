@@ -22,7 +22,7 @@ async function decodeEmbedded(id) {
 async function loadModels(renderer) {
   if (!window.DecompressionStream) return { bike: false, rider: false };
   try { await loadAddons(); } catch (e) { console.warn('3D model loaders unavailable:', e && e.message); return { bike: false, rider: false }; }
-  const [bike, rider] = await Promise.all([URLP.get('bike') === 'basic' ? false : loadBikeModel(renderer), URLP.get('rider') === 'basic' ? false : loadRiderModel()]);
+  const [bike, rider] = await Promise.all([URLP.get('bike') === 'basic' ? false : loadBikeModel(renderer), URLP.get('rider') === 'basic' ? false : loadRiderModel(), URLP.get('rider') === 'basic' ? false : loadDogeshModel()]);
   return { bike, rider };
 }
 async function loadBikeModel(renderer) {

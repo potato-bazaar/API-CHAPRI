@@ -419,3 +419,33 @@ function drawPickupIcon(kind) {
   if (kind === 'oil') { x.fillStyle = '#ffc21a'; x.beginPath(); x.roundRect(40, 38, 44, 60, 8); x.fill(); x.fillRect(56, 24, 14, 18); x.fillStyle = '#1b0d22'; x.font = `800 28px ${FONT_NUM}`; x.textAlign = 'center'; x.fillText('2T', 62, 78); x.fillStyle = '#ff2e88'; x.beginPath(); x.moveTo(92, 40); x.lineTo(80, 64); x.lineTo(90, 64); x.lineTo(82, 88); x.lineTo(100, 58); x.lineTo(90, 58); x.closePath(); x.fill(); }
   return c;
 }
+// ── Dogesh's Diwali set ──
+// emerald silk brocade for his long jacket: a gold lattice with a buta (paisley) in every cell. One tile = 25 cm of cloth.
+const DOGESH_TEX = {};
+function brocadeTexture() {
+  if (DOGESH_TEX.brocade) return DOGESH_TEX.brocade;
+  const W = 256, [c, x] = mkCanvas(W, W);
+  x.fillStyle = '#0d5a3d'; x.fillRect(0, 0, W, W);
+  for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '0,30,18' : '60,140,100'},${0.05 + Math.random() * 0.06})`; x.fillRect(0, Math.random() * W, W, 1 + Math.random() * 2); }   // silk slub
+  x.strokeStyle = 'rgba(232,180,60,0.6)'; x.lineWidth = 2;   // the lattice (wraps cleanly: lines meet the tile edges at the same spots)
+  for (let k = -2; k <= 2; k++) { x.beginPath(); x.moveTo(k * W / 2, 0); x.lineTo(k * W / 2 + W, W); x.stroke(); x.beginPath(); x.moveTo(k * W / 2 + W, 0); x.lineTo(k * W / 2, W); x.stroke(); }
+  const buta = (cx, cy, s) => { x.save(); x.translate(cx, cy); x.scale(s, s);
+    x.beginPath(); x.moveTo(0, 22); x.bezierCurveTo(-20, 18, -22, -6, -6, -16); x.bezierCurveTo(4, -22, 14, -18, 10, -26); x.bezierCurveTo(22, -14, 22, 10, 0, 22); x.closePath();
+    x.fillStyle = '#e7b23a'; x.fill(); x.lineWidth = 2.5; x.strokeStyle = '#6b4a0c'; x.stroke();
+    x.beginPath(); x.ellipse(0, 4, 6, 9, -0.3, 0, 7); x.fillStyle = '#a3122e'; x.fill();
+    x.fillStyle = '#ffe9a8'; for (const [dx, dy] of [[-12, 10], [12, 2], [-4, -12]]) { x.beginPath(); x.arc(dx, dy, 1.8, 0, 7); x.fill(); } x.restore(); };
+  for (const [cx, cy] of [[W / 2, 0], [W / 2, W], [0, W / 2], [W, W / 2]]) buta(cx, cy, 1.15);
+  x.fillStyle = 'rgba(240,200,90,0.8)'; for (const [cx, cy] of [[0, 0], [W, 0], [0, W], [W, W], [W / 2, W / 2]]) { x.beginPath(); x.arc(cx, cy, 4, 0, 7); x.fill(); }
+  return DOGESH_TEX.brocade = toTex(c, { repeat: true });
+}
+// long hair: dark strands down a ribbon (root at the top, ragged tips at the bottom, soft edges); two strips side by side
+function longHairTexture() {
+  if (DOGESH_TEX.hair) return DOGESH_TEX.hair;
+  const W = 64, H = 256, [c, x] = mkCanvas(W, H);
+  x.fillStyle = '#1b130d'; x.fillRect(0, 0, W, 26);   // the roots (and the scalp cap) stay solid
+  for (const off of [0, W / 2]) for (let i = 0; i < 22; i++) {
+    const u = off + 2 + Math.random() * (W / 2 - 4), edge = Math.min(u - off, off + W / 2 - u) / (W / 4), end = H * (0.72 + Math.random() * 0.28) * (0.75 + 0.25 * Math.min(1, edge * 1.5));
+    const l = 14 + Math.random() * 22; x.strokeStyle = `rgb(${l + 14},${l + 4},${l - 4})`; x.lineWidth = 1.5 + Math.random() * 2; x.beginPath(); x.moveTo(u, 0); x.bezierCurveTo(u + (Math.random() - 0.5) * 4, H * 0.4, u + (Math.random() - 0.5) * 6, H * 0.7, u + (Math.random() - 0.5) * 6, end); x.stroke(); }
+  x.globalAlpha = 0.25; x.strokeStyle = '#6b4a30'; x.lineWidth = 1; for (let i = 0; i < 10; i++) { const u = Math.random() * W; x.beginPath(); x.moveTo(u, 10); x.lineTo(u + (Math.random() - 0.5) * 3, H * (0.4 + Math.random() * 0.4)); x.stroke(); } x.globalAlpha = 1;   // a little shine
+  const t = toTex(c, { mip: true }); t.flipY = false; t.needsUpdate = true; return DOGESH_TEX.hair = t;
+}

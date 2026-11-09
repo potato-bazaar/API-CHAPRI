@@ -26,6 +26,50 @@ async function loadRiderModel() {
     return true;
   } catch (e) { console.warn('Rider model unavailable, using the built-in rider:', e && e.message); return false; }
 }
+// ── Dogesh: a second rider model on the same skeleton (tools/model/build-dogesh.mjs) ──
+// Long hair, beard, wayfarers and gold hoops; saffron kurta, white churidar and an emerald brocade long jacket with gold zari.
+const DOGESH_MODEL = { ready: false, scene: null, mats: new Map() };
+async function loadDogeshModel() {
+  try {
+    const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');   // his glb is meshopt-compressed
+    const gltf = await new ADDONS.GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await decodeEmbedded('dogeshglb'), '');
+    const sc = gltf.scene, meshes = {}; sc.traverse(o => { if (o.isSkinnedMesh) meshes[o.name] = o; });
+    for (const n of ['dg_body', 'dg_jacket', 'dg_hair', 'dg_beard', 'dg_glass', 'dg_ear']) if (!meshes[n]) throw new Error('missing ' + n);
+    DOGESH_MODEL.atlas = meshes.dg_body.material.map; DOGESH_MODEL.scene = sc; DOGESH_MODEL.ready = true; return true;
+  } catch (e) { console.warn('Dogesh model unavailable:', e && e.message); return false; }
+}
+// his kurta's cross-sections (bind space: y, half width, front z, back z) and the spheres that keep the jacket off it
+const DOGESH_TORSO = [[0.93, 0.209, 0.116, -0.148], [1.0, 0.22, 0.139, -0.165], [1.1, 0.188, 0.145, -0.163], [1.2, 0.179, 0.134, -0.163], [1.3, 0.204, 0.131, -0.164], [1.4, 0.215, 0.105, -0.162], [1.45, 0.224, 0.082, -0.154]];
+// two chains (one sitting back, one forward) make a deep torso: the back one stays ~4 cm proud of the kurta's back, where riding stretches it
+const DOGESH_SPHERES = [[0, 1.0, -0.05, 0.16, 0], [0, 1.12, -0.05, 0.16, 1], [0, 1.24, -0.055, 0.162, 2], [0, 1.36, -0.06, 0.165, 3],
+  [0, 1.0, 0.02, 0.15, 0], [0, 1.12, 0.025, 0.15, 1], [0, 1.24, 0.02, 0.145, 2], [0, 1.36, 0.0, 0.14, 3]];
+// gold zari wherever the mesh says so (attribute _trim: hems, cuffs, the collar's edge, the jacket's front edges)
+function zariHook(m) {
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float _trim; varying float vTrim;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vTrim = _trim;');
+    sh.fragmentShader = 'varying float vTrim;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  { float zr = 0.84 + 0.16 * sin(vMapUv.x * 95.0) * sin(vMapUv.y * 95.0); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.63, 0.18) * zr, vTrim); }')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n  metalnessFactor = mix(metalnessFactor, 0.85, vTrim);').replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.3, vTrim);'); };
+  m.customProgramCacheKey = () => 'zari-' + m.type; return m;
+}
+function dogeshMats(low) {
+  const k = low ? 'l' : 's'; if (DOGESH_MODEL.mats.has(k)) return DOGESH_MODEL.mats.get(k);
+  const env = BIKE_MODEL.env || null, S = (o, std) => low ? new THREE.MeshLambertMaterial(o) : new THREE.MeshStandardMaterial(Object.assign(o, std));
+  const M = {
+    body: low ? new THREE.MeshLambertMaterial({ map: DOGESH_MODEL.atlas }) : new THREE.MeshStandardMaterial({ map: DOGESH_MODEL.atlas, roughness: 0.68, metalness: 0 }),
+    jacket: zariHook(low ? new THREE.MeshLambertMaterial({ map: brocadeTexture(), side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: brocadeTexture(), side: THREE.DoubleSide, roughness: 0.55, metalness: 0.08 })),
+    beard: S({ color: '#241811', side: THREE.DoubleSide }, { roughness: 0.9 }),
+    glass: low ? new THREE.MeshLambertMaterial({ color: '#070709' }) : new THREE.MeshStandardMaterial({ color: '#060608', roughness: 0.12, metalness: 0.35, envMap: env, envMapIntensity: 1.4 }),
+  };
+  DOGESH_MODEL.mats.set(k, M); return M;
+}
+function dogeshHairMat(low, U) {
+  const o = { map: longHairTexture(), color: new THREE.Color('#d8c8b8'), alphaTest: 0.45, side: THREE.DoubleSide };
+  return flutterMat(low ? new THREE.MeshLambertMaterial(o) : new THREE.MeshStandardMaterial(Object.assign(o, { roughness: 0.5, metalness: 0.05 })), U, low ? 'dghair-l' : 'dghair-s');
+}
+// the long open jacket's skirt: back to the knees, fronts to just above, pinned at the yoke and down the side seams to the waist
+const dogeshJacketCloth = (low, M) => ({ torso: DOGESH_TORSO, spheres: DOGESH_SPHERES, legs: true, jacket: true, seatX: 0.16, mat: M.jacket,
+  panels: (lod) => { const b = lod ? [5, 8] : [8, 13], f = lod ? [3, 7] : [5, 12];
+    return [[b, -Math.PI / 2 - 1.25, -Math.PI / 2 + 1.25, 1.4, 0.5, [0, 1], 1.0], [f, -0.3, 1.25, 1.4, 0.56, [0], 1.0, f[0] - 1], [f, Math.PI + 0.3, Math.PI - 1.25, 1.4, 0.56, [0], 1.0, f[0] - 1]]; } });
 // body: shirt pattern + jeans colour tinted into the painted grey (mask R = shirt, G = jeans)
 const RIDER_HOOK = `#include <map_fragment>
   vec3 rM = texture2D(riderMask, vMapUv).rgb;
@@ -154,13 +198,21 @@ function alignBone(bone, aimL, upL, aimW, upW) { // turn bone so its local aim/u
 class RiderModel {
   constructor(o, rig, cast) {
     const R = RIDER_MODEL, low = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low';
-    this.root = ADDONS.SkeletonUtils.clone(R.scene); this.root.scale.setScalar(RIDER_FIT.scale);
+    const dg = this.dg = o.model === 'dogesh' && DOGESH_MODEL.ready;   // Dogesh: his own meshes and outfit on the same skeleton
+    this.root = ADDONS.SkeletonUtils.clone(dg ? DOGESH_MODEL.scene : R.scene); this.root.scale.setScalar(RIDER_FIT.scale);
     const meshes = {}; this.root.traverse(n => { if (n.isSkinnedMesh) meshes[n.name] = n; });
+    this.U = { uWind: { value: 0 }, uTime: { value: 0 } }; this.ownMats = [];
+    let shirtKey = null, M = null;
+    if (dg) {
+      M = dogeshMats(low); for (const m of Object.values(meshes)) { m.castShadow = cast; m.frustumCulled = false; }
+      meshes.dg_body.material = M.body; meshes.dg_jacket.material = M.jacket; meshes.dg_beard.material = M.beard; meshes.dg_glass.material = M.glass; meshes.dg_ear.material = accMats().gold;
+      meshes.dg_beard.userData.noOutline = meshes.dg_ear.userData.noOutline = true;   // thin cards and hoops: an ink shell would turn them into black blobs
+      const hm = dogeshHairMat(low, this.U); meshes.dg_hair.material = hm; this.ownMats.push(hm);
+    } else {
     const hair = o.helmet ? (o.hair === 'long' ? 'hair_long' : null) : o.hair === 'buzz' ? 'hair_buzz' : o.hair === 'long' ? 'hair_long' : o.hair === 'pomp' ? 'hair_pomp' : 'hair_quiff';
     const keep = new Set([o.lod ? 'body_lod' : 'body', o.lod ? 'shirt_lod' : 'shirt', 'Eyes', 'Eyebrows', hair, o.beard ? 'beard' : null]);
-    this.U = { uWind: { value: 0 }, uTime: { value: 0 } }; this.ownMats = [];
     for (const [n, m] of Object.entries(meshes)) { if (!keep.has(n)) { m.parent.remove(m); continue; } m.castShadow = cast; m.frustumCulled = false; }
-    const pat = o.flowers ? 'flowers' : o.check ? 'check' : o.pattern || 'plain', shirtKey = o.shirt + pat;
+    const pat = o.flowers ? 'flowers' : o.check ? 'check' : o.pattern || 'plain'; shirtKey = o.shirt + pat;
     if (!SHIRT_TEX_CACHE[shirtKey]) SHIRT_TEX_CACHE[shirtKey] = shirtTexture(o.shirt, pat);
     meshes[o.lod ? 'body_lod' : 'body'].material = riderBodyMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, o.stubble, o);
     { const sm = riderShellMat(SHIRT_TEX_CACHE[shirtKey], o.jeans, low, this.U, o), sh = meshes[o.lod ? 'shirt_lod' : 'shirt']; sh.material = sm; this.ownMats.push(sm);
@@ -169,6 +221,7 @@ class RiderModel {
     if (o.beard) meshes.beard.material = riderHairMat('#1a120d', low);
     meshes.Eyebrows.material = riderHairMat('#140d09', low);
     if (low) meshes.Eyes.material = R.eyesLow || (R.eyesLow = new THREE.MeshLambertMaterial({ map: R.eyesMat.map }));
+    }
     // bones, bind pose and the local axes the IK needs (all measured in the T-pose)
     this.b = {}; this.root.traverse(n => { if (n.isBone) this.b[n.name] = n; });
     this.bind = []; for (const n of Object.values(this.b)) this.bind.push([n, n.quaternion.clone()]);
@@ -196,12 +249,13 @@ class RiderModel {
     const pb = wp('pelvis').divideScalar(RIDER_FIT.scale); // pelvis in model units
     this.root.position.set(RIDER_FIT.pelvis[0] - pb.x * RIDER_FIT.scale, RIDER_FIT.pelvis[1] - pb.y * RIDER_FIT.scale, RIDER_FIT.pelvis[2] - pb.z * RIDER_FIT.scale);
     rig.body.add(this.root); this.baseY = this.root.position.y; this.baseX = this.root.position.x;
-    this.cloth = o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
+    this.cloth = dg ? new ShirtCloth(this, rig, null, low, !!o.lod, cast, dogeshJacketCloth(low, M))   // Dogesh's long jacket
+      : o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
       : new ShirtCloth(this, rig, SHIRT_TEX_CACHE[shirtKey], low, !!o.lod, cast, { muscle: o.muscle || 0, hem: o.band ? 1.06 : 0.92 });   // a shorter back when the waistband shows
     this.cape = o.cape && o.cape.id !== 'none' ? new CapeCloth(this, rig, o.cape, low, !!o.lod, cast, { muscle: o.muscle || 0 }) : null;   // long cape over the shoulders
     // accessories ride on bones, in a holder that cancels the bone's own bind rotation (so +y up, +z forward)
     const holder = (bn) => { const h = new THREE.Group(); h.quaternion.copy(wq(bn).invert()); B[bn].add(h); return h; };
-    const acc = riderAccessories(o); this.geoms = acc.geoms;
+    const acc = riderAccessories(dg ? Object.assign({}, o, { shades: null, chestDz: 0.016 }) : o); this.geoms = acc.geoms;   // Dogesh keeps his own wayfarers; his chain sits on the kurta
     // face markers (head-bone space, +y up, +z forward, +x the rider's left): gestures aim the hands at these
     const hh = holder('Head'); if (acc.head) hh.add(acc.head); this.shades = acc.shades || null; this.headH = hh;
     this.marks = {}; for (const [k, x, y, z] of [['mouth', 0, 0.03, 0.112], ['crown', 0, 0.215, -0.01], ['tL', 0.072, 0.105, 0.07], ['tR', -0.072, 0.105, 0.07], ['lipR', -0.034, 0.036, 0.1], ['brow', 0, 0.15, 0.115]]) { const m = new THREE.Object3D(); m.position.set(x, y, z); hh.add(m); this.marks[k] = m; }
@@ -327,11 +381,11 @@ function riderAccessories(o) {
     if (out.head) { const grp = new THREE.Group(); grp.add(out.head, g); out.head = grp; } else out.head = g; out.shades = g; g.userData.y0 = g.position.y; g.userData.z0 = g.position.z;
   }
   if (o.goldChain) { // a heavy curb chain on the collarbones with a thin one and a pendant below it (chest holder: spine_03 at y 1.311)
-    const A = accMats(), cy = 1.311, cz = 0.007, path = (dy, dz, w) => new THREE.CatmullRomCurve3([[0, 1.535 - dy * 0.3, -0.098], [w * 0.62, 1.525 - dy * 0.4, -0.07], [w, 1.49 - dy * 0.6, 0.01], [w * 0.78, 1.45 - dy, 0.075 + dz], [w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [0, 1.4 - dy * 1.25, 0.117 + dz], [-w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [-w * 0.78, 1.45 - dy, 0.075 + dz], [-w, 1.49 - dy * 0.6, 0.01], [-w * 0.62, 1.525 - dy * 0.4, -0.07]].map(([x, y, z]) => new THREE.Vector3(x, y - cy, z - cz)), true);
+    const A = accMats(), cy = 1.311, cz = 0.007, fz = o.chestDz || 0, path = (dy, dz, w) => new THREE.CatmullRomCurve3([[0, 1.535 - dy * 0.3, -0.098], [w * 0.62, 1.525 - dy * 0.4, -0.07], [w, 1.49 - dy * 0.6, 0.01], [w * 0.78, 1.45 - dy, 0.075 + dz], [w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [0, 1.4 - dy * 1.25, 0.117 + dz], [-w * 0.4, 1.415 - dy * 1.15, 0.108 + dz], [-w * 0.78, 1.45 - dy, 0.075 + dz], [-w, 1.49 - dy * 0.6, 0.01], [-w * 0.62, 1.525 - dy * 0.4, -0.07]].map(([x, y, z]) => new THREE.Vector3(x * (1 + fz * 3), y - cy, z - cz + fz * clamp(z / 0.117, 0, 1))), true);
     const g = new THREE.Group();
     const thick = new THREE.Mesh(new THREE.TubeGeometry(path(0, 0.004, 0.085), 90, 0.0058, 6, true), A.gold);
     const thin = new THREE.Mesh(new THREE.TubeGeometry(path(0.045, 0.006, 0.092), 90, 0.0027, 5, true), A.gold);
-    const pend = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.004, 18).rotateX(Math.PI / 2), A.gold); pend.position.set(0, 1.335 - cy, 0.125 - cz);
+    const pend = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.004, 18).rotateX(Math.PI / 2), A.gold); pend.position.set(0, 1.335 - cy, 0.125 - cz + fz);
     g.add(thick, thin, pend); out.geoms.push(thick.geometry, thin.geometry, pend.geometry); out.chest = g;
   }
   if (o.watch) { // gold watch on the left wrist (lowerarm_l holder: +x runs down the forearm in the T-pose)

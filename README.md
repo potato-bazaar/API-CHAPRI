@@ -70,6 +70,16 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 
     Each cape is a verlet cloth pinned across the shoulder blades. At speed it streams straight back (about 13° below horizontal at 95 km/h) with a flapping wave that runs down to the hem. Stopped, it drapes over the seat and tail, and it billows in a breeze on the menu.
   - Rivals wear the wardrobe too: baniyans, a bare-chested gym bhai, waistbands on show.
+- **Dogesh, the Diwali rider.** A second rider model, picked on the Store's **Rider** tab (free, saved with your look). Built from the Character Creator model `Suhamodel.obj`.
+  - **His look:**
+    - long hair swept back to the shoulders, which streams in the wind;
+    - his own beard, black wayfarers and gold hoop earrings;
+    - a saffron silk kurta with gold butis, an embroidered neckline, buttons and a zari hem;
+    - a white churidar ruched at the ankles, and white sneakers with gold;
+    - an **emerald brocade long jacket** (gold lattice, red-and-gold butas, gold zari on the cuffs, the Nehru collar and every edge).
+  - **The jacket's skirt is cloth.** It hangs to the knees and is pinned at the yoke and down the side seams to the waist. It drapes over the seat and thighs when parked, streams back over the seat like a flag at speed, and hangs open when he walks.
+  - **Same skeleton as the classic chapri**, so every riding pose, gesture, crash and the winner's entry work as they are. Helmet and cape still apply. His wayfarers replace the shades, and the gold chain and watch stay on. The Tops, Chaddi, Jeans, Body, Hair and Shades tabs say they only dress the classic chapri.
+  - **Fix found on the way:** since the smoothness pass, racing rigs had been welding the open shirt's cloth panels into one static mesh before they moved, so the shirt vanished in races. Shirt and jacket panels are now left out of the weld (and kept in the road mirror).
 - **Ink outlines and contact shadows.** Every rider and bike near the camera gets a clean black ink outline (a back-face shell pushed out along the normals, sized by distance so it stays about 3 px thick, and skinned so it bends with the rider). Every bike has a soft contact shadow on the road, day or night, that shrinks when it's airborne. Phones render at up to 2× pixel density (the governor steps down to 60% if frames run long).
 - **Look.** A colour grade that lifts night shadows into violet and pushes saturation, brighter night lighting and more street lamps, neon rim lights and an underglow on your bike, and thick two-stroke smoke with backfire flames.
 - **Police Express+.** A solo escape mode on its own night stage, **Bhaag Chapri Bhaag**.
@@ -171,6 +181,7 @@ Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self
 | `?coach` | Show the first-race coach even on a save that has raced |
 | `?bike=basic` | Built-in primitive bike instead of the GLB |
 | `?rider=basic` | Built-in primitive rider instead of the GLB |
+| `?model=dogesh` | Ride as Dogesh whatever the save says |
 | `?autopilot&track=dharavi-lanes&weather=monsoon&time=night&laps=1` | Watch an AI-driven race |
 | `?autopilot&mode=police&nobust` | Watch a Police Express+ run that can't end in an arrest |
 | `?autopilot&entry=1` | Let an autopilot win play the winner's entry |
@@ -203,6 +214,13 @@ npm run build        # src/ + assets/  ->  dist/chapri-racer.html (one file, son
 
 - `build-model.mjs`, `rebadge.py`, `paintmask.py`: turn the source bike into the rebadged, paint-masked `assets/rx100.glb` with a rival LOD.
 - `build-rider.mjs`, `paint-rider.py`: slim the base character, paint the clothes, and add the hair and flutter attributes. Output is `assets/rider.glb`.
+- `build-dogesh.mjs` (with `objload.mjs`) turns `assets/dogesh_src/Suhamodel.obj.gz` into `assets/dogesh.glb`, about 574 KB, meshopt-compressed (the game sets three's `MeshoptDecoder` for it). The steps:
+  1. Warp the model onto the rider skeleton's T-pose: per-joint offsets, blended along the bones.
+  2. Copy skin weights from the rider body by nearest surface, matched by side, then smooth them.
+  3. Bake one 1024² atlas (skin, face, eyes, kurta, churidar, shoes) from 3D positions.
+  4. Generate the jacket sleeves, yoke and Nehru collar, and the long-hair ribbons.
+
+  The export had no body under the clothes, so the outfit is built from its T-shirt, jeans and sneakers.
 
 ### Headless tests (`tools/t*.mjs`)
 

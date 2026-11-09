@@ -138,13 +138,15 @@ class UI {
   // ── store: the chapri wardrobe. Tabs per category; tap to try it on (the camera turns to show it), buy with coins ──
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
-    const TABS = [['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades'], ['cape', 'Cape']];
+    const TABS = [['rider', 'Rider'], ['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades'], ['cape', 'Cape']];
     const tab = this.storeTab = this.storeTab || 'shirt';
     const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
       : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;
     const items = COSMETICS[tab].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0, on = SAVE.cos[tab] === it.id;
-      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${tab}:${it.id}">${sw(tab, it)}<span><b>${it.name}</b></span><span class="cost">${on ? 'WEARING' : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('');
-    $('#storeBody').innerHTML = `<div class="panel store-panel"><div class="store-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-stab="${k}">${n}</button>`).join('')}</div><div class="store-grid">${items}</div></div><div class="store-stage" aria-hidden="true"></div>`;
+      return `<button type="button" class="store-item ${on ? 'on' : ''}" data-cos="${tab}:${it.id}">${sw(tab, it)}<span><b>${it.name}</b>${it.tag ? ` <em class="tnew">${it.tag}</em>` : ''}</span><span class="cost">${on ? (tab === 'rider' ? 'RIDING' : 'WEARING') : own ? 'OWNED' : coinI + fmtNum(it.cost)}</span></button>`; }).join('');
+    // Dogesh rides in his own Diwali set: say so on the tabs that only dress the classic chapri
+    const fixed = SAVE.cos.rider === 'dogesh' && ['shirt', 'chaddi', 'jeans', 'body', 'hair', 'shades'].includes(tab) ? `<p class="store-note">Dogesh rides in his Diwali set: saffron kurta, white churidar, emerald long jacket, his own hair and wayfarers. Pick Chapri on the Rider tab to wear these.</p>` : '';
+    $('#storeBody').innerHTML = `<div class="panel store-panel"><div class="store-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-stab="${k}">${n}</button>`).join('')}</div><div class="store-grid">${fixed}${items}</div></div><div class="store-stage" aria-hidden="true"></div>`;
     $$('[data-stab]').forEach(b => b.addEventListener('click', () => { this.storeTab = b.dataset.stab; AUDIO.click && AUDIO.click(); this.renderStore(); }));
     $$('[data-cos]').forEach(btn => btn.addEventListener('click', async () => { const [key, id] = btn.dataset.cos.split(':'); const it = COSMETICS[key].find(x => x.id === id); const own = SAVE.ownedCos[id] || it.cost === 0;
       if (!own) { const prev = SAVE.cos[key]; SAVE.cos[key] = id; this.game.refreshMenuRig();   // try it on first
