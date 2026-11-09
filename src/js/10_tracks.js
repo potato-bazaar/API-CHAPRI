@@ -77,6 +77,23 @@ const TRACKS = [
     triples: [], shortcuts: 1, stairs: true, nala: true, nakas: 4, dogs: 7, potholes: 6, bigPotholes: 1, mud: 0,
     landmark: { f: 0.4, side: -1, dist: 260, kind: 'towers' },
   },
+  {
+    // Lonavala Ghat Escape: one long run, start to finish, no laps. Down the pine ghat, round the lake, through the red
+    // canyon on a kachha road and up the far hill to the fort. Every control point is [x, z, height]; the last few points
+    // only close the loop (nobody rides them). special = not part of the Championship; chase = a police van is after you.
+    id: 'lonavala-ghat', name: 'Lonavala Ghat Escape', short: 'Ghat Escape', special: true, chase: true,
+    theme: 'hills', target: 7480, km: 4.8, lapTarget: '2:40–3:20', time: 'morning', laps: 1,
+    blurb: 'One way, no laps: down the pine ghat, round the lake, through the red canyon and up to the fort. Police van peeche hai.',
+    pts: [[0,0,380],[120,0,368],[240,6,352],[300,40,342],[290,90,334],[230,105,326],[110,100,308],[40,110,298],[0,150,290],[30,195,282],[110,205,270],[240,200,250],[340,215,234],[410,270,218],[440,350,202],
+      [450,440,186],[460,530,175],[500,620,171],[580,690,171],[680,705,171],[780,670,172],
+      [880,620,170],[980,610,162],[1070,660,152],[1150,740,140],[1250,770,130],[1350,730,122],[1410,640,114],[1400,540,110],[1340,470,108],
+      [1300,390,116],[1330,310,130],[1400,260,144],[1420,200,156],[1370,160,166],[1280,170,180],[1200,140,194],[1170,70,206],[1190,0,216],[1230,-60,222],[1260,-130,222],
+      [1200,-230,226],[900,-300,270],[500,-300,330],[100,-260,370],[-180,-160,380],[-220,-40,380],[-120,0,380]],
+    widths: [[0,11]],
+    p2p: { finish: 39, zones: { pine: [0, 14.5], lake: [14.5, 20.6], desert: [20.6, 29.6], climb: [29.6, 40.6] }, lake: { x: 640, z: 520, r: 150, y: 168.4 },
+      bumps: [{ at: 10.2, h: 1.6, len: 26, type: 'ramp' }, { at: 21.5, h: 2.2, len: 34, type: 'ramp' }, { at: 23.4, h: 1.1, len: 9, type: 'ramp' }, { at: 25.2, h: 2.6, len: 38, type: 'ramp' }, { at: 26.8, h: 1.2, len: 9, type: 'ramp' }, { at: 28.3, h: 1.8, len: 24, type: 'ramp' }] },
+    triples: [], shortcuts: 0, kickers: 5, kickOver: 'rocks', potholes: 5, bigPotholes: 2, mud: 4,
+  },
 ];
 // the Championship runs every circuit (not the special stages)
 const CUP_TRACKS = TRACKS.filter(t => !t.special);

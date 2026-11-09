@@ -740,6 +740,15 @@ kbd { font-family: var(--f-num); }
 .swag.bump { animation: swagBump .28s ease-out; } @keyframes swagBump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @media (orientation: portrait) { .swag { top: 30%; } .swag b { font-size: 2rem; } }
 @media (prefers-reduced-motion: reduce) { .swag.bump { animation: none; } }
+
+/* ghat stage: the police van's meter sits beside the timer, clear of the standings */
+#hud.chase .heat { top: max(.55rem, env(safe-area-inset-top, 0px)); left: calc(max(14px, env(safe-area-inset-left, 0px)) + 23.5rem); width: 11.5rem; padding: .35rem .55rem .4rem; }
+#hud.chase .heat small { display: none; }
+@media (orientation: portrait) { #hud.chase .heat { top: calc(max(.55rem, env(safe-area-inset-top, 0px)) + 6.2rem); left: max(14px, env(safe-area-inset-left, 0px)); width: 10.5rem; } }
+/* the van is right behind you: its lights wash the edges of the screen */
+#hud.cop-near::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: copFlash .46s steps(1) infinite; }
+@keyframes copFlash { 0% { box-shadow: inset 0 0 110px 10px rgba(255, 30, 46, .5); } 50% { box-shadow: inset 0 0 110px 10px rgba(42, 88, 255, .55); } }
+@media (prefers-reduced-motion: reduce) { #hud.cop-near::after { animation: none; box-shadow: inset 0 0 90px rgba(255, 30, 46, .35); } }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -851,7 +860,7 @@ kbd { font-family: var(--f-num); }
   <section id="hud" class="screen">
     <div class="hud-tl">
       <div class="logo sm"><svg class="crown" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg><span class="l1">CHAPRI</span><span class="l2">RACER</span></div>
-      <div class="poslap"><div class="pos"><b id="hPos">8</b><sup id="hPosSuf">TH</sup><span id="hPosOf">/8</span></div><div class="lapbox"><span>LAP</span><b id="hLap">1/3</b></div><div class="time"><b id="hTime">00:00.00</b></div><div class="best"><span>BEST</span><b id="hBest">--:--</b></div></div>
+      <div class="poslap"><div class="pos"><b id="hPos">8</b><sup id="hPosSuf">TH</sup><span id="hPosOf">/8</span></div><div class="lapbox"><span id="hLapLbl">LAP</span><b id="hLap">1/3</b></div><div class="time"><b id="hTime">00:00.00</b></div><div class="best"><span>BEST</span><b id="hBest">--:--</b></div></div>
     </div>
     <ol class="standings" id="standings"></ol>
     <div class="heat" id="heat" hidden><div class="heat-top"><span class="siren"><i></i><i></i></span><b>POLICE</b><em id="copGap">— m</em></div><div class="heat-bar"><i id="heatFill"></i></div><small id="heatLbl">BUSTED METER</small></div>
@@ -1791,6 +1800,23 @@ const TRACKS = [
     triples: [], shortcuts: 1, stairs: true, nala: true, nakas: 4, dogs: 7, potholes: 6, bigPotholes: 1, mud: 0,
     landmark: { f: 0.4, side: -1, dist: 260, kind: 'towers' },
   },
+  {
+    // Lonavala Ghat Escape: one long run, start to finish, no laps. Down the pine ghat, round the lake, through the red
+    // canyon on a kachha road and up the far hill to the fort. Every control point is [x, z, height]; the last few points
+    // only close the loop (nobody rides them). special = not part of the Championship; chase = a police van is after you.
+    id: 'lonavala-ghat', name: 'Lonavala Ghat Escape', short: 'Ghat Escape', special: true, chase: true,
+    theme: 'hills', target: 7480, km: 4.8, lapTarget: '2:40–3:20', time: 'morning', laps: 1,
+    blurb: 'One way, no laps: down the pine ghat, round the lake, through the red canyon and up to the fort. Police van peeche hai.',
+    pts: [[0,0,380],[120,0,368],[240,6,352],[300,40,342],[290,90,334],[230,105,326],[110,100,308],[40,110,298],[0,150,290],[30,195,282],[110,205,270],[240,200,250],[340,215,234],[410,270,218],[440,350,202],
+      [450,440,186],[460,530,175],[500,620,171],[580,690,171],[680,705,171],[780,670,172],
+      [880,620,170],[980,610,162],[1070,660,152],[1150,740,140],[1250,770,130],[1350,730,122],[1410,640,114],[1400,540,110],[1340,470,108],
+      [1300,390,116],[1330,310,130],[1400,260,144],[1420,200,156],[1370,160,166],[1280,170,180],[1200,140,194],[1170,70,206],[1190,0,216],[1230,-60,222],[1260,-130,222],
+      [1200,-230,226],[900,-300,270],[500,-300,330],[100,-260,370],[-180,-160,380],[-220,-40,380],[-120,0,380]],
+    widths: [[0,11]],
+    p2p: { finish: 39, zones: { pine: [0, 14.5], lake: [14.5, 20.6], desert: [20.6, 29.6], climb: [29.6, 40.6] }, lake: { x: 640, z: 520, r: 150, y: 168.4 },
+      bumps: [{ at: 10.2, h: 1.6, len: 26, type: 'ramp' }, { at: 21.5, h: 2.2, len: 34, type: 'ramp' }, { at: 23.4, h: 1.1, len: 9, type: 'ramp' }, { at: 25.2, h: 2.6, len: 38, type: 'ramp' }, { at: 26.8, h: 1.2, len: 9, type: 'ramp' }, { at: 28.3, h: 1.8, len: 24, type: 'ramp' }] },
+    triples: [], shortcuts: 0, kickers: 5, kickOver: 'rocks', potholes: 5, bigPotholes: 2, mud: 4,
+  },
 ];
 // the Championship runs every circuit (not the special stages)
 const CUP_TRACKS = TRACKS.filter(t => !t.special);
@@ -1801,17 +1827,21 @@ const CUP_TRACKS = TRACKS.filter(t => !t.special);
 // s = distance along the lap, d = lateral offset (positive = left of travel).
 const STEP = 0.5;
 
-const ROAD_SCALE = { city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
+const ROAD_SCALE = { hills: 1.15, city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
 class Track {
   constructor(def) {
     this.def = def;
-    let raw = def.pts.map(p => new THREE.Vector3(p[0], 0, p[1]));
+    const xz = def.xzScale || 1; let raw = def.pts.map(p => new THREE.Vector3(p[0] * xz, 0, p[1] * xz));
     let c = new THREE.CatmullRomCurve3(raw, true, 'centripetal'); c.arcLengthDivisions = 4000;
-    const sc = def.target / c.getLength();
+    const sc = def.target ? def.target / c.getLength() : 1;
     raw = raw.map(p => p.multiplyScalar(sc));
     c = new THREE.CatmullRomCurve3(raw, true, 'centripetal'); c.arcLengthDivisions = 6000;
     this.curve = c;
+    this.xzS = sc * xz;
     const L = c.getLength();
+    // point-to-point stage: the control points carry their own heights, the race ends at one of them, and the lap only
+    // closes through a link nobody rides (nothing is built or placed there)
+    let keyF = null; if (def.p2p) { const n = def.pts.length, lens = c.getLengths(n * 40), tot = lens[lens.length - 1]; keyF = def.pts.map((q, i) => lens[i * 40] / tot); }
     const N = Math.round(L / STEP);
     this.N = N; this.L = N * STEP;
     const A = (n) => new Float32Array(n);
@@ -1834,10 +1864,16 @@ class Track {
     this.bumps = (def.bumps || []).map(b => ({ ...b, s: b.f * this.L }));
     for (const f of def.triples || []) for (let k = -1; k <= 1; k++) this.bumps.push({ s: f * this.L + k * 3.4, h: 0.13, len: 1.5, type: 'breaker', triple: true });
     this.rng = mulberry32(hashStr(def.id));
+    const base = this.baseY = A(N);
+    if (def.p2p) { this.p2p = true; const sAt = this.sAt = (a) => { const i = Math.floor(a), t = a - i, n = keyF.length; return lerp(keyF[i % n], i + 1 >= n ? 1 : keyF[i + 1], t) * this.L; };
+      this.finS = sAt(def.p2p.finish); this.hz = {}; for (const k in def.p2p.zones) this.hz[k] = def.p2p.zones[k].map(sAt);
+      const keys = def.pts.map((q, i) => [keyF[i], q[2]]); for (let i = 0; i < N; i++) base[i] = cyclicKey(keys, i / N, false);
+      for (let pass = 0; pass < 2; pass++) { const src = base.slice(), win = 28; for (let i = 0; i < N; i++) { let sum = 0; for (let j = -win; j <= win; j += 4) sum += src[(i + j + N) % N]; base[i] = sum / (2 * win / 4 + 1); } }
+      for (const b of def.p2p.bumps || []) this.bumps.push({ ...b, s: sAt(b.at) }); }
     this.planShortcuts(def.shortcuts || 0);
     this.planSetPieces(def);
     for (let i = 0; i < N; i++) {
-      const s = i * STEP; let y = def.elev ? cyclicKey(def.elev, i / N, false) : 0;
+      const s = i * STEP; let y = def.elev ? cyclicKey(def.elev, i / N, false) : base[i];
       y += this.roofRaw(s) + this.stairsRaw(s);
       for (const b of this.bumps) {
         let x = s - (b.s - b.len / 2); if (x < -this.L / 2) x += this.L; if (x > this.L / 2) x -= this.L;
@@ -1882,7 +1918,7 @@ class Track {
   wrapD(x) { if (x > this.L / 2) x -= this.L; if (x < -this.L / 2) x += this.L; return x; }
   planSetPieces(def) {
     const N = this.N, L = this.L; this.roof = null; this.halls = []; this.kickers = []; this.coins = []; this.rail = null; this.stairs = null; this.nala = null; this.nakas = []; this.dogSpots = []; this.pieceZones = [];
-    const busy = [[0, 90], [L - 45, L]]; for (const b of this.bumps) busy.push([b.s - b.len - 14, b.s + b.len + 14]); for (const sc of this.shortcuts) busy.push([sc.s - sc.half - 6, sc.s + sc.half + 6]);
+    const busy = [[0, 90], [L - 45, L]]; if (this.p2p) busy.push([this.finS - 60, L]); for (const b of this.bumps) busy.push([b.s - b.len - 14, b.s + b.len + 14]); for (const sc of this.shortcuts) busy.push([sc.s - sc.half - 6, sc.s + sc.half + 6]);
     if (def.elev) for (let i = 0; i < N; i += 4) if (cyclicKey(def.elev, i / N, false) > 0.3) busy.push([i * STEP - 25, i * STEP + 25]);
     const free = (a, b) => !busy.some(([x, y]) => a < y && b > x);
     // straight-ish runs
@@ -1921,7 +1957,7 @@ class Track {
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
     // nitro strips on every track (the Underground authors its own): on straights, spread round the lap, a coin line after each
-    if (!def.underground) { this.nitros = []; const n = Math.max(3, Math.round(L / 480));
+    if (!def.underground) { this.nitros = []; const n = this.p2p ? 7 : Math.max(3, Math.round(L / 480));
       for (let k = 0; k < n; k++) { const s0 = take(34, 2); if (s0 === null) break; const s = s0 + 8, f = [0.3, -0.3, 0, 0.25, -0.2][k % 5], d = f * this.get(this.w0, s);
         this.nitros.push({ s, d, len: 8, hw: 1.0 }); this.pieceZones.push([s0, s0 + 34]); for (let i = 0; i < 4; i++) this.coins.push({ s: s + 11 + i * 3, d, h: 0.95 }); } }
   }
@@ -1970,7 +2006,10 @@ class Track {
   }
   // which Underground section is at s (or null)
   zoneAt(s) { const Z = this.ug; if (!Z) return null; for (const k of ['tunnel', 'chevron', 'cut', 'docks', 'bridge', 'kachha', 'market', 'metro']) { const [a, b] = Z[k]; const x = this.wrapD(s - a); if (x >= 0 && x <= b - a) return k; } return null; }
-  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : false; }
+  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : this.hz ? this.hillZone(s) === 'desert' : false; }
+  hillZone(s) { const Z = this.hz; if (!Z) return null; s = ((s % this.L) + this.L) % this.L; for (const k in Z) if (s >= Z[k][0] && s < Z[k][1]) return k; return null; }
+  // is this stretch of a point-to-point stage really there (start grid → run-off past the finish)?
+  live(s) { if (!this.p2p) return true; s = ((s % this.L) + this.L) % this.L; return s <= this.finS + 150 || s >= this.L - 90; }
   inTunnel(s) { return this.ug ? this.zoneAt(s) === 'tunnel' : false; }
   roofRaw(s) { const R = this.roof; if (!R) return 0; const x = this.wrapD(s - R.s0); if (x < 0 || x > R.len) return 0;
     for (const g of R.gaps) if (x >= g.x0 && x <= g.x0 + g.len) return 0;
@@ -1998,7 +2037,7 @@ class Track {
   // Potholes (small / big) and kichad (mud) patches, seeded per track so every race sees the same road
   placeHazards(def) {
     const R = this.rng, L = this.L; this.hazards = [];
-    const ok = (s, pad) => s > 70 && s < L - 35 && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4) && !this.pieceZones.some(([a, b]) => s > a - pad && s < b + pad);
+    const ok = (s, pad) => s > 70 && s < (this.p2p ? this.finS - 40 : L - 35) && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4) && !this.pieceZones.some(([a, b]) => s > a - pad && s < b + pad);
     const spot = (pad) => { for (let t = 0; t < 40; t++) { const s = 70 + R() * (L - 105); if (ok(s, pad) && !this.hazards.some(h => Math.abs(h.s - s) < 14)) return s; } return null; };
     const add = (type, n, fn) => { for (let k = 0; k < n; k++) { const s = spot(8); if (s === null) continue; this.hazards.push(fn(s)); } };
     add('pothole', def.potholes || 0, (s) => { const w = this.get(this.w0, s) / 2 - 1; return { type: 'pothole', s, d: (R() * 2 - 1) * w, r: 0.42 + R() * 0.25, big: false }; });
@@ -2146,7 +2185,7 @@ const MOODS = {
     grade: { lift: 0.085, gamma: 0.84, sat: 1.15, tint: [0.97, 0.97, 1.04], liftC: [0.62, 0.66, 1.0], warm: 0.0, contrast: 1.06, vig: 0.24, dof: 0.6 } },
 };
 const WALL_COLS = { city: ['#efe3cf', '#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#f5e6cc', '#7fb3a8', '#e6c9a8'], basti: ['#3e8e8a', '#c96f4a', '#e8b4b8', '#9fd3c7', '#d9c27a', '#b5a58f', '#8fb6d9', '#e09a6a', '#c9c2b5'], market: ['#e6c9a8', '#d98a6a', '#f2c46d', '#c96f4a', '#efe3cf', '#9fd3c7'] };
-const SIDEWALK = { city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
+const SIDEWALK = { hills: 0.9, city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
 // the verge between the footpath and the building line (Auto Rush keeps the scenery back: you read the road, not the props)
 const VERGE = { city: 7.5, market: 4.0, basti: 0, sea: 4.0, flyover: 6.0 };
 
@@ -2186,6 +2225,9 @@ class World {
     const T = this.track, th = this.theme;
     const B = { grass: new Batch(), dirt: new Batch(), road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
     this.B = B;
+    const hills = th === 'hills';   // the ghat stage builds its own road and land (25_hills.js)
+    if (hills) { this.buildSetPieces(B); this.buildHills(B); this.buildStreet(B); }
+    else {
     this.buildRoad(B);
     this.buildRoadside(B);
     this.buildVerge(B);
@@ -2200,6 +2242,7 @@ class World {
     this.buildStreet(B);
     this.buildSpeedClutter(B);
     this.buildMarkings(B);
+    }
     this.whoosh.sort((a, b) => a.s - b.s);
     this.placePickups();
     this.buildHazards();
@@ -2223,7 +2266,7 @@ class World {
     const sea = this.def.sea;
     const gw = 3200, gx0 = sea ? sea.x - 2 : -gw / 2, gx1 = gw / 2;
     const gg = new THREE.PlaneGeometry(gx1 - gx0, gw); gg.rotateX(-Math.PI / 2); gg.translate((gx0 + gx1) / 2 + T.cx, -0.06, T.cz);
-    const ground = new THREE.Mesh(gg, this.mats.ground); ground.receiveShadow = true; this.group.add(ground); this.disposables.push(gg);
+    const ground = new THREE.Mesh(gg, this.mats.ground); ground.receiveShadow = true; if (!hills) this.group.add(ground); this.disposables.push(gg);
     if (sea) this.buildSea(sea);
     this.buildSky();
     this.buildLampGlows();
@@ -2848,7 +2891,7 @@ class World {
       const n = 10;
       for (let i = 0; i < n; i++) { const x0 = i / n * k.len, x1 = (i + 1) / n * k.len, y0 = k.h * Math.pow(x0 / k.len, 1.25), y1 = k.h * Math.pow(x1 / k.len, 1.25);
         T.pos(k.s + x0, k.d - k.hw, pA, y0 + 0.02); T.pos(k.s + x1, k.d - k.hw, pB, y1 + 0.02); T.pos(k.s + x1, k.d + k.hw, pC, y1 + 0.02); T.pos(k.s + x0, k.d + k.hw, pD, y0 + 0.02);
-        if (k.naka) B.glow.quad(pA, pB, pC, pD, new THREE.Color(i % 2 ? '#ffc21a' : '#1a1a1a'), undefined, UP); else B.props.quad(pA, pB, pC, pD, i % 2 ? '#a8743a' : '#93602c', undefined, UP);
+        if (k.naka) B.glow.quad(pA, pB, pC, pD, new THREE.Color(i % 2 ? '#ffc21a' : '#1a1a1a'), undefined, UP); else B.props.quad(pA, pB, pC, pD, k.over === 'rocks' ? (i % 2 ? '#9a9082' : '#8a8072') : i % 2 ? '#a8743a' : '#93602c', undefined, UP);
         for (const sg of [-1, 1]) { T.pos(k.s + x0, k.d + sg * k.hw, pA, 0); T.pos(k.s + x1, k.d + sg * k.hw, pB, 0); T.pos(k.s + x1, k.d + sg * k.hw, pC, y1); T.pos(k.s + x0, k.d + sg * k.hw, pD, y0); B.props.quad(pA, pB, pC, pD, '#6e4a24'); } }
       T.pos(k.s + k.len, k.d - k.hw, pA, 0); T.pos(k.s + k.len, k.d + k.hw, pB, 0); T.pos(k.s + k.len, k.d + k.hw, pC, k.h); T.pos(k.s + k.len, k.d - k.hw, pD, k.h); B.props.quad(pA, pB, pC, pD, '#5a3c1c');
       for (const x of [k.len * 0.55, k.len * 0.85]) { T.pos(k.s + x, k.d, p, 0); const yaw = T.yawAt(k.s + x); for (let j = 0; j < 3; j++) B.props.box(p.x, p.y + j * 0.32, p.z, k.hw * 1.6, 0.3, 0.55, yaw + (RNG() - 0.5) * 0.1, pick(['#b07a3a', '#c88a4a', '#2f8a3e', '#c8321e'])); }
@@ -2856,7 +2899,8 @@ class World {
       const dims = k.over === 'autos' ? [0.7, 1.35] : k.over === 'carts' ? [0.6, 1.1] : k.over === 'reels' ? [0.75, 0.7] : [0.45, 1.1];
       if (k.naka) { T.pos(k.s + k.len, k.d - k.hw, pA, k.h + 0.03); T.pos(k.s + k.len, k.d + k.hw, pB, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d + k.hw, pC, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d - k.hw, pD, k.h + 0.03); B.glow.quad(pA, pB, pC, pD, new THREE.Color('#39ff6a'), undefined, UP); continue; }
       for (const off of [5.5, 10.5, 15.5]) { if (k.over !== 'autos' && off > 14) continue; const s = k.s + k.len + off; T.pos(s, k.d, p); const yaw = T.yawAt(s);
-        this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : 'drums', kicker: k });
+        this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : k.over === 'rocks' ? 'rock' : 'drums', kicker: k });
+        if (k.over === 'rocks') { for (let i = 0; i < 3; i++) { const r = 0.45 + RNG() * 0.3; B.props.geom(BLOB, p.x + (RNG() - 0.5) * 0.8, p.y + r * 0.5, p.z + (i - 1) * 0.75, RNG() * 6, r, r * 0.8, r, pick(['#8a8276', '#7d7568', '#96866e'])); } continue; }
         if (k.over === 'autos') this.auto(B, p.x, p.y, p.z, yaw + (RNG() - 0.5) * 0.15, RNG() < 0.5 ? 'kaali' : 'cng');
         else if (k.over === 'carts') { B.props.box(p.x, p.y + 0.55, p.z, 1.2, 0.12, 2.2, yaw, '#8a5a32'); for (const sg of [-1, 1]) B.props.geom(WHEEL_G, p.x + Math.sin(yaw) * sg * 0.55, p.y + 0.3, p.z + Math.cos(yaw) * sg * 0.55, yaw, 1.5, 1.5, 1.5, '#2a2a2a');
           for (let i = 0; i < 14; i++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 1, p.y + 0.72 + RNG() * 0.2, p.z + (RNG() - 0.5) * 1.8, RNG() * 6, 0.14, 0.14, 0.14, pick(['#ff7a2f', '#ffd23f', '#d43c2c', '#9be15d'])); }
@@ -2935,7 +2979,7 @@ class World {
   placePickups() {
     const T = this.track; const types = ['sting', 'rod', 'sting', 'bottle', 'sting', 'gutka', 'sting', 'katta', 'sting', 'chain', 'sting', 'belt'];
     let i = 0;
-    for (let s = 140; s < T.L - 40; s += 105) {
+    for (let s = 140; s < (T.p2p ? T.finS - 60 : T.L - 40); s += 105) {
       const type = types[i++ % types.length]; const w = T.w0At(s) / 2;
       let d = type === 'sting' ? T.rlAt(s) * 0.6 : (i % 2 ? 1 : -1) * Math.max(0, w - 1.1);
       if (this.obstacles.some(o => Math.abs(o.s - s) < 6 && Math.abs(o.d - d) < 1.5)) d = -d;
@@ -3030,7 +3074,8 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#5a6688' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#262634' : '#5a5862'), 0.6); }
     this.hemi.intensity = M.hemiI * (wet ? (nt ? 1.0 : 1.1) : 1); this.hemiBase = this.hemi.intensity;
     const fogC = new THREE.Color(M.fog); if (wet) fogC.lerp(new THREE.Color(nt ? '#2a2f3e' : '#9ba2b0'), 0.75);
-    this.fog = new THREE.Fog(fogC, M.fogNear * (wet ? 0.55 : 1), M.fogFar * (wet ? 0.72 : 1));
+    const open = this.theme === 'hills' ? 2.7 : 1;   // out in the hills you see for miles
+    this.fog = new THREE.Fog(fogC, M.fogNear * (wet ? 0.55 : 1) * open, M.fogFar * (wet ? 0.72 : 1) * open);
     const n = M.night;
     const lit = Math.max(n, wet ? 0.45 : 0);   // dark monsoon afternoons: windows, shops and signs switch on
     this.mats.facade.emissive.set('#ffb347').multiplyScalar(lit * 0.9 + 0.05);
@@ -3055,6 +3100,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     if (this.coinMesh) this.updateCoins(t);
     if (this.updateStage) this.updateStage(dt, t, focus);
     if (this.ugRT) this.updateUnderground(dt, t, camera, focus);
+    if (this.hS) this.hillAir(dt, focus);
     if (this.train) { this.trainT += dt; const x = -360 + this.trainT * 30; if (x > 360) { this.trainT = -8 - Math.random() * 10; this.trainDir = -this.trainDir; this.trainHorned = false; }
       this.placeTrain(this.trainDir * Math.max(-400, x)); this.train.visible = this.trainT > 0;
       if (focus && this.trainT > 0 && !this.trainHorned) { const d = this.train.position.distanceTo(focus); if (d < 170) { this.trainHorned = true; AUDIO.trainHorn(clamp(1 - d / 220, 0.2, 1)); } } }
@@ -3759,7 +3805,7 @@ Object.assign(World.prototype, {
   stBulb(B, p, color = '#ffd590', r = 3.4) { B.glow.box(p.x, p.y - 0.09, p.z, 0.13, 0.17, 0.13, 0, color); this.lampHeads.push(p.clone()); const g = p.clone(); g.y = 0.2; this.stPool(g, r, '#ffb460'); },
   buildStreet(B) {
     this.streetInit();
-    this.buildNitros(B); this.buildStreetLife(B); if (this.buildCrowd) this.buildCrowd();
+    this.buildNitros(B); if (this.theme !== 'hills') { this.buildStreetLife(B); if (this.buildCrowd) this.buildCrowd(); }
     const add = (b, mat, ro = 0) => { const m = b.mesh(mat); if (m) { m.renderOrder = ro; this.group.add(m); this.disposables.push(m.geometry); } return m; };
     add(this.stB.sign, this.stM.sign); add(this.stB.nitro, this.stM.nitro, 2); add(this.stB.glowPool, this.stM.glowPool, 2); this.nitroBeams = add(this.stB.beam, this.stM.beam, 5);
   },
@@ -3932,6 +3978,189 @@ Object.assign(World.prototype, {
     const mesh = B.mesh(m); if (!mesh) return; mesh.castShadow = !low; this.group.add(mesh); this.disposables.push(mesh.geometry, m); this.crowdCount = n;
   },
 });
+
+// ===== 25_hills.js =====
+// ───────────────────────── GHAT STAGE: hills, lake, canyon ─────────────────────────
+// A point-to-point stage has no city round it. The land is a height field grown out of the road itself: every point takes
+// the height of the road near it, then mountains rise (or fall away) with distance. Four country in one run: a pine ghat,
+// a lake, a red canyon on a kachha road and the climb to the fort.
+const HZ = ['pine', 'lake', 'desert', 'climb'];
+const HILL_PAL = [['#4f7a36', '#3f652d', '#6b6458'], ['#5f8c3c', '#4d7733', '#786c58'], ['#cf8442', '#e0a560', '#a04a26'], ['#94893f', '#aa9a4c', '#857360']].map(r => r.map(c => new THREE.Color(c)));
+const hHash = (ix, iz) => { let n = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; };
+function hNoise(x, z) { const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz); return lerp(lerp(hHash(ix, iz), hHash(ix + 1, iz), u), lerp(hHash(ix, iz + 1), hHash(ix + 1, iz + 1), u), v); }
+function hFbm(x, z, o = 4) { let a = 0.5, s = 0, n = 0; for (let i = 0; i < o; i++) { s += a * hNoise(x, z); n += a; x = x * 2.03 + 17.1; z = z * 2.03 - 9.3; a *= 0.5; } return s / n; }
+const hStep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function hillGeo(parts) { const b = new Batch(), M = new THREE.Matrix4(); for (const [g, x, y, z, sx, sy, sz, col] of parts) { M.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)); b.add(g, M, new THREE.Color(col)); } return b.build(); }
+
+Object.assign(World.prototype, {
+  hillInit() {
+    const T = this.track, S = []; this.hLake = null;
+    for (let i = 0; i < T.N; i += 16) { const s = i * STEP; if (!T.live(s)) continue; const z = T.hillZone(s); S.push(T.px[i], T.pz[i], T.py[i], z ? HZ.indexOf(z) : s > T.L / 2 ? 0 : 3); }
+    this.hS = new Float32Array(S); this.hh = { y: 0, d: 0, zw: [0, 0, 0, 0], zone: 0 };
+    const lk = this.def.p2p.lake; if (lk) this.hLake = { x: lk.x * T.xzS, z: lk.z * T.xzS, r: lk.r * T.xzS, y: lk.y };
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < S.length; i += 4) { x0 = Math.min(x0, S[i]); x1 = Math.max(x1, S[i]); z0 = Math.min(z0, S[i + 1]); z1 = Math.max(z1, S[i + 1]); }
+    this.hBox = [x0, x1, z0, z1]; T.cx = (x0 + x1) / 2; T.cz = (z0 + z1) / 2; T.R = Math.hypot(x1 - x0, z1 - z0) / 2;
+  },
+  // the land at (x, z): height, distance to the road's centre line and how much of each country it is
+  hillH(x, z) {
+    const S = this.hS, n = S.length, H = this.hh, zw = H.zw; let sw = 0, sy = 0, dm = 1e18; zw[0] = zw[1] = zw[2] = zw[3] = 0;
+    for (let i = 0; i < n; i += 4) { const dx = x - S[i], dz = z - S[i + 1], d2 = dx * dx + dz * dz, q = d2 + 20, w = 1 / (q * q); sw += w; sy += w * S[i + 2]; zw[S[i + 3]] += w; if (d2 < dm) dm = d2; }
+    const d = Math.sqrt(dm), base = sy / sw; for (let k = 0; k < 4; k++) zw[k] /= sw;
+    const ramp = hStep(15, 170, d) * (1 + d / 650), m = hFbm(x / 270, z / 270, 4);
+    let off = (m - 0.4) * 210;                                                      // ridges and valleys
+    const cy = (0.2 + m * 0.95) * 150, ter = 20, q = cy / ter, fq = Math.floor(q);   // the canyon: walls on both sides, cut in terraces
+    off = lerp(off, (fq + hStep(0.72, 1, q - fq)) * ter, zw[2]);
+    let y = base + off * ramp;
+    const L = this.hLake; H.wet = false;
+    if (L) { const r = Math.hypot(x - L.x, z - L.z); if (r < L.r + 60) { const bed = r < L.r ? L.y - 0.4 - 7 * (1 - (r / L.r) * (r / L.r)) : L.y - 0.4 + (r - L.r) * 0.07; y = lerp(bed, y, hStep(L.r, L.r + 60, r)); H.wet = r < L.r + 30; } }
+    H.y = y; H.d = d; H.zone = zw[0] > zw[1] ? (zw[0] > zw[2] ? (zw[0] > zw[3] ? 0 : 3) : (zw[2] > zw[3] ? 2 : 3)) : (zw[1] > zw[2] ? (zw[1] > zw[3] ? 1 : 3) : (zw[2] > zw[3] ? 2 : 3));
+    return y;
+  },
+  // ground colour: each country's own flat / second / steep tone, strata in the canyon, sand at the water
+  hillCol(out, x, z, y, steep) {
+    const zw = this.hh.zw, n = hNoise(x / 38, z / 38), n2 = hNoise(x / 7 + 40, z / 7); let r = 0, g = 0, b = 0;
+    for (let k = 0; k < 4; k++) { const w = zw[k]; if (w < 0.002) continue; const P = HILL_PAL[k]; let cr = lerp(P[0].r, P[1].r, n), cg = lerp(P[0].g, P[1].g, n), cb = lerp(P[0].b, P[1].b, n);
+      let st = steep; if (k === 2) { const band = 0.5 + 0.5 * Math.sin(y * 0.42 + n * 2.5); st = Math.min(1, steep * (0.75 + 0.5 * band)); cr *= 0.93 + 0.14 * band; }
+      cr = lerp(cr, P[2].r, st); cg = lerp(cg, P[2].g, st); cb = lerp(cb, P[2].b, st); r += cr * w; g += cg * w; b += cb * w; }
+    const L = this.hLake; if (L) { const k = hStep(L.y + 1.5, L.y + 0.1, y) * hStep(L.r + 70, L.r + 20, Math.hypot(x - L.x, z - L.z)); r = lerp(r, 0.72, k); g = lerp(g, 0.6, k); b = lerp(b, 0.34, k); }
+    const v = 0.9 + 0.2 * n2; return out.setRGB(r * v, g * v, b * v);
+  },
+  buildHills(B) {
+    const T = this.track, low = this.opts.quality === 'low'; this.hillInit(); RNG = mulberry32(4711);
+    const hb = this.hB = new Batch(), rock = new THREE.Color('#8a8072'), col = new THREE.Color(), cell = low ? 19 : 12;
+    const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3(), pD = new THREE.Vector3(), p = new THREE.Vector3(), white = new THREE.Color('#ffffff');
+    // ── the road: tarmac on the hills, kachha through the canyon; rock lips where it jumps ──
+    const rows = [], bz = T.bumps.map(b => [b.s - 1, b.s + b.len + 1]);
+    for (let s = T.L - 90; s < T.L + T.finS + 150;) { rows.push(s); s += bz.some(([a, b]) => { const x = ((s % T.L) + T.L) % T.L; return x > a - 2 && x < b + 2; }) ? 0.5 : 2; }
+    const outer = Math.max(23, cell * 1.45 + 9), OFF = [0, 1.7, 5.5, 11, 17, outer], LIFT = [0, -0.04, 0.3, 0.3, 0.25, -1.4];
+    const yel = new THREE.Color('#e8b62a'), edge = new THREE.Color('#e6e1d8'), dirtC = new THREE.Color('#fff2e0'), grav = new THREE.Color('#9a9082'), sandC = new THREE.Color('#dfae78');
+    const side = (s) => { const out = [], w = T.wAt(s) / 2, yr = T.yAt(s); for (const sg of [-1, 1]) { const a = []; for (let k = 0; k < OFF.length; k++) { T.pos(s, sg * (w + OFF[k]), p, 0); let y = yr + LIFT[k]; if (k >= 2) { const h = this.hillH(p.x, p.z) + LIFT[k]; y = k === 2 ? lerp(yr, h, 0.55) : h; } a.push(new THREE.Vector3(p.x, y, p.z)); } out.push(a); } return out; };
+    let prev = null, prevS = 0, q4 = 0;
+    for (let r = 0; r < rows.length; r++) {
+      const s1 = rows[r], cur = (r % 2 === 0 || rows[r] - prevS >= 3.9 || r === rows.length - 1) ? side(s1) : null;
+      if (r > 0) { const s0 = rows[r - 1], w0 = T.wAt(s0) / 2, w1 = T.wAt(s1) / 2, y0 = T.yAt(s0), y1 = T.yAt(s1), dirt = T.dirtAt(s0);
+        T.pos(s0, -w0, pA, 0); T.pos(s1, -w1, pB, 0); T.pos(s1, w1, pC, 0); T.pos(s0, w0, pD, 0);
+        if (Math.abs(y1 - y0) > 1.0) { pB.copy(pA).setY(y1); pC.copy(pD).setY(y1); B.props.quad(pA, pB, pC, pD, rock); }   // the face of a rock lip
+        else if (dirt) B.dirt.quad(pA, pB, pC, pD, dirtC, [[0, s0 / 6], [0, s1 / 6], [w0 / 1.5, s1 / 6], [w0 / 1.5, s0 / 6]], UP);
+        else { B.road.quad(pA, pB, pC, pD, white, [[0, s0 / 24], [0, s1 / 24], [1, s1 / 24], [1, s0 / 24]], UP);
+          for (const sg of [-1, 1]) { T.pos(s0, sg * (w0 - 0.45), pA, 0.014); T.pos(s1, sg * (w1 - 0.45), pB, 0.014); T.pos(s1, sg * (w1 - 0.3), pC, 0.014); T.pos(s0, sg * (w0 - 0.3), pD, 0.014); B.marks.quad(pA, pB, pC, pD, edge, undefined, UP); }
+          if (Math.floor(s0 / 7.5) % 2 === 0 || Math.abs(T.kAt(s0)) > 1 / 70) { T.pos(s0, -0.09, pA, 0.014); T.pos(s1, -0.09, pB, 0.014); T.pos(s1, 0.09, pC, 0.014); T.pos(s0, 0.09, pD, 0.014); B.marks.quad(pA, pB, pC, pD, yel, undefined, UP); } }   // dashes; a solid line through the bends
+      }
+      if (cur && prev) for (let sd = 0; sd < 2; sd++) for (let k = 0; k < OFF.length - 1; k++) { const a = prev[sd][k], b = cur[sd][k], c = cur[sd][k + 1], d = prev[sd][k + 1];
+        if (k === 0) { hb.quad(a, b, c, d, T.dirtAt(s1) ? sandC : grav, [[0, 0], [0, 1], [1, 1], [1, 0]], UP); continue; }
+        const mx = (a.x + c.x) / 2, mz = (a.z + c.z) / 2, my = (a.y + c.y) / 2; this.hillH(mx, mz); const run = Math.hypot(c.x - b.x, c.z - b.z) || 1, st = hStep(0.45, 1.1, Math.abs(c.y - b.y) / run);
+        hb.quad(a, b, c, d, this.hillCol(col, mx, mz, my, st), [[a.x / 16, a.z / 16], [b.x / 16, b.z / 16], [c.x / 16, c.z / 16], [d.x / 16, d.z / 16]], UP); q4++; }
+      if (cur) { prev = cur; prevS = s1; }
+    }
+    // start and finish lines (chequers) and their gates
+    for (const [sL, name] of [[0, 'start'], [T.finS, 'finish']]) { const w = T.wAt(sL) / 2, n = Math.round(w * 2 / 1.5);
+      for (let k = 0; k < 2; k++) for (let i = 0; i < n; i++) { const d0 = -w + (i / n) * w * 2, d1 = -w + ((i + 1) / n) * w * 2, s0 = sL + k * 0.9;
+        T.pos(s0, d0, pA, 0.02); T.pos(s0 + 0.9, d0, pB, 0.02); T.pos(s0 + 0.9, d1, pC, 0.02); T.pos(s0, d1, pD, 0.02); B.glow.quad(pA, pB, pC, pD, new THREE.Color((i + k) % 2 ? '#f4f4f4' : '#151515'), undefined, UP); }
+      this.hillGate(B, sL, name === 'finish'); }
+    // ── the land ──
+    const [bx0, bx1, bz0, bz1] = this.hBox, M = low ? 430 : 560, nx = Math.ceil((bx1 - bx0 + 2 * M) / cell) + 1, nz = Math.ceil((bz1 - bz0 + 2 * M) / cell) + 1, ox = bx0 - M, oz = bz0 - M;
+    const hy = new Float32Array(nx * nz), hd = new Float32Array(nx * nz), hz = new Float32Array(nx * nz * 4), pos = new Float32Array(nx * nz * 3), cl = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; hy[k] = this.hillH(ox + i * cell, oz + j * cell); hd[k] = this.hh.d; hz.set(this.hh.zw, k * 4); }
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i, x = ox + i * cell, z = oz + j * cell;
+      const gx = (hy[j * nx + Math.min(nx - 1, i + 1)] - hy[j * nx + Math.max(0, i - 1)]) / (2 * cell), gz = (hy[Math.min(nz - 1, j + 1) * nx + i] - hy[Math.max(0, j - 1) * nx + i]) / (2 * cell);
+      for (let c = 0; c < 4; c++) this.hh.zw[c] = hz[k * 4 + c]; this.hillCol(col, x, z, hy[k], hStep(0.5, 1.15, Math.hypot(gx, gz)));
+      pos[k * 3] = x; pos[k * 3 + 1] = hy[k] - (hd[k] < 13 ? 1.7 : 0); pos[k * 3 + 2] = z; cl[k * 3] = col.r; cl[k * 3 + 1] = col.g; cl[k * 3 + 2] = col.b; uv[k * 2] = x / 16; uv[k * 2 + 1] = z / 16; }
+    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6); let t = 0;
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; if ((i + j) % 2) { idx[t++] = a; idx[t++] = c; idx[t++] = b; idx[t++] = b; idx[t++] = c; idx[t++] = d; } else { idx[t++] = a; idx[t++] = c; idx[t++] = d; idx[t++] = a; idx[t++] = d; idx[t++] = b; } }
+    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); tg.setAttribute('color', new THREE.BufferAttribute(cl, 3)); tg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); tg.setIndex(new THREE.BufferAttribute(idx, 1)); tg.computeVertexNormals();
+    const hm = this.hillMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: hillDetailTexture(), flatShading: true });
+    const land = new THREE.Mesh(tg, hm); land.receiveShadow = true; land.matrixAutoUpdate = false; land.updateMatrix(); this.group.add(land);
+    const rib = hb.mesh(hm, { receive: true }); if (rib) this.group.add(rib); this.disposables.push(tg, hm, rib && rib.geometry);
+    // ── the lake ──
+    if (this.hLake) { const L = this.hLake, g = new THREE.CircleGeometry(L.r + 62, 56).rotateX(-Math.PI / 2).translate(L.x, L.y, L.z);
+      this.lakeMat = new THREE.ShaderMaterial({ fog: true, uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 }, deep: { value: new THREE.Color('#2a84a4') }, shallow: { value: new THREE.Color('#74c8d6') }, glint: { value: new THREE.Color('#fff0c8') } }]),
+        vertexShader: 'varying vec3 vW;\n#include <fog_pars_vertex>\nvoid main(){ vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition;\n#include <fog_vertex>\n}',
+        fragmentShader: `uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 glint; varying vec3 vW;
+#include <fog_pars_fragment>
+void main(){ float w = sin(vW.x*0.21 + time*0.9)*0.5 + sin(vW.z*0.27 - time*1.2 + vW.x*0.08)*0.5; float w2 = sin((vW.x+vW.z)*0.9 + time*2.1) * sin(vW.x*0.6 - vW.z*0.45 + time*1.3);
+  vec3 c = mix(deep, shallow, 0.5 + 0.3*w); c += glint * smoothstep(0.8, 1.0, w2*0.5+0.5) * 0.45; gl_FragColor = vec4(c,1.0);
+#include <fog_fragment>
+}` });
+      const m = new THREE.Mesh(g, this.lakeMat); this.group.add(m); this.disposables.push(g, this.lakeMat); this.lakeMesh = m; }
+    this.hillScatter(B); this.hillRoadside(B);
+  },
+  // the air changes with the country: mist in the pines, clear over the lake, warm dust in the canyon
+  hillAir(dt, focus) {
+    if (this.lakeMat) this.lakeMat.uniforms.time.value += dt;
+    if (!focus || !this.fog || !this.hS) return; if (this._hfog !== this.fog) { this._hfog = this.fog; this._hbase = { c: this.fog.color.clone(), n: this.fog.near, f: this.fog.far }; this._hc = new THREE.Color(); }
+    this.hillH(focus.x, focus.z); const zw = this.hh.zw, b = this._hbase, c = this._hc.setRGB(0, 0, 0); let range = 0;
+    for (let k = 0; k < 4; k++) { const [tint, amt, rg] = HILL_AIR[k]; HILL_TMP.copy(b.c).lerp(tint, amt); c.r += HILL_TMP.r * zw[k]; c.g += HILL_TMP.g * zw[k]; c.b += HILL_TMP.b * zw[k]; range += rg * zw[k]; }
+    const k = 1 - Math.exp(-1.2 * dt); this.fog.color.lerp(c, k); this.fog.near += (b.n * range - this.fog.near) * k; this.fog.far += (b.f * range - this.fog.far) * k;
+  },
+  // ── a gate over the road: bamboo and bunting at the start, the fort's stone gate at the finish ──
+  hillGate(B, s, fort) {
+    const T = this.track, p = new THREE.Vector3(), yaw = T.yawAt(s), w = T.wAt(s) / 2 + 1.2, H = fort ? 8.5 : 6.2, stone = '#b79a6c', dark = '#8f7650';
+    for (const sd of [-1, 1]) { T.pos(s, sd * w, p, 0);
+      if (fort) { B.props.box(p.x, p.y - 2, p.z, 3.2, H + 2, 3.2, yaw, stone); B.props.box(p.x, p.y + H, p.z, 3.8, 0.5, 3.8, yaw, dark); for (const [ax, az] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) B.props.box(p.x + ax * Math.cos(yaw) + az * Math.sin(yaw), p.y + H + 0.5, p.z - ax * Math.sin(yaw) + az * Math.cos(yaw), 0.9, 0.9, 0.9, yaw, stone);
+        B.props.box(p.x, p.y + H + 0.5, p.z, 0.09, 3.2, 0.09, yaw, '#555'); const f = T.pos(s, sd * w, new THREE.Vector3(), H + 3.0); B.glow.box(f.x + Math.sin(yaw) * 0.7, f.y, f.z + Math.cos(yaw) * 0.7, 0.04, 0.8, 1.4, yaw, '#ff8a1f');
+        for (let k = 1; k <= 7; k++) { const q = T.pos(s, sd * (w + 1.6 + k * 3.4), new THREE.Vector3(), 0); const gy = this.hillH(q.x, q.z); B.props.box(q.x, gy - 3, q.z, 3.5, 7.5 + (k % 2) * 0.9, 1.6, yaw, k % 2 ? stone : dark); } }
+      else { B.props.box(p.x, p.y, p.z, 0.3, H, 0.3, yaw, '#b88a3e'); B.props.box(p.x, p.y, p.z, 0.9, 0.5, 0.9, yaw, '#6a5a48'); } }
+    T.pos(s, 0, p, 0); B.props.box(p.x, p.y + H - (fort ? 2.2 : 0.5), p.z, 2 * w + (fort ? 0 : 0.5), fort ? 2.2 : 0.3, fort ? 2.6 : 0.3, yaw, fort ? stone : '#b88a3e');
+    // the banner: chequers, facing the riders
+    const n = 16, bw = 2 * w - 1.2, y0 = p.y + H - (fort ? 3.6 : 1.8), pa = new THREE.Vector3(), pb = new THREE.Vector3(), pc = new THREE.Vector3(), pd = new THREE.Vector3();
+    for (let r = 0; r < 2; r++) for (let i = 0; i < n; i++) { const d0 = -bw / 2 + bw * i / n, d1 = d0 + bw / n; T.pos(s - (fort ? 1.4 : 0.2), d0, pa, 0); T.pos(s - (fort ? 1.4 : 0.2), d1, pb, 0); pa.y = pb.y = y0 + r * 0.6; pc.copy(pb).setY(y0 + r * 0.6 + 0.6); pd.copy(pa).setY(y0 + r * 0.6 + 0.6);
+      B.glow.quad(pa, pb, pc, pd, new THREE.Color((i + r) % 2 ? '#f4f4f4' : (fort ? '#151515' : '#ff2e88'))); }
+    if (!fort) for (let i = 0; i < 22; i++) { const d = -w + 2 * w * (i + 0.5) / 22; T.pos(s + 0.1, d, pa, H - 0.55 - Math.sin(Math.PI * (i + 0.5) / 22) * 0.5); B.glow.box(pa.x, pa.y - 0.45, pa.z, 0.42, 0.45, 0.03, yaw, ['#ff8a1f', '#f4f4f4', '#2f9e44', '#ff2e88', '#ffd23f'][i % 5]); }
+  },
+  // ── trees, bushes, rocks and cactus, thousands of them as instances ──
+  hillScatter(B) {
+    const T = this.track, low = this.opts.quality === 'low', cone = (r, h) => new THREE.ConeGeometry(r, h, 7), cyl = new THREE.CylinderGeometry(0.5, 0.6, 1, 6), ico = new THREE.IcosahedronGeometry(1, 0), ico1 = new THREE.IcosahedronGeometry(1, 1);
+    const G = { pine: hillGeo([[cyl, 0, 1.0, 0, 0.42, 2.0, 0.42, '#5b4028'], [cone(1.9, 2.6), 0, 2.9, 0, 1, 1, 1, '#2f6a33'], [cone(1.5, 2.3), 0, 4.4, 0, 1, 1, 1, '#35763a'], [cone(1.05, 2.0), 0, 5.8, 0, 1, 1, 1, '#3f8642']]),
+      leaf: hillGeo([[cyl, 0, 1.2, 0, 0.5, 2.4, 0.5, '#6a4a2c'], [ico1, 0, 3.5, 0, 2.1, 1.7, 2.1, '#4f8f36'], [ico1, 0.9, 4.6, 0.4, 1.4, 1.2, 1.4, '#62a33f'], [ico1, -0.8, 4.3, -0.6, 1.3, 1.1, 1.3, '#457e30']]),
+      bush: hillGeo([[ico, 0, 0.45, 0, 0.9, 0.6, 0.9, '#ffffff'], [ico, 0.6, 0.35, 0.3, 0.55, 0.42, 0.55, '#e4e4e4']]),
+      rock: hillGeo([[ico, 0, 0.5, 0, 1, 0.72, 0.86, '#ffffff']]),
+      tuft: hillGeo([[cone(0.34, 0.7), 0, 0.3, 0, 1, 1, 0.5, '#ffffff'], [cone(0.26, 0.55), 0.3, 0.24, 0.1, 0.6, 1, 1, '#dddddd'], [cone(0.24, 0.5), -0.25, 0.22, -0.12, 1, 1, 0.6, '#eeeeee']]),
+      cactus: hillGeo([[cyl, 0, 1.5, 0, 0.5, 3.0, 0.5, '#4d8a48'], [cyl, 0.62, 1.7, 0, 0.3, 1.2, 0.3, '#458043'], [cyl, 0.42, 1.2, 0, 0.6, 0.26, 0.26, '#458043'], [cyl, -0.58, 2.2, 0, 0.28, 1.0, 0.28, '#519150'], [cyl, -0.4, 1.8, 0, 0.56, 0.24, 0.24, '#519150']]) };
+    const L = { pine: [], leaf: [], bush: [], rock: [], cactus: [], tuft: [] }, put = (kind, x, y, z, sc, c) => L[kind].push(x, y, z, sc, RNG() * 6.28, c);
+    const BUSH = ['#5f8f3a', '#6fa043', '#b9a04a', '#9a9a4a'], ROCK = ['#8a8276', '#8f8572', '#b5653a', '#96866e'];
+    const place = (x, z, near) => { const y = this.hillH(x, z), H = this.hh, d = H.d; if (d < T.wAt(0) / 2 + 4.8 || H.wet || (this.hLake && y < this.hLake.y + 0.5)) return;
+      if (!near && RNG() > (d < 130 ? 1 : Math.max(0.14, 1 - (d - 130) / 380))) return; const zn = H.zone, r = RNG(), big = 0.75 + RNG() * 0.7;
+      if (zn === 0) r < 0.8 ? put('pine', x, y, z, big * 1.25, 0) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.6, ROCK[0]) : put('bush', x, y, z, big, BUSH[0]);
+      else if (zn === 1) r < 0.55 ? put('leaf', x, y, z, big * 1.1, 0) : r < 0.72 ? put('pine', x, y, z, big, 0) : r < 0.9 ? put('bush', x, y, z, big, BUSH[1]) : put('rock', x, y, z, 0.5 + RNG(), ROCK[1]);
+      else if (zn === 2) { if (r < 0.42) put('bush', x, y, z, big * 0.9, BUSH[2]); else if (r < 0.7) put('rock', x, y, z, 0.6 + RNG() * 2.4, ROCK[2]); else if (r < 0.78 && d > 12) { const h = 3 + RNG() * 4; put('rock', x, y, z, h, '#b96a3e'); put('rock', x + 0.4, y + h * 0.62, z - 0.3, h * 0.62, '#c9783f'); if (RNG() < 0.5) put('rock', x - 0.2, y + h * 1.02, z + 0.2, h * 0.4, '#a85a34'); }   // a stack of red boulders
+        else if (r < 0.9) put('cactus', x, y, z, big, 0); }
+      else r < 0.3 ? put('pine', x, y, z, big, 0) : r < 0.6 ? put('bush', x, y, z, big, BUSH[3]) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.5, ROCK[3]) : put('leaf', x, y, z, big, 0); };
+    const [x0, x1, z0, z1] = this.hBox, m = 300, n = low ? 4200 : 9500; for (let i = 0; i < n; i++) place(x0 - m + RNG() * (x1 - x0 + 2 * m), z0 - m + RNG() * (z1 - z0 + 2 * m), false);
+    const p = new THREE.Vector3(); for (let s = 30; s < T.finS + 130; s += low ? 11 : 6) for (const sd of [-1, 1]) { if (RNG() < 0.2) continue; T.pos(s + RNG() * 6, sd * (T.wAt(s) / 2 + 5.5 + RNG() * RNG() * 16), p, 0); place(p.x, p.z, true); }
+    const TUFT = ['#6f9a3e', '#7fae48', '#c9a85a', '#b5a650'];   // grass and scrub right at the roadside: what gives the speed
+    for (let s = 10; s < T.finS + 130; s += low ? 4.5 : 2.2) for (const sd of [-1, 1]) { T.pos(s + RNG() * 2, sd * (T.wAt(s) / 2 + 2.2 + RNG() * RNG() * 9), p, 0); const y = this.hillH(p.x, p.z); if (this.hh.wet && y < this.hLake.y + 0.4) continue; put('tuft', p.x, y + 0.2, p.z, 0.7 + RNG() * 0.9, TUFT[this.hh.zone]); }
+    const mat = this.hillPropMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }); this.disposables.push(mat); const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S3 = new THREE.Vector3(), c = new THREE.Color();
+    for (const k in L) { const a = L[k], cnt = a.length / 6; if (!cnt) continue; const im = new THREE.InstancedMesh(G[k], mat, cnt);
+      for (let i = 0; i < cnt; i++) { const sc = a[i * 6 + 3]; Q.setFromAxisAngle(UP, a[i * 6 + 4]); M4.compose(V.set(a[i * 6], a[i * 6 + 1] - 0.15, a[i * 6 + 2]), Q, S3.set(sc, sc * (0.9 + (i % 5) * 0.06), sc)); im.setMatrixAt(i, M4); im.setColorAt(i, c.set(a[i * 6 + 5] || '#ffffff')); }
+      im.castShadow = !low && (k === 'pine' || k === 'leaf'); im.receiveShadow = false; im.frustumCulled = false; this.group.add(im); this.disposables.push(G[k]); }
+    this.hillCount = Object.fromEntries(Object.entries(L).map(([k, a]) => [k, a.length / 6]));
+  },
+  // ── along the road: painted parapet stones on the valley side, chevron boards on the bends, km stones, fallen rocks and
+  // trees right at the edge (the ones you can hit) ──
+  hillRoadside(B) {
+    const T = this.track, p = new THREE.Vector3(), q = new THREE.Vector3();
+    for (let s = 8; s < T.finS + 120; s += 3.2) { if (T.dirtAt(s)) continue; const w = T.wAt(s) / 2, yr = T.yAt(s), yaw = T.yawAt(s), i = Math.round(s / 3.2);
+      for (const sd of [-1, 1]) { T.pos(s, sd * (w + 19), q, 0); if (yr - this.hillH(q.x, q.z) < 3.2) continue; T.pos(s, sd * (w + 0.85), p, 0); B.props.box(p.x, p.y - 0.1, p.z, 0.42, 0.78, 1.9, yaw, i % 2 ? '#f2efe6' : '#1c1c1c'); } }
+    for (const c of T.corners) { const sm = (c.s + c.e) / 2; if (!T.live(sm) || sm > T.finS || c.kind === 'bend') continue; const n = c.kind === 'hairpin' ? 4 : 2;
+      for (let i = 0; i < n; i++) { const s = lerp(c.s, c.e, (i + 0.5) / n); T.pos(s, -c.dir * (T.wAt(s) / 2 + 2.6), p, 0); this.signBoard(B, 'chevron', p.x, p.y + 1.1, p.z, T.yawAt(c.s) + Math.PI + c.dir * 0.5 * (i + 0.5) / n * 2, 2.4, p.y - 1); } }
+    for (let km = 1; km * 1000 < T.finS; km++) { const s = T.finS - km * 1000; T.pos(s, -(T.wAt(s) / 2 + 1.5), p, 0); const yaw = T.yawAt(s); B.props.box(p.x, p.y - 0.2, p.z, 0.5, 0.75, 0.22, yaw, '#f2efe6'); B.props.box(p.x, p.y + 0.55, p.z, 0.5, 0.3, 0.23, yaw, '#e8b62a'); }
+    // things on the road you can hit: rocks that have come down the slope, and trunks standing right on the edge
+    const free = (s) => s > 140 && s < T.finS - 60 && !T.bumps.some(b => s > b.s - 40 && s < b.s + b.len + 60) && !T.kickers.some(k => Math.abs(s - k.s) < 60) && !(T.nitros || []).some(n => Math.abs(s - n.s) < 40) && !this.obstacles.some(o => Math.abs(o.s - s) < 45);
+    for (let s = 180, k = 0; s < T.finS - 80; s += 150 + RNG() * 110, k++) { if (!free(s)) continue; const zn = T.hillZone(s), w = T.wAt(s) / 2, sd = RNG() < 0.5 ? -1 : 1, yaw = T.yawAt(s);
+      if (zn === 'desert' || k % 2) { const d = sd * (w * (0.25 + RNG() * 0.5)), r = 0.7 + RNG() * 0.35; T.pos(s, d, p, 0); B.props.geom(BLOB, p.x, p.y + r * 0.45, p.z, RNG() * 6, r, r * 0.75, r * 0.9, zn === 'desert' ? '#b5653a' : '#8a8276');
+        for (let j = 0; j < 3; j++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 2.6, p.y + 0.12, p.z + (RNG() - 0.5) * 2.6, RNG() * 6, 0.2 + RNG() * 0.2, 0.16, 0.22, zn === 'desert' ? '#a85a34' : '#7d7568'); this.obstacles.push({ s, d, hw: r * 0.8, hl: r * 0.8, kind: 'rock' }); }
+      else { const d = sd * (w - 0.5); T.pos(s, d, p, 0); B.props.box(p.x, p.y, p.z, 0.5, 3.4, 0.5, yaw, '#5b4028'); for (const [dy, r, c] of [[2.6, 1.9, '#2f6a33'], [4.1, 1.5, '#35763a'], [5.5, 1.05, '#3f8642']]) B.props.geom(HILL_CONE, p.x, p.y + dy + 1.2, p.z, 0, r, 2.4, r, c); this.obstacles.push({ s, d, hw: 0.36, hl: 0.36, kind: 'tree' }); } }
+  },
+});
+const HILL_CONE = new THREE.ConeGeometry(1, 1, 7);
+const HILL_AIR = [[new THREE.Color('#cfe2e4'), 0.55, 0.62], [new THREE.Color('#d8ecf2'), 0.3, 1.0], [new THREE.Color('#f2c292'), 0.8, 1.1], [new THREE.Color('#f2dcae'), 0.45, 0.95]], HILL_TMP = new THREE.Color();
+let HILL_DETAIL = null;
+function hillDetailTexture() {
+  if (HILL_DETAIL) return HILL_DETAIL; const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#e6e6e6'; x.fillRect(0, 0, 128, 128); const r = mulberry32(99);
+  for (let i = 0; i < 2600; i++) { const v = 200 + Math.floor(r() * 55); x.fillStyle = `rgba(${v},${v},${v},${0.25 + r() * 0.5})`; const s = 1 + r() * 3; x.fillRect(r() * 128, r() * 128, s, s * (0.5 + r())); }
+  for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(120,120,120,${0.12 + r() * 0.2})`; x.fillRect(r() * 128, r() * 128, 1 + r() * 2, 1 + r() * 2); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return HILL_DETAIL = t;
+}
 
 // ===== 28_bikemodel.js =====
 // ───────────────────────── REAL BIKE MODEL ─────────────────────────
@@ -5351,6 +5580,7 @@ class Rider {
       else if (this.surf === 3) a -= 0.9 + this.v * 0.05; }    // steps
     // stairs: every step edge kicks the suspension
     if (this.surf === 3 && !this.air) { const S = T.stairs, si = Math.floor(T.wrapD(this.s - S.s0) / S.tread); if (si !== this.lastStep) { this.lastStep = si; this.suspV -= (T.stairDir(this.s) > 0 ? 1.5 : 1.0) * Math.min(1.2, this.v / 9); this.stepHit = (this.stepHit || 0) + 1; } } else this.lastStep = -1;
+    if (T.p2p && !this.air) a -= G * clamp(T.slopeAt(this.s), -0.22, 0.22) * 0.5;   // the ghat: gravity helps you down and holds you back on the climb
     this.v = Math.max(0, this.v + a * dt);
     // boost meter
     const fill = this.st.boostFill;
@@ -5464,12 +5694,14 @@ class Rider {
     if (Math.cos(this.psi) < -0.2 && this.v > 2) this.wrongT += dt; else this.wrongT = 0;
     // laps
     const lap = Math.floor(this.dist / T.L);
-    if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
+    if (T.p2p) { this.lap = Math.max(this.lap, this.dist >= 0 ? 0 : -1); if (!this.p2pDone && this.dist >= T.finS) { this.p2pDone = true; this.race.onLap(this, raceT); }
+      if (this.dist > T.finS + 125) { this.v = 0; this.dist = T.finS + 125; } }   // the road ends past the finish
+    else if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
   }
   surfaceHere(T) {
     if (T.inWater(this.s, this.d)) return 4;
     if (T.stairDir(this.s)) return 3;
-    let surf = T.laneAt(this.s, this.d) ? 2 : T.ug && T.dirtAt(this.s) ? 5 : 0;   // 5: the salt-pan kachha road
+    let surf = T.laneAt(this.s, this.d) ? 2 : (T.ug || T.hz) && T.dirtAt(this.s) ? 5 : 0;   // 5: the salt-pan kachha road
     for (const h of T.hazards) { if (h.type !== 'mud') continue; let ds = this.s - h.s; if (ds > T.L / 2) ds -= T.L; if (ds < -T.L / 2) ds += T.L;
       if (Math.abs(ds) < h.len / 2 && Math.abs(this.d - h.d) < h.hw * (1 - 0.35 * Math.abs(ds) / (h.len / 2))) return 1; }
     return surf;
@@ -5613,7 +5845,7 @@ class Race {
     this.wet = setup.weather === 'monsoon';
     const M = MODES[this.mode];
     this.combatOn = M.combat === 'force' ? true : M.combat ? !!setup.combat : false;
-    this.laps = M.fixedLaps || setup.laps;
+    this.laps = M.fixedLaps || setup.laps; if (this.track.p2p) this.laps = 1;   // a point-to-point stage is one run
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
     this.score = {}; this.swag = { n: 0, t: 0, best: 0 }; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
@@ -5669,6 +5901,7 @@ class Race {
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
     const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
     if (M.police) this.police = new PoliceOps(this);
+    if (this.def.chase && !M.police) this.chase = new ChaseOps(this);   // the ghat stage: a police van behind the pack
     this.street = new StreetOps(this);
     if (T0.ug) this.ug = new UGOps(this);
     this.taunts = new Taunts(this);
@@ -5708,7 +5941,7 @@ class Race {
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
     for (let i = 0; i < steps; i++) {
       for (const r of this.riders) if ((!r.isPlayer || DEBUG.autopilot) && !r.cinematic) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
-      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
+      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; if (this.track.p2p) { r.input.throttle = r.v < 6 && r.dist < this.track.finS + 70 ? 0.3 : 0; r.input.brake = r.v > 7 ? 0.8 : 0; } } r.step(h, this.raceT); }
       this.interactions(h);
     }
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
@@ -5716,7 +5949,7 @@ class Race {
     if (this.stage) this.stage.update(dt);
     if (this.ug) this.ug.update(dt);
     this.street.update(dt);
-    if (this.police) this.police.update(dt);
+    if (this.police) this.police.update(dt); if (this.chase) this.chase.update(dt);
     this.collectCoins();
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
@@ -5757,7 +5990,7 @@ class Race {
           // Road Rash rules: how fast you close on it, how square you hit it and how heavy it is decide what happens.
           // A clip staggers you, a solid hit throws the bike into a skid that bleeds speed, a hard square hit puts you down.
           const head = head0, car = o.car;
-          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05 }[o.kind] || 0.9);
+          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05, rock: 1.2, tree: 1.3 }[o.kind] || 0.9);
           const sev = clamp(close / 16, 0, 1.6) * (0.4 + 0.6 * head) * mass * (this.diff.sev || 1) * (a.isPlayer ? 1 : 0.55);   // rivals are locals: traffic rarely catches them square
           const res = a.skid(sg, sev); a.psi = sg * 0.1; a.shoveV = sg * (1.6 + sev * 2.2); if (res !== 'crash') a.rig.react && a.rig.react('hit', sg);
           if (res !== 'none') this.onSkid(a, res, sev, o);
@@ -5942,7 +6175,7 @@ class Race {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
-  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); }
+  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); if (this.chase) this.chase.dispose(); }
 }
 function buildStatsStock() { const b = BUILDS[0]; return { build: b, top: 100, acc: 1, lean: 45, grip: 1, brake: 1, wobbleRes: 1, zeroTo100: 7.8, boostFill: 1, wheelieEase: 0, lvls: {} }; }
 function makeGhost(rig) { const m = new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.32, depthWrite: false }); rig.root.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = false; } }); rig.blob.visible = false; }
@@ -6356,6 +6589,101 @@ class StreetOps {
   }
   dispose() { const W = this.race.world; W.obstacles = W.obstacles.filter(o => o.kind !== 'traffic'); W.hemi.color.copy(this.hemiBase); if (W.fog && this.fogBase) W.fog.color.copy(this.fogBase);
     if (this.mats) { this.mats.body.dispose(); this.mats.lights.dispose(); } if (this.gMat) { this.gMat.dispose(); this.guide.geometry.dispose(); } this.bolts.geometry.dispose(); this.bolts.material.dispose(); this.blobs.geometry.dispose(); this.blobs.material.dispose(); this.ring.children[0].geometry.dispose(); this.ringMat.dispose(); if (this.guideEl) this.guideEl.hidden = true; }
+}
+
+// ===== 49_chase.js =====
+// ───────────────────────── POLICE VAN CHASE (ghat stage) ─────────────────────────
+// Most Wanted on a hill road: one police van after the pack for the whole run. It waits by the start, pulls out behind you and
+// follows a little slower than you ride. Every so often (and whenever you crash or dawdle) it makes a run: up alongside, then
+// a swipe across the road you can dodge. Stay near it too long, or stay down, and the BUSTED meter fills: you finish last.
+// It also flattens any rival it catches.
+let VAN_GEO = null, VAN_TEX = null;
+function policeVanGeo() {
+  if (VAN_GEO) return VAN_GEO; const b = new Batch(), M = new THREE.Matrix4(), Q = new THREE.Quaternion();
+  const bx = (x, y, z, sx, sy, sz, c, rx = 0) => { Q.setFromEuler(new THREE.Euler(rx, 0, 0)); M.compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(sx, sy, sz)); b.add(UNIT_BOX, M, new THREE.Color(c)); };
+  const W = '#f1f0ec', BL = '#1d3f8f', DK = '#12151c', ST = '#8a8f98';
+  bx(0, 0.98, 0, 1.92, 0.86, 4.6, W); bx(0, 0.78, 0, 1.94, 0.2, 4.62, BL); bx(0, 1.26, 0, 1.94, 0.1, 4.62, '#c8321e');   // body, blue skirt, red waist line
+  bx(0, 1.82, -0.5, 1.84, 0.84, 3.3, W); bx(0, 2.26, -0.5, 1.9, 0.07, 3.4, '#dcdad4');                                       // cabin, roof
+  bx(0, 1.8, 1.16, 1.66, 0.62, 0.05, DK, -0.2); bx(0, 1.82, -2.16, 1.5, 0.5, 0.04, DK);                                      // windscreen, rear glass
+  for (const sx of [-1, 1]) { bx(sx * 0.93, 1.84, 0.5, 0.03, 0.5, 0.9, DK); bx(sx * 0.93, 1.84, -1.1, 0.03, 0.46, 1.7, DK);
+    for (let i = 0; i < 5; i++) bx(sx * 0.95, 1.84, -1.8 + i * 0.35, 0.02, 0.48, 0.03, ST);                                 // the grille over the lock-up's windows
+    bx(sx * 0.66, 1.12, 2.31, 0.34, 0.2, 0.05, '#fff6d8'); bx(sx * 0.78, 0.98, -2.31, 0.2, 0.3, 0.04, '#d8261c');             // head and tail lamps
+    bx(sx * 1.02, 1.62, 1.0, 0.16, 0.2, 0.08, DK); }                                                                        // mirrors
+  bx(0, 1.02, 2.3, 1.0, 0.36, 0.04, DK); bx(0, 0.56, 2.38, 2.0, 0.22, 0.16, DK); bx(0, 0.56, -2.38, 2.0, 0.2, 0.14, DK);     // grille, bumpers
+  for (const sx of [-0.55, 0, 0.55]) bx(sx, 0.95, 2.5, 0.06, 0.8, 0.06, ST); for (const y of [0.7, 1.05, 1.34]) bx(0, y, 2.5, 1.5, 0.06, 0.06, ST);   // bull bar
+  bx(0, 2.36, 0.35, 1.3, 0.14, 0.3, '#22252c'); bx(0, 2.34, -1.2, 1.5, 0.05, 1.6, ST); bx(0.8, 2.7, -1.9, 0.02, 0.8, 0.02, DK);   // light bar base, roof rack, aerial
+  for (const sx of [-1, 1]) for (const z of [1.5, -1.45]) bx(sx * 0.96, 0.62, z, 0.08, 0.5, 1.1, '#2a2d34');                  // arches
+  return VAN_GEO = b.build();
+}
+function policeVanTex() {
+  if (VAN_TEX) return VAN_TEX; const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#f1f0ec'; x.fillRect(0, 0, 256, 64);
+  x.fillStyle = '#1d3f8f'; x.font = '900 44px Teko, Arial Black, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('POLICE', 96, 34); x.font = '700 26px "Baloo 2", sans-serif'; x.fillStyle = '#c8321e'; x.fillText('पुलिस', 208, 34);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return VAN_TEX = t;
+}
+const VAN_LINES = ['RUK JA! GAADI SIDE MEIN!', 'CHALLAN KATEGA!', 'BHAAGNE KA NAHI!', 'LICENCE DIKHA!', 'AGLE MOD PE PAKDUNGA!'];
+class ChaseOps {
+  constructor(race) {
+    this.race = race; this.heat = 0; this.busted = false; this.copDist = Infinity; this.dist = 38; this.d = 0; this.v = 0; this.on = false; this.pAvg = 0; this.mode = 'follow'; this.atkT = 20; this.swipes = 0; this.swipeT = 0; this.swipeCD = 0; this.side = 0; this.sayT = 6; this.t = 0; this.bounce = 0; this.hits = new Map();
+    this.heatMul = { easy: 0.65, normal: 1, hard: 1.3 }[race.diffKey] || 1;
+    const g = this.g = new THREE.Group(), mat = this.mat = new THREE.MeshLambertMaterial({ vertexColors: true }); this.body = new THREE.Mesh(policeVanGeo(), mat); this.body.castShadow = true; g.add(this.body);
+    const wm = this.wm = new THREE.MeshLambertMaterial({ color: '#17171a' }); this.wheels = [[-0.92, 1.5], [0.92, 1.5], [-0.92, -1.45], [0.92, -1.45]].map(([x, z]) => { const w = new THREE.Mesh(WHEEL_G, wm); w.scale.set(1.9, 2.1, 2.1); w.position.set(x, 0.46, z); g.add(w); return w; });
+    const tm = this.tm = new THREE.MeshLambertMaterial({ map: policeVanTex() }), pg = this.pg = new THREE.PlaneGeometry(2.3, 0.5);
+    for (const sx of [-1, 1]) { const p = new THREE.Mesh(pg, tm); p.position.set(sx * 0.975, 1.02, -0.4); p.rotation.y = sx * Math.PI / 2; g.add(p); }
+    { const p = new THREE.Mesh(pg, tm); p.scale.set(0.62, 0.62, 1); p.position.set(0, 1.42, 2.02); p.rotation.x = -1.35; g.add(p); }
+    this.lampG = new THREE.BoxGeometry(0.42, 0.2, 0.26); this.lamps = [['#ff1e2e', -0.36], ['#2a58ff', 0.36]].map(([c, x]) => { const m = new THREE.Mesh(this.lampG, new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, 2.53, 0.35); g.add(m); return m; });
+    this.glows = [['#ff1e2e', -0.36], ['#2a58ff', 0.36]].map(([c, x]) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: c, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); s.position.set(x, 2.6, 0.35); s.scale.setScalar(3.2); g.add(s); return s; });
+    this.beams = [-0.66, 0.66].map(x => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: '#fff2c8', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 })); s.position.set(x, 1.12, 2.4); s.scale.setScalar(1.6); g.add(s); return s; });
+    race.group.add(g); this._p = new THREE.Vector3();
+  }
+  addHeat(v) { if (!this.busted) this.heat = clamp(this.heat + v, 0, 100); }
+  update(dt) {
+    const R = this.race, T = R.track, P = R.player; this.t += dt; this.swipeCD -= dt;
+    // it waits on the shoulder past the start line with its lights going; the pack rides past and it pulls out behind
+    if (!this.on) { const w0 = T.wAt(this.dist) / 2; this.d = -(w0 + 0.7); if (R.state === 'racing' && P.dist > this.dist + 9) { this.on = true; this.v = 6; this.atkT = 16 + Math.random() * 8; R.hud.callout('POLICE VAN PEECHE HAI!', null, 'bad'); AUDIO.warn(); } }
+    const racing = R.state === 'racing' && !this.busted && this.on, gap = P.dist - this.dist; this.copDist = this.on ? Math.max(0, Math.abs(gap) - 2) : Infinity;
+    const s = ((this.dist % T.L) + T.L) % T.L, half = T.wAt(s) / 2 - 1.25, cap = Math.min(34, T.vmaxAt(s) * 0.92 + 3), sep = Math.abs(P.d - this.d);
+    if (this.on) {
+      this.pAvg = smooth(this.pAvg, P.v, 0.4, dt); let want, dT = clamp(P.d * 0.5, -half, half);
+      if (!racing) want = gap > 14 ? Math.min(12, cap) : 0;
+      else if (P.crashed || P.v < 6) { want = gap > 9 ? Math.min(cap, 23) : gap > 5.5 ? 5 : 0; dT = clamp(P.d + (this.d > P.d ? 2.4 : -2.4), -half, half); }   // you are down: it rolls up beside you
+      else if (this.mode === 'attack') {
+        // the run: up the inside or the outside, level with you, then a swipe across. Two tries, then it drops back
+        this.atkT += dt; if (!this.side) this.side = this.d >= P.d ? 1 : -1; if (Math.abs(clamp(P.d + this.side * 2.7, -half, half) - P.d) < 2.0) this.side = -this.side;
+        dT = clamp(P.d + this.side * 2.7, -half, half); want = clamp(P.v + clamp((gap - 0.6) * 1.3, -4, 9), 0, 41);
+        if (this.swipeT > 0) { this.swipeT -= dt; dT = P.d + this.side * 1.5;   // its flank comes right up to your bars, never through you
+          if (sep < 1.8 && Math.abs(gap) < 2.9 && !P.air && P.invuln <= 0 && !this.swipeHit) { this.swipeHit = true; P.shoveV = -this.side * 4.2; P.addWobble(32 / P.st.wobbleRes); P.v *= 0.93; this.addHeat(16 * this.heatMul);
+            R.hud.callout('VAN NE THOKA!', null, 'bad'); R.game.comicPop('DHADAAM!', P, 1.25, '#2a58ff'); AUDIO.crash(0.5); R.rumble(0.9, 0.25); R.game.shake(0.5); }
+          if (this.swipeT <= 0) { if (!this.swipeHit) R.hud.callout('CHAKMA DE DIYA!', `+${R.award('dodges', 60)}`, 'good'); this.swipes++; this.swipeCD = 1.9; } }
+        else if (Math.abs(gap) < 2.6 && sep > 2.2 && this.swipeCD <= 0) { this.swipeT = 0.75; this.swipeHit = false; AUDIO.warn(); }
+        if ((this.swipes >= 2 && this.swipeT <= 0) || this.atkT > 13) { this.mode = 'back'; }
+      } else if (this.mode === 'back') { want = Math.max(6, P.v - 8); if (gap > 42) { this.mode = 'follow'; this.atkT = (this.race.diffKey === 'hard' ? 20 : this.race.diffKey === 'easy' ? 40 : 28) + Math.random() * 14; } }
+      else { // following: a shade under your pace on a rubber band, never out of earshot; every so often (or when you dawdle) it comes for you
+        want = clamp(this.pAvg * 0.975 + (gap - 58) * 0.08, 8, cap); if (gap > 120) want = Math.max(want, Math.min(40, P.v + 5));
+        this.atkT -= dt; if ((this.atkT <= 0 || gap < 17) && T.finS - P.dist > 260 && !P.air) { this.mode = 'attack'; this.atkT = 0; this.swipes = 0; this.swipeT = 0; this.side = 0; R.hud.callout('VAN AA RAHI HAI!', null, 'bad'); AUDIO.warn(); } }
+      if (gap < 5 && sep < 1.95 && this.v > P.v - 0.5) want = Math.min(want, Math.max(0, P.v - 1));   // never drives through you
+      this.v += clamp(want - this.v, -11 * dt, (this.mode === 'attack' ? 8 : 5.5) * dt); this.dist += this.v * dt;
+      this.d += clamp(dT - this.d, -(this.swipeT > 0 ? 6.5 : 3.2) * dt, (this.swipeT > 0 ? 6.5 : 3.2) * dt);
+    }
+    if (racing) {
+      // the BUSTED meter
+      const hm = this.heatMul, near = Math.abs(gap) < 13;
+      if (near && (P.crashed || P.v < 9)) this.addHeat((P.crashed ? 34 : 22) * hm * dt); else if (near) this.addHeat(3.5 * hm * dt); else if (gap > 40) this.addHeat(-(gap > 90 ? 9 : 6) * dt);
+      if (this.heat > 68 && this.t - (this.warned || 0) > 3) { this.warned = this.t; R.hud.callout('PAKDA JAYEGA!', null, 'bad'); AUDIO.warn(); }
+      if (this.heat >= 100 && !URLP.has('nobust')) { this.busted = true; P.v *= 0.3; R.hud.big('PAKDA GAYA!', 'Police van ne pakad liya', 3.2); R.game.comicPop('PAKDA!', P, 1.4, '#2a58ff'); AUDIO.crash(0.4); const last = R.riders.filter(r => !r.isCop).length; R.playerDone(last); P.eliminated = true; R.elimOrder.push(P); }   // caught: classified last
+      this.sayT -= dt; if (this.sayT < 0 && gap < 70 && !P.crashed && this.mode === 'follow') { this.sayT = 13 + Math.random() * 9; R.hud.callout(VAN_LINES[Math.floor(Math.random() * VAN_LINES.length)], null, 'bad'); }
+      if (gap > 150 && !this.lostShown) { this.lostShown = true; R.hud.callout('POLICE PEECHE CHHOOT GAYI!', `+${R.award('escapeGap', 100)}`, 'gold'); } else if (gap < 60) this.lostShown = false;
+      // rivals in its way go flying
+      for (const r of R.riders) { if (r.isPlayer || r.crashed || r.finished || r.eliminated || r.invuln > 0) continue; const ds = r.dist - this.dist; if (ds > -1.5 && ds < 3.6 && Math.abs(r.d - this.d) < 1.5 && this.v > r.v + 1 && this.t - (this.hits.get(r) || -9) > 6) { this.hits.set(r, this.t); r.crash('hit');
+        if (R.distToPlayer(r) > 0.25) { AUDIO.crash(0.35 * R.distToPlayer(r)); R.hud.callout(`${(r.short || 'RIVAL').toUpperCase()} KO VAN NE UDAYA!`, null, 'good'); } } }
+    }
+    // place it on the road: pitch with the slope, roll with the steering, bounce on the rough
+    const p = T.pos(s, this.d, this._p, 0), yaw = T.yawAt(s), sl = T.slopeAt(s), k = T.kAt(s); this.bounce = smooth(this.bounce, T.dirtAt(s) ? Math.sin(this.t * 17) * 0.05 * Math.min(1, this.v / 12) : 0, 10, dt);
+    this.g.position.set(p.x, p.y + this.bounce, p.z); this.g.rotation.set(-Math.atan(sl), yaw, 0, 'YXZ'); this.body.rotation.z = clamp(-k * this.v * this.v * 0.012, -0.09, 0.09) + this.bounce * 0.6;
+    for (const w of this.wheels) w.rotation.x += this.v * dt / 0.46;
+    const ph = Math.floor(this.t * 6) % 2; this.lamps[0].visible = ph === 0; this.lamps[1].visible = ph === 1; this.glows[0].material.opacity = ph === 0 ? 0.95 : 0.08; this.glows[1].material.opacity = ph === 1 ? 0.95 : 0.08;
+    this.g.visible = Math.abs(gap) < 320;
+  }
+  dispose() { this.g.removeFromParent(); this.mat.dispose(); this.wm.dispose(); this.tm.dispose(); this.pg.dispose(); this.lampG.dispose(); for (const l of this.lamps) l.material.dispose(); for (const s of this.glows.concat(this.beams)) s.material.dispose(); }
 }
 
 // ===== 50_combat.js =====
@@ -7404,7 +7732,7 @@ const AUDIO = {
     MUSIC.engineDuck(this._take);
     let near = null, nd = 1e9; for (const r of race.riders) { if (r === P || r.eliminated) continue; const d = Math.abs(r.dist - P.dist) + Math.abs(r.d - P.d) * 2; if (d < nd) { nd = d; near = r; } }
     if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.55, near.boosting, (near.rig && near.rig.o && near.rig.o.mods && near.rig.o.mods.exhaust) || 'stock', doppler); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
-    this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
+    { const po = race.police || race.chase; this.siren(po && (race.chase ? po.on : true) && race.state === 'racing' ? clamp(1.1 - (po.copDist || 99) / 90, 0.1, 1) : 0); }
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? (race.world && race.world.ugCover ? 0.02 : 0.11) : 0, t, 0.5);
     // tyre voice
@@ -7769,24 +8097,24 @@ class HUD {
   }
   setupRace(race) {
     this.race = race; const T = race.track;
-    this.root.classList.toggle('no-combat', !race.combatOn); this.root.classList.toggle('police', !!race.police); this.heatEl = $('#heat'); this.heatEl.hidden = !race.police; this.boostEl = $('#boostBanner'); this.boostEl.hidden = true; this.boostOn = false;
+    this.root.classList.toggle('no-combat', !race.combatOn); this.root.classList.toggle('police', !!race.police); this.heatEl = $('#heat'); this.heatEl.hidden = !(race.police || race.chase); this.root.classList.toggle('chase', !!race.chase); this.boostEl = $('#boostBanner'); this.boostEl.hidden = true; this.boostOn = false;
     this.root.classList.toggle('touch', IS_TOUCH);
     this.el.stand.innerHTML = ''; this.rows = [];
     const n = race.police ? 1 : race.riders.length; this.el.stand.hidden = n < 2;
     for (let i = 0; i < n && n > 1; i++) { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}</span><em></em><i class="gap"></i>`; this.el.stand.appendChild(li); this.rows.push(li); }
     this.el.of.textContent = n > 1 ? `/${n}` : '';
     // minimap
-    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; for (let i = 0; i < T.N; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; const mN = T.p2p ? Math.floor((T.finS + 40) / STEP) : T.N; for (let i = 0; i < mN; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
     const sc = 84 / Math.max(maxX - minX, maxZ - minZ); const ox = 50 - (minX + maxX) / 2 * sc, oz = 50 - (minZ + maxZ) / 2 * sc;
     this.mmMap = (x, z) => [(x * sc + ox), (z * sc + oz)];
-    let d = ''; for (let i = 0; i <= T.N; i += 8) { const j = i % T.N; const [x, y] = this.mmMap(T.px[j], T.pz[j]); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
+    let d = ''; for (let i = 0; i <= mN; i += 8) { const j = i % T.N; const [x, y] = this.mmMap(T.px[j], T.pz[j]); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
     let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
-    let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
+    let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(mN * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
     const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
     let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
     this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
     this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
-    this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
+    this.el.mmName.innerHTML = T.p2p ? `${race.def.short}<br><small>${(T.finS / 1000).toFixed(1)} km · one way</small>` : `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
     this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
     const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
     this.tagXY = null; this.el.tag.hidden = true; this.tagKey = '';
@@ -7811,12 +8139,13 @@ class HUD {
     const multi = R.riders.length > 1 && !R.police;
     setText(this.el.pos, multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱'));
     setText(this.el.suf, multi ? ordinal(R.playerPos || pos) : '');
-    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
+    if (R.police || R.chase) { const PO = R.police || R.chase, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
       setText($('#copGap'), PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`); setText($('#heatLbl'), PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'); }
     // boost: banner on top + the dial turns electric
     if (P.boosting !== this.boostOn) { this.boostOn = P.boosting; const sp = this.el.speed.closest('.speedo'); sp.classList.toggle('boosting', P.boosting);
       if (P.boosting && !REDUCED_MOTION) { this.boostEl.hidden = false; this.boostEl.classList.remove('go'); void this.boostEl.offsetWidth; this.boostEl.classList.add('go'); } else if (!P.boosting) { clearTimeout(this._bbT); this._bbT = setTimeout(() => { if (!this.boostOn) this.boostEl.hidden = true; }, 250); } }
-    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); setText(this.el.lap, `${lapShown}/${R.laps}`);
+    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); if (R.track.p2p) { setText($('#hLapLbl'), 'TO GO'); setText(this.el.lap, `${(Math.max(0, R.track.finS - P.dist) / 1000).toFixed(1)}km`); } else { setText($('#hLapLbl'), 'LAP'); setText(this.el.lap, `${lapShown}/${R.laps}`); }
+    if (R.chase) this.root.classList.toggle('cop-near', R.state === 'racing' && R.chase.on && R.chase.copDist < 26);
     const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
     setText(this.el.time, fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt)));
     if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; setText(this.el.best, fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9))); }
@@ -8140,7 +8469,7 @@ class UI {
     seg('#sMode', Object.entries(MODES).filter(([k]) => k !== 'cup').map(([k, m]) => [k, m.label]), s.mode, v => { s.mode = v; if (MODES[v].track) this.game.previewTrack(MODES[v].track); });
     $('#sModeDesc').textContent = M.desc;
     const tSel = M.track || s.track;
-    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small>${t.main ? '<em class="tnew">NEW · MAIN MAP</em>' : ''}</button>`).join('');
+    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.km || t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small>${t.main ? '<em class="tnew">NEW · MAIN MAP</em>' : ''}</button>`).join('');
     $$('[data-track]').forEach(b => b.addEventListener('click', () => { s.track = b.dataset.track; persist(); AUDIO.click(); this.renderSetup(); this.game.previewTrack(s.track); }));
     const lapOpts = [[1, '1'], [2, '2'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 2, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
     seg('#sLaps', lapOpts, M.fixedLaps || s.laps, v => (s.laps = +v), () => !!M.fixedLaps);
@@ -8229,10 +8558,10 @@ class UI {
   }
 }
 function trackThumb(t) {
-  const P = []; let raw = t.pts; let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; raw.forEach(([x, z]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); });
-  const sc = 80 / Math.max(maxX - minX, maxZ - minZ); const c = new THREE.CatmullRomCurve3(raw.map(([x, z]) => new THREE.Vector3((x - (minX + maxX) / 2) * sc + 60, 0, (z - (minZ + maxZ) / 2) * sc + 50)), true, 'centripetal');
+  const P = []; let raw = t.p2p ? t.pts.slice(0, t.p2p.finish + 1) : t.pts; let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; raw.forEach(([x, z]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); });
+  const sc = 80 / Math.max(maxX - minX, maxZ - minZ); const c = new THREE.CatmullRomCurve3(raw.map(([x, z]) => new THREE.Vector3((x - (minX + maxX) / 2) * sc + 60, 0, (z - (minZ + maxZ) / 2) * sc + 50)), !t.p2p, 'centripetal');
   const pts = c.getPoints(80).map(p => `${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(' ');
-  const bg = { city: '#5b2c86,#e0589a', market: '#c96f4a,#ffb067', basti: '#3e8e8a,#c96f4a', sea: '#0b1a30,#3a6f8a', flyover: '#4a2a5c,#ff8a1f' }[t.theme].split(',');
+  const bg = { hills: '#3f7f4a,#e08a3c', city: '#5b2c86,#e0589a', market: '#c96f4a,#ffb067', basti: '#3e8e8a,#c96f4a', sea: '#0b1a30,#3a6f8a', flyover: '#4a2a5c,#ff8a1f' }[t.theme].split(',');
   return `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="g${t.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient></defs><rect width="120" height="100" fill="url(#g${t.id})"/><polyline points="${pts}" fill="none" stroke="#160a12" stroke-width="7" stroke-linejoin="round"/><polyline points="${pts}" fill="none" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
 }
 
@@ -8843,7 +9172,8 @@ class Game {
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
     if (R.swag && R.swag.best >= 3) items.push([`Best swag chain (${R.swag.best})`, R.swag.best * 25]);
-    if (R.boss && P.finished && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);   // the boss on the maxed bike
+    if (R.boss && P.finished && !P.eliminated && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);
+    if (R.chase && !R.chase.busted && P.finished) items.push(['Escaped the police van', 300]);   // the boss on the maxed bike
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
     SAVE.coins += total; SAVE.xp += total; SAVE.parts += M.rivals ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (M.rivals && pos === 1) SAVE.wins++;
@@ -8858,7 +9188,7 @@ class Game {
       cupTable = `<h3 style="margin-top:.8rem">CHAMPIONSHIP · ROUND ${this.cup.idx + 1}/${CUP_TRACKS.length}</h3><table class="cup-table">${table.map(([k, v], i) => `<tr class="${k === '__you' ? 'me' : ''}"><td>${i + 1}</td><td>${k === '__you' ? SAVE.name + ' (You)' : k}</td><td class="n">${v}</td></tr>`).join('')}</table>`;
     }
     persist();
-    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
+    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : R.chase && R.chase.busted ? 'PAKDA GAYA!' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
     const sub2 = `${R.def.short} · ${R.laps} lap${R.laps > 1 ? 's' : ''} · ${MODES[R.mode].label}${M.rivals ? ' · ' + R.diff.label : ''} · Best lap ${fmtTime(P.bestLap)}`;
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
     if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
@@ -9000,7 +9330,8 @@ class Game {
       // look ahead along the camera's heading, leaning a little into the coming bend
       const la = (far ? 6 : 4.6) + pk * 5, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
       const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
-      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5, lp.z + Math.cos(yawL) * la);
+      C.sl = smooth(C.sl || 0, T.p2p ? clamp(T.yAt(P.s + 14) - T.yAt(P.s), -4, 4) * 0.3 : 0, 3, dt);   // on the ghat the lens tips with the road: down the descents, up the climbs
+      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5 + C.sl, lp.z + Math.cos(yawL) * la);
       cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }
     // field of view opens with speed; boost adds a punch that settles back
@@ -9030,7 +9361,7 @@ class Game {
   bikeLights(dt) {
     if (!this._hero) this.heroLights(true); const H = this._hero, R = this.race; if (!R) return; H.g.visible = true;
     const P = R.player, T = R.track, rp = P.rig.root.position, yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 0.45 + night * 0.85 + (this.wet ? 0.25 : 0), b = this.fx ? this.fx.boostAmt : 0;
+    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = (0.45 + night * 0.85 + (this.wet ? 0.25 : 0)) * (T.p2p && night < 0.5 ? 0.35 : 1), b = this.fx ? this.fx.boostAmt : 0;   // (out in the open daylight the bike needs no studio lights)
     H.key.position.set(rp.x + fx * 1.6 + lx * 0.9, rp.y + 2.3, rp.z + fz * 1.6 + lz * 0.9); H.key.intensity = 4 * k;
     // boost no longer floods the road with pink/cyan light: the bolts flash a short electric-blue strobe instead
     const zap = R.street ? R.street.zapK : 0;

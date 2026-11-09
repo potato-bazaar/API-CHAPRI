@@ -311,7 +311,8 @@ class Game {
     add('nearMiss', 'Near misses'); add('launch', 'Perfect start'); add('leadLap', 'Laps led'); add('lapRecord', 'Lap record');
     if (R.clean && R.mode !== 'stunt' && P.laps.length) items.push(['Clean race (no falls)', PTS.clean]);
     if (R.swag && R.swag.best >= 3) items.push([`Best swag chain (${R.swag.best})`, R.swag.best * 25]);
-    if (R.boss && P.finished && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);   // the boss on the maxed bike
+    if (R.boss && P.finished && !P.eliminated && (!R.boss.finished || P.finishT < R.boss.finishT)) items.push(['Beat Toofan Bhai', 400]);
+    if (R.chase && !R.chase.busted && P.finished) items.push(['Escaped the police van', 300]);   // the boss on the maxed bike
     if (M.rivals) { if (pos === 1) { SAVE.streak = (SAVE.streak || 0) + 1; if (SAVE.streak % 3 === 0) items.push(['3 wins in a row', PTS.streak]); } else SAVE.streak = 0; }
     const sub = items.reduce((a, [, v]) => a + v, 0); const mult = M.rivals ? R.diff.mult : 1; const total = Math.round(sub * mult);
     SAVE.coins += total; SAVE.xp += total; SAVE.parts += M.rivals ? (pos === 1 ? 3 : pos <= 3 ? 2 : 1) : 1; SAVE.races++; if (M.rivals && pos === 1) SAVE.wins++;
@@ -326,7 +327,7 @@ class Game {
       cupTable = `<h3 style="margin-top:.8rem">CHAMPIONSHIP · ROUND ${this.cup.idx + 1}/${CUP_TRACKS.length}</h3><table class="cup-table">${table.map(([k, v], i) => `<tr class="${k === '__you' ? 'me' : ''}"><td>${i + 1}</td><td>${k === '__you' ? SAVE.name + ' (You)' : k}</td><td class="n">${v}</td></tr>`).join('')}</table>`;
     }
     persist();
-    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
+    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : R.chase && R.chase.busted ? 'PAKDA GAYA!' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
     const sub2 = `${R.def.short} · ${R.laps} lap${R.laps > 1 ? 's' : ''} · ${MODES[R.mode].label}${M.rivals ? ' · ' + R.diff.label : ''} · Best lap ${fmtTime(P.bestLap)}`;
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
     if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
@@ -468,7 +469,8 @@ class Game {
       // look ahead along the camera's heading, leaning a little into the coming bend
       const la = (far ? 6 : 4.6) + pk * 5, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
       const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
-      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5, lp.z + Math.cos(yawL) * la);
+      C.sl = smooth(C.sl || 0, T.p2p ? clamp(T.yAt(P.s + 14) - T.yAt(P.s), -4, 4) * 0.3 : 0, 3, dt);   // on the ghat the lens tips with the road: down the descents, up the climbs
+      this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5 + C.sl, lp.z + Math.cos(yawL) * la);
       cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }
     // field of view opens with speed; boost adds a punch that settles back
@@ -498,7 +500,7 @@ class Game {
   bikeLights(dt) {
     if (!this._hero) this.heroLights(true); const H = this._hero, R = this.race; if (!R) return; H.g.visible = true;
     const P = R.player, T = R.track, rp = P.rig.root.position, yaw = T.yawAt(P.s) + P.psi, fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = 0.45 + night * 0.85 + (this.wet ? 0.25 : 0), b = this.fx ? this.fx.boostAmt : 0;
+    const night = this.world && this.world.mood ? this.world.mood.night : 0, k = (0.45 + night * 0.85 + (this.wet ? 0.25 : 0)) * (T.p2p && night < 0.5 ? 0.35 : 1), b = this.fx ? this.fx.boostAmt : 0;   // (out in the open daylight the bike needs no studio lights)
     H.key.position.set(rp.x + fx * 1.6 + lx * 0.9, rp.y + 2.3, rp.z + fz * 1.6 + lz * 0.9); H.key.intensity = 4 * k;
     // boost no longer floods the road with pink/cyan light: the bolts flash a short electric-blue strobe instead
     const zap = R.street ? R.street.zapK : 0;

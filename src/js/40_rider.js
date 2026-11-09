@@ -71,6 +71,7 @@ class Rider {
       else if (this.surf === 3) a -= 0.9 + this.v * 0.05; }    // steps
     // stairs: every step edge kicks the suspension
     if (this.surf === 3 && !this.air) { const S = T.stairs, si = Math.floor(T.wrapD(this.s - S.s0) / S.tread); if (si !== this.lastStep) { this.lastStep = si; this.suspV -= (T.stairDir(this.s) > 0 ? 1.5 : 1.0) * Math.min(1.2, this.v / 9); this.stepHit = (this.stepHit || 0) + 1; } } else this.lastStep = -1;
+    if (T.p2p && !this.air) a -= G * clamp(T.slopeAt(this.s), -0.22, 0.22) * 0.5;   // the ghat: gravity helps you down and holds you back on the climb
     this.v = Math.max(0, this.v + a * dt);
     // boost meter
     const fill = this.st.boostFill;
@@ -184,12 +185,14 @@ class Rider {
     if (Math.cos(this.psi) < -0.2 && this.v > 2) this.wrongT += dt; else this.wrongT = 0;
     // laps
     const lap = Math.floor(this.dist / T.L);
-    if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
+    if (T.p2p) { this.lap = Math.max(this.lap, this.dist >= 0 ? 0 : -1); if (!this.p2pDone && this.dist >= T.finS) { this.p2pDone = true; this.race.onLap(this, raceT); }
+      if (this.dist > T.finS + 125) { this.v = 0; this.dist = T.finS + 125; } }   // the road ends past the finish
+    else if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
   }
   surfaceHere(T) {
     if (T.inWater(this.s, this.d)) return 4;
     if (T.stairDir(this.s)) return 3;
-    let surf = T.laneAt(this.s, this.d) ? 2 : T.ug && T.dirtAt(this.s) ? 5 : 0;   // 5: the salt-pan kachha road
+    let surf = T.laneAt(this.s, this.d) ? 2 : (T.ug || T.hz) && T.dirtAt(this.s) ? 5 : 0;   // 5: the salt-pan kachha road
     for (const h of T.hazards) { if (h.type !== 'mud') continue; let ds = this.s - h.s; if (ds > T.L / 2) ds -= T.L; if (ds < -T.L / 2) ds += T.L;
       if (Math.abs(ds) < h.len / 2 && Math.abs(this.d - h.d) < h.hw * (1 - 0.35 * Math.abs(ds) / (h.len / 2))) return 1; }
     return surf;

@@ -3,17 +3,21 @@
 // s = distance along the lap, d = lateral offset (positive = left of travel).
 const STEP = 0.5;
 
-const ROAD_SCALE = { city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
+const ROAD_SCALE = { hills: 1.15, city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
 class Track {
   constructor(def) {
     this.def = def;
-    let raw = def.pts.map(p => new THREE.Vector3(p[0], 0, p[1]));
+    const xz = def.xzScale || 1; let raw = def.pts.map(p => new THREE.Vector3(p[0] * xz, 0, p[1] * xz));
     let c = new THREE.CatmullRomCurve3(raw, true, 'centripetal'); c.arcLengthDivisions = 4000;
-    const sc = def.target / c.getLength();
+    const sc = def.target ? def.target / c.getLength() : 1;
     raw = raw.map(p => p.multiplyScalar(sc));
     c = new THREE.CatmullRomCurve3(raw, true, 'centripetal'); c.arcLengthDivisions = 6000;
     this.curve = c;
+    this.xzS = sc * xz;
     const L = c.getLength();
+    // point-to-point stage: the control points carry their own heights, the race ends at one of them, and the lap only
+    // closes through a link nobody rides (nothing is built or placed there)
+    let keyF = null; if (def.p2p) { const n = def.pts.length, lens = c.getLengths(n * 40), tot = lens[lens.length - 1]; keyF = def.pts.map((q, i) => lens[i * 40] / tot); }
     const N = Math.round(L / STEP);
     this.N = N; this.L = N * STEP;
     const A = (n) => new Float32Array(n);
@@ -36,10 +40,16 @@ class Track {
     this.bumps = (def.bumps || []).map(b => ({ ...b, s: b.f * this.L }));
     for (const f of def.triples || []) for (let k = -1; k <= 1; k++) this.bumps.push({ s: f * this.L + k * 3.4, h: 0.13, len: 1.5, type: 'breaker', triple: true });
     this.rng = mulberry32(hashStr(def.id));
+    const base = this.baseY = A(N);
+    if (def.p2p) { this.p2p = true; const sAt = this.sAt = (a) => { const i = Math.floor(a), t = a - i, n = keyF.length; return lerp(keyF[i % n], i + 1 >= n ? 1 : keyF[i + 1], t) * this.L; };
+      this.finS = sAt(def.p2p.finish); this.hz = {}; for (const k in def.p2p.zones) this.hz[k] = def.p2p.zones[k].map(sAt);
+      const keys = def.pts.map((q, i) => [keyF[i], q[2]]); for (let i = 0; i < N; i++) base[i] = cyclicKey(keys, i / N, false);
+      for (let pass = 0; pass < 2; pass++) { const src = base.slice(), win = 28; for (let i = 0; i < N; i++) { let sum = 0; for (let j = -win; j <= win; j += 4) sum += src[(i + j + N) % N]; base[i] = sum / (2 * win / 4 + 1); } }
+      for (const b of def.p2p.bumps || []) this.bumps.push({ ...b, s: sAt(b.at) }); }
     this.planShortcuts(def.shortcuts || 0);
     this.planSetPieces(def);
     for (let i = 0; i < N; i++) {
-      const s = i * STEP; let y = def.elev ? cyclicKey(def.elev, i / N, false) : 0;
+      const s = i * STEP; let y = def.elev ? cyclicKey(def.elev, i / N, false) : base[i];
       y += this.roofRaw(s) + this.stairsRaw(s);
       for (const b of this.bumps) {
         let x = s - (b.s - b.len / 2); if (x < -this.L / 2) x += this.L; if (x > this.L / 2) x -= this.L;
@@ -84,7 +94,7 @@ class Track {
   wrapD(x) { if (x > this.L / 2) x -= this.L; if (x < -this.L / 2) x += this.L; return x; }
   planSetPieces(def) {
     const N = this.N, L = this.L; this.roof = null; this.halls = []; this.kickers = []; this.coins = []; this.rail = null; this.stairs = null; this.nala = null; this.nakas = []; this.dogSpots = []; this.pieceZones = [];
-    const busy = [[0, 90], [L - 45, L]]; for (const b of this.bumps) busy.push([b.s - b.len - 14, b.s + b.len + 14]); for (const sc of this.shortcuts) busy.push([sc.s - sc.half - 6, sc.s + sc.half + 6]);
+    const busy = [[0, 90], [L - 45, L]]; if (this.p2p) busy.push([this.finS - 60, L]); for (const b of this.bumps) busy.push([b.s - b.len - 14, b.s + b.len + 14]); for (const sc of this.shortcuts) busy.push([sc.s - sc.half - 6, sc.s + sc.half + 6]);
     if (def.elev) for (let i = 0; i < N; i += 4) if (cyclicKey(def.elev, i / N, false) > 0.3) busy.push([i * STEP - 25, i * STEP + 25]);
     const free = (a, b) => !busy.some(([x, y]) => a < y && b > x);
     // straight-ish runs
@@ -123,7 +133,7 @@ class Track {
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
     // nitro strips on every track (the Underground authors its own): on straights, spread round the lap, a coin line after each
-    if (!def.underground) { this.nitros = []; const n = Math.max(3, Math.round(L / 480));
+    if (!def.underground) { this.nitros = []; const n = this.p2p ? 7 : Math.max(3, Math.round(L / 480));
       for (let k = 0; k < n; k++) { const s0 = take(34, 2); if (s0 === null) break; const s = s0 + 8, f = [0.3, -0.3, 0, 0.25, -0.2][k % 5], d = f * this.get(this.w0, s);
         this.nitros.push({ s, d, len: 8, hw: 1.0 }); this.pieceZones.push([s0, s0 + 34]); for (let i = 0; i < 4; i++) this.coins.push({ s: s + 11 + i * 3, d, h: 0.95 }); } }
   }
@@ -172,7 +182,10 @@ class Track {
   }
   // which Underground section is at s (or null)
   zoneAt(s) { const Z = this.ug; if (!Z) return null; for (const k of ['tunnel', 'chevron', 'cut', 'docks', 'bridge', 'kachha', 'market', 'metro']) { const [a, b] = Z[k]; const x = this.wrapD(s - a); if (x >= 0 && x <= b - a) return k; } return null; }
-  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : false; }
+  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : this.hz ? this.hillZone(s) === 'desert' : false; }
+  hillZone(s) { const Z = this.hz; if (!Z) return null; s = ((s % this.L) + this.L) % this.L; for (const k in Z) if (s >= Z[k][0] && s < Z[k][1]) return k; return null; }
+  // is this stretch of a point-to-point stage really there (start grid → run-off past the finish)?
+  live(s) { if (!this.p2p) return true; s = ((s % this.L) + this.L) % this.L; return s <= this.finS + 150 || s >= this.L - 90; }
   inTunnel(s) { return this.ug ? this.zoneAt(s) === 'tunnel' : false; }
   roofRaw(s) { const R = this.roof; if (!R) return 0; const x = this.wrapD(s - R.s0); if (x < 0 || x > R.len) return 0;
     for (const g of R.gaps) if (x >= g.x0 && x <= g.x0 + g.len) return 0;
@@ -200,7 +213,7 @@ class Track {
   // Potholes (small / big) and kichad (mud) patches, seeded per track so every race sees the same road
   placeHazards(def) {
     const R = this.rng, L = this.L; this.hazards = [];
-    const ok = (s, pad) => s > 70 && s < L - 35 && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4) && !this.pieceZones.some(([a, b]) => s > a - pad && s < b + pad);
+    const ok = (s, pad) => s > 70 && s < (this.p2p ? this.finS - 40 : L - 35) && !this.bumps.some(b => Math.abs(b.s - s) < b.len + pad) && !this.shortcuts.some(sc => Math.abs(s - sc.s) < sc.half + 4) && !this.pieceZones.some(([a, b]) => s > a - pad && s < b + pad);
     const spot = (pad) => { for (let t = 0; t < 40; t++) { const s = 70 + R() * (L - 105); if (ok(s, pad) && !this.hazards.some(h => Math.abs(h.s - s) < 14)) return s; } return null; };
     const add = (type, n, fn) => { for (let k = 0; k < n; k++) { const s = spot(8); if (s === null) continue; this.hazards.push(fn(s)); } };
     add('pothole', def.potholes || 0, (s) => { const w = this.get(this.w0, s) / 2 - 1; return { type: 'pothole', s, d: (R() * 2 - 1) * w, r: 0.42 + R() * 0.25, big: false }; });

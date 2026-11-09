@@ -10,7 +10,7 @@ const MOODS = {
     grade: { lift: 0.085, gamma: 0.84, sat: 1.15, tint: [0.97, 0.97, 1.04], liftC: [0.62, 0.66, 1.0], warm: 0.0, contrast: 1.06, vig: 0.24, dof: 0.6 } },
 };
 const WALL_COLS = { city: ['#efe3cf', '#e8b4b8', '#9fd3c7', '#f2c46d', '#d98a6a', '#c9d1d9', '#b8a3d1', '#f5e6cc', '#7fb3a8', '#e6c9a8'], basti: ['#3e8e8a', '#c96f4a', '#e8b4b8', '#9fd3c7', '#d9c27a', '#b5a58f', '#8fb6d9', '#e09a6a', '#c9c2b5'], market: ['#e6c9a8', '#d98a6a', '#f2c46d', '#c96f4a', '#efe3cf', '#9fd3c7'] };
-const SIDEWALK = { city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
+const SIDEWALK = { hills: 0.9, city: 3.4, market: 3.2, basti: 0.9, sea: 5.0, flyover: 2.6 };
 // the verge between the footpath and the building line (Auto Rush keeps the scenery back: you read the road, not the props)
 const VERGE = { city: 7.5, market: 4.0, basti: 0, sea: 4.0, flyover: 6.0 };
 
@@ -50,6 +50,9 @@ class World {
     const T = this.track, th = this.theme;
     const B = { grass: new Batch(), dirt: new Batch(), road: new Batch(), kerb: new Batch(), pave: new Batch(), facade: new Batch(), basti: new Batch(), shops: new Batch(), signs: new Batch(), props: new Batch(), tin: new Batch(), tarp: new Batch(), glow: new Batch(), pool: new Batch(), marks: new Batch() };
     this.B = B;
+    const hills = th === 'hills';   // the ghat stage builds its own road and land (25_hills.js)
+    if (hills) { this.buildSetPieces(B); this.buildHills(B); this.buildStreet(B); }
+    else {
     this.buildRoad(B);
     this.buildRoadside(B);
     this.buildVerge(B);
@@ -64,6 +67,7 @@ class World {
     this.buildStreet(B);
     this.buildSpeedClutter(B);
     this.buildMarkings(B);
+    }
     this.whoosh.sort((a, b) => a.s - b.s);
     this.placePickups();
     this.buildHazards();
@@ -87,7 +91,7 @@ class World {
     const sea = this.def.sea;
     const gw = 3200, gx0 = sea ? sea.x - 2 : -gw / 2, gx1 = gw / 2;
     const gg = new THREE.PlaneGeometry(gx1 - gx0, gw); gg.rotateX(-Math.PI / 2); gg.translate((gx0 + gx1) / 2 + T.cx, -0.06, T.cz);
-    const ground = new THREE.Mesh(gg, this.mats.ground); ground.receiveShadow = true; this.group.add(ground); this.disposables.push(gg);
+    const ground = new THREE.Mesh(gg, this.mats.ground); ground.receiveShadow = true; if (!hills) this.group.add(ground); this.disposables.push(gg);
     if (sea) this.buildSea(sea);
     this.buildSky();
     this.buildLampGlows();
@@ -712,7 +716,7 @@ class World {
       const n = 10;
       for (let i = 0; i < n; i++) { const x0 = i / n * k.len, x1 = (i + 1) / n * k.len, y0 = k.h * Math.pow(x0 / k.len, 1.25), y1 = k.h * Math.pow(x1 / k.len, 1.25);
         T.pos(k.s + x0, k.d - k.hw, pA, y0 + 0.02); T.pos(k.s + x1, k.d - k.hw, pB, y1 + 0.02); T.pos(k.s + x1, k.d + k.hw, pC, y1 + 0.02); T.pos(k.s + x0, k.d + k.hw, pD, y0 + 0.02);
-        if (k.naka) B.glow.quad(pA, pB, pC, pD, new THREE.Color(i % 2 ? '#ffc21a' : '#1a1a1a'), undefined, UP); else B.props.quad(pA, pB, pC, pD, i % 2 ? '#a8743a' : '#93602c', undefined, UP);
+        if (k.naka) B.glow.quad(pA, pB, pC, pD, new THREE.Color(i % 2 ? '#ffc21a' : '#1a1a1a'), undefined, UP); else B.props.quad(pA, pB, pC, pD, k.over === 'rocks' ? (i % 2 ? '#9a9082' : '#8a8072') : i % 2 ? '#a8743a' : '#93602c', undefined, UP);
         for (const sg of [-1, 1]) { T.pos(k.s + x0, k.d + sg * k.hw, pA, 0); T.pos(k.s + x1, k.d + sg * k.hw, pB, 0); T.pos(k.s + x1, k.d + sg * k.hw, pC, y1); T.pos(k.s + x0, k.d + sg * k.hw, pD, y0); B.props.quad(pA, pB, pC, pD, '#6e4a24'); } }
       T.pos(k.s + k.len, k.d - k.hw, pA, 0); T.pos(k.s + k.len, k.d + k.hw, pB, 0); T.pos(k.s + k.len, k.d + k.hw, pC, k.h); T.pos(k.s + k.len, k.d - k.hw, pD, k.h); B.props.quad(pA, pB, pC, pD, '#5a3c1c');
       for (const x of [k.len * 0.55, k.len * 0.85]) { T.pos(k.s + x, k.d, p, 0); const yaw = T.yawAt(k.s + x); for (let j = 0; j < 3; j++) B.props.box(p.x, p.y + j * 0.32, p.z, k.hw * 1.6, 0.3, 0.55, yaw + (RNG() - 0.5) * 0.1, pick(['#b07a3a', '#c88a4a', '#2f8a3e', '#c8321e'])); }
@@ -720,7 +724,8 @@ class World {
       const dims = k.over === 'autos' ? [0.7, 1.35] : k.over === 'carts' ? [0.6, 1.1] : k.over === 'reels' ? [0.75, 0.7] : [0.45, 1.1];
       if (k.naka) { T.pos(k.s + k.len, k.d - k.hw, pA, k.h + 0.03); T.pos(k.s + k.len, k.d + k.hw, pB, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d + k.hw, pC, k.h + 0.03); T.pos(k.s + k.len - 0.25, k.d - k.hw, pD, k.h + 0.03); B.glow.quad(pA, pB, pC, pD, new THREE.Color('#39ff6a'), undefined, UP); continue; }
       for (const off of [5.5, 10.5, 15.5]) { if (k.over !== 'autos' && off > 14) continue; const s = k.s + k.len + off; T.pos(s, k.d, p); const yaw = T.yawAt(s);
-        this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : 'drums', kicker: k });
+        this.obstacles.push({ s, d: k.d, hw: dims[0], hl: dims[1], kind: k.over === 'autos' ? 'auto' : k.over === 'carts' ? 'cart' : k.over === 'rocks' ? 'rock' : 'drums', kicker: k });
+        if (k.over === 'rocks') { for (let i = 0; i < 3; i++) { const r = 0.45 + RNG() * 0.3; B.props.geom(BLOB, p.x + (RNG() - 0.5) * 0.8, p.y + r * 0.5, p.z + (i - 1) * 0.75, RNG() * 6, r, r * 0.8, r, pick(['#8a8276', '#7d7568', '#96866e'])); } continue; }
         if (k.over === 'autos') this.auto(B, p.x, p.y, p.z, yaw + (RNG() - 0.5) * 0.15, RNG() < 0.5 ? 'kaali' : 'cng');
         else if (k.over === 'carts') { B.props.box(p.x, p.y + 0.55, p.z, 1.2, 0.12, 2.2, yaw, '#8a5a32'); for (const sg of [-1, 1]) B.props.geom(WHEEL_G, p.x + Math.sin(yaw) * sg * 0.55, p.y + 0.3, p.z + Math.cos(yaw) * sg * 0.55, yaw, 1.5, 1.5, 1.5, '#2a2a2a');
           for (let i = 0; i < 14; i++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 1, p.y + 0.72 + RNG() * 0.2, p.z + (RNG() - 0.5) * 1.8, RNG() * 6, 0.14, 0.14, 0.14, pick(['#ff7a2f', '#ffd23f', '#d43c2c', '#9be15d'])); }
@@ -799,7 +804,7 @@ class World {
   placePickups() {
     const T = this.track; const types = ['sting', 'rod', 'sting', 'bottle', 'sting', 'gutka', 'sting', 'katta', 'sting', 'chain', 'sting', 'belt'];
     let i = 0;
-    for (let s = 140; s < T.L - 40; s += 105) {
+    for (let s = 140; s < (T.p2p ? T.finS - 60 : T.L - 40); s += 105) {
       const type = types[i++ % types.length]; const w = T.w0At(s) / 2;
       let d = type === 'sting' ? T.rlAt(s) * 0.6 : (i % 2 ? 1 : -1) * Math.max(0, w - 1.1);
       if (this.obstacles.some(o => Math.abs(o.s - s) < 6 && Math.abs(o.d - d) < 1.5)) d = -d;
@@ -894,7 +899,8 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     if (wet) { this.hemi.color.lerp(new THREE.Color(nt ? '#5a6688' : '#c4cede'), 0.7); this.hemi.groundColor.lerp(new THREE.Color(nt ? '#262634' : '#5a5862'), 0.6); }
     this.hemi.intensity = M.hemiI * (wet ? (nt ? 1.0 : 1.1) : 1); this.hemiBase = this.hemi.intensity;
     const fogC = new THREE.Color(M.fog); if (wet) fogC.lerp(new THREE.Color(nt ? '#2a2f3e' : '#9ba2b0'), 0.75);
-    this.fog = new THREE.Fog(fogC, M.fogNear * (wet ? 0.55 : 1), M.fogFar * (wet ? 0.72 : 1));
+    const open = this.theme === 'hills' ? 2.7 : 1;   // out in the hills you see for miles
+    this.fog = new THREE.Fog(fogC, M.fogNear * (wet ? 0.55 : 1) * open, M.fogFar * (wet ? 0.72 : 1) * open);
     const n = M.night;
     const lit = Math.max(n, wet ? 0.45 : 0);   // dark monsoon afternoons: windows, shops and signs switch on
     this.mats.facade.emissive.set('#ffb347').multiplyScalar(lit * 0.9 + 0.05);
@@ -919,6 +925,7 @@ void main(){ float w = sin(vW.x*0.08 + time*0.9)*0.5 + sin(vW.z*0.11 - time*1.3 
     if (this.coinMesh) this.updateCoins(t);
     if (this.updateStage) this.updateStage(dt, t, focus);
     if (this.ugRT) this.updateUnderground(dt, t, camera, focus);
+    if (this.hS) this.hillAir(dt, focus);
     if (this.train) { this.trainT += dt; const x = -360 + this.trainT * 30; if (x > 360) { this.trainT = -8 - Math.random() * 10; this.trainDir = -this.trainDir; this.trainHorned = false; }
       this.placeTrain(this.trainDir * Math.max(-400, x)); this.train.visible = this.trainT > 0;
       if (focus && this.trainT > 0 && !this.trainHorned) { const d = this.train.position.distanceTo(focus); if (d < 170) { this.trainHorned = true; AUDIO.trainHorn(clamp(1 - d / 220, 0.2, 1)); } } }

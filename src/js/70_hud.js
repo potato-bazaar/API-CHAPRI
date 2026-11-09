@@ -18,24 +18,24 @@ class HUD {
   }
   setupRace(race) {
     this.race = race; const T = race.track;
-    this.root.classList.toggle('no-combat', !race.combatOn); this.root.classList.toggle('police', !!race.police); this.heatEl = $('#heat'); this.heatEl.hidden = !race.police; this.boostEl = $('#boostBanner'); this.boostEl.hidden = true; this.boostOn = false;
+    this.root.classList.toggle('no-combat', !race.combatOn); this.root.classList.toggle('police', !!race.police); this.heatEl = $('#heat'); this.heatEl.hidden = !(race.police || race.chase); this.root.classList.toggle('chase', !!race.chase); this.boostEl = $('#boostBanner'); this.boostEl.hidden = true; this.boostOn = false;
     this.root.classList.toggle('touch', IS_TOUCH);
     this.el.stand.innerHTML = ''; this.rows = [];
     const n = race.police ? 1 : race.riders.length; this.el.stand.hidden = n < 2;
     for (let i = 0; i < n && n > 1; i++) { const li = document.createElement('li'); li.innerHTML = `<span>${i + 1}</span><em></em><i class="gap"></i>`; this.el.stand.appendChild(li); this.rows.push(li); }
     this.el.of.textContent = n > 1 ? `/${n}` : '';
     // minimap
-    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; for (let i = 0; i < T.N; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; const mN = T.p2p ? Math.floor((T.finS + 40) / STEP) : T.N; for (let i = 0; i < mN; i += 8) { minX = Math.min(minX, T.px[i]); maxX = Math.max(maxX, T.px[i]); minZ = Math.min(minZ, T.pz[i]); maxZ = Math.max(maxZ, T.pz[i]); }
     const sc = 84 / Math.max(maxX - minX, maxZ - minZ); const ox = 50 - (minX + maxX) / 2 * sc, oz = 50 - (minZ + maxZ) / 2 * sc;
     this.mmMap = (x, z) => [(x * sc + ox), (z * sc + oz)];
-    let d = ''; for (let i = 0; i <= T.N; i += 8) { const j = i % T.N; const [x, y] = this.mmMap(T.px[j], T.pz[j]); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
+    let d = ''; for (let i = 0; i <= mN; i += 8) { const j = i % T.N; const [x, y] = this.mmMap(T.px[j], T.pz[j]); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
     let narrow = ''; for (let i = 0; i < T.N; i += 8) { if (T.w[i] < 5) { const [x, y] = this.mmMap(T.px[i], T.pz[i]); const j = (i + 8) % T.N; const [x2, y2] = this.mmMap(T.px[j], T.pz[j]); narrow += `M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } }
-    let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(T.N * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
+    let cps = ''; for (let c = 1; c < 8; c++) { const i = Math.floor(mN * c / 8); const [x, y] = this.mmMap(T.px[i], T.pz[i]); cps += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#ff2e88"/>`; }
     const [sx, sy] = this.mmMap(T.px[0], T.pz[0]);
     let dots = ''; for (let i = race.riders.length - 1; i >= 0; i--) dots += `<circle id="mmd${i}" r="${race.riders[i].isPlayer ? 3.2 : 2.2}" fill="${race.riders[i].isPlayer ? '#ffc21a' : race.riders[i].cfg.cop ? '#2a58ff' : '#ffffff'}" stroke="${race.riders[i].isPlayer ? '#ff2e88' : '#20112a'}" stroke-width="1"/>`;
     this.el.mm.innerHTML = `<path d="${d}" fill="none" stroke="#20112a" stroke-width="7" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#f4f0f6" stroke-width="3.6" stroke-linejoin="round"/><path d="${narrow}" fill="none" stroke="#ffc21a" stroke-width="2" stroke-dasharray="2 2"/>${cps}<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="2.6" fill="#28c76f" stroke="#fff" stroke-width=".8"/>${dots}`;
     this.mmDots = race.riders.map((_, i) => $('#mmd' + i, this.el.mm));
-    this.el.mmName.innerHTML = `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
+    this.el.mmName.innerHTML = T.p2p ? `${race.def.short}<br><small>${(T.finS / 1000).toFixed(1)} km · one way</small>` : `${race.def.short}<br><small>${(T.L / 1000).toFixed(1)} km · ${race.laps} lap${race.laps > 1 ? 's' : ''}</small>`;
     this.el.callouts.innerHTML = ''; this.el.pops.innerHTML = ''; this.pops = []; this.el.toast.hidden = true; this.el.big.hidden = true; this.el.splat.hidden = true; this.el.wrong.hidden = true;
     const rec = SAVE.records[race.def.id]; this.el.best.textContent = rec && rec.bestLap ? fmtTime(rec.bestLap) : '--:--';
     this.tagXY = null; this.el.tag.hidden = true; this.tagKey = '';
@@ -60,12 +60,13 @@ class HUD {
     const multi = R.riders.length > 1 && !R.police;
     setText(this.el.pos, multi ? (R.playerPos || pos) : (R.police ? '🚨' : R.mode === 'stunt' ? '★' : '⏱'));
     setText(this.el.suf, multi ? ordinal(R.playerPos || pos) : '');
-    if (R.police) { const PO = R.police, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
+    if (R.police || R.chase) { const PO = R.police || R.chase, h = PO.heat; this.heatEl.style.setProperty('--heat', (h / 100).toFixed(3)); setStyle($('#heatFill'), 'width', h.toFixed(1) + '%'); this.heatEl.classList.toggle('hot', h > 65);
       setText($('#copGap'), PO.copDist > 300 || !isFinite(PO.copDist) ? 'lost' : `${Math.round(PO.copDist)} m`); setText($('#heatLbl'), PO.busted ? 'PAKDA GAYA!' : h > 65 ? 'BHAAG! BUSTED METER' : 'BUSTED METER'); }
     // boost: banner on top + the dial turns electric
     if (P.boosting !== this.boostOn) { this.boostOn = P.boosting; const sp = this.el.speed.closest('.speedo'); sp.classList.toggle('boosting', P.boosting);
       if (P.boosting && !REDUCED_MOTION) { this.boostEl.hidden = false; this.boostEl.classList.remove('go'); void this.boostEl.offsetWidth; this.boostEl.classList.add('go'); } else if (!P.boosting) { clearTimeout(this._bbT); this._bbT = setTimeout(() => { if (!this.boostOn) this.boostEl.hidden = true; }, 250); } }
-    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); setText(this.el.lap, `${lapShown}/${R.laps}`);
+    const lapShown = clamp(Math.max(0, P.lap) + 1, 1, R.laps); if (R.track.p2p) { setText($('#hLapLbl'), 'TO GO'); setText(this.el.lap, `${(Math.max(0, R.track.finS - P.dist) / 1000).toFixed(1)}km`); } else { setText($('#hLapLbl'), 'LAP'); setText(this.el.lap, `${lapShown}/${R.laps}`); }
+    if (R.chase) this.root.classList.toggle('cop-near', R.state === 'racing' && R.chase.on && R.chase.copDist < 26);
     const lt = R.state === 'racing' ? R.raceT - P.lapStart : R.state === 'finished' ? (P.laps[P.laps.length - 1] || 0) : 0;
     setText(this.el.time, fmtTimeLong(Math.max(0, R.mode === 'stunt' ? R.raceT : lt)));
     if (isFinite(P.bestLap)) { const rec = SAVE.records[R.def.id]; setText(this.el.best, fmtTime(Math.min(P.bestLap, rec && rec.bestLap || 1e9))); }

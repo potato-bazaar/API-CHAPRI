@@ -9,7 +9,7 @@ class Race {
     this.wet = setup.weather === 'monsoon';
     const M = MODES[this.mode];
     this.combatOn = M.combat === 'force' ? true : M.combat ? !!setup.combat : false;
-    this.laps = M.fixedLaps || setup.laps;
+    this.laps = M.fixedLaps || setup.laps; if (this.track.p2p) this.laps = 1;   // a point-to-point stage is one run
     this.group = new THREE.Group();
     this.riders = []; this.raceT = -3.4; this.state = 'countdown'; this.slowmo = 0;
     this.score = {}; this.swag = { n: 0, t: 0, best: 0 }; this.events = []; this.clean = true; this.lapRecordDone = false; this.launch = { jump: false, done: false };
@@ -65,6 +65,7 @@ class Race {
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
     const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
     if (M.police) this.police = new PoliceOps(this);
+    if (this.def.chase && !M.police) this.chase = new ChaseOps(this);   // the ghat stage: a police van behind the pack
     this.street = new StreetOps(this);
     if (T0.ug) this.ug = new UGOps(this);
     this.taunts = new Taunts(this);
@@ -104,7 +105,7 @@ class Race {
     const steps = Math.max(1, Math.ceil(dt / (1 / 90))); const h = dt / steps;
     for (let i = 0; i < steps; i++) {
       for (const r of this.riders) if ((!r.isPlayer || DEBUG.autopilot) && !r.cinematic) { if (!r.eliminated) r.think(h, this.raceT, this.riders); }
-      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; } r.step(h, this.raceT); }
+      for (const r of this.riders) { if (r.eliminated || r.cinematic) continue; if (r.finished) { r.input.throttle = 0.4; r.input.brake = r.v > 14 ? 0.3 : 0; r.input.boost = false; if (this.track.p2p) { r.input.throttle = r.v < 6 && r.dist < this.track.finS + 70 ? 0.3 : 0; r.input.brake = r.v > 7 ? 0.8 : 0; } } r.step(h, this.raceT); }
       this.interactions(h);
     }
     for (const r of this.riders) if (!r.isPlayer && !r.eliminated) this.combat.aiFight(r, dt);
@@ -112,7 +113,7 @@ class Race {
     if (this.stage) this.stage.update(dt);
     if (this.ug) this.ug.update(dt);
     this.street.update(dt);
-    if (this.police) this.police.update(dt);
+    if (this.police) this.police.update(dt); if (this.chase) this.chase.update(dt);
     this.collectCoins();
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
@@ -153,7 +154,7 @@ class Race {
           // Road Rash rules: how fast you close on it, how square you hit it and how heavy it is decide what happens.
           // A clip staggers you, a solid hit throws the bike into a skid that bleeds speed, a hard square hit puts you down.
           const head = head0, car = o.car;
-          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05 }[o.kind] || 0.9);
+          const close = Math.max(0, a.v - (car ? car.v : 0)), mass = car ? ({ bus: 1.3, tempo: 1.15, taxi: 1.0, auto: 0.9 }[car.kind] || 1) : ({ drums: 0.75, crates: 0.7, cart: 0.9, auto: 1.05, rock: 1.2, tree: 1.3 }[o.kind] || 0.9);
           const sev = clamp(close / 16, 0, 1.6) * (0.4 + 0.6 * head) * mass * (this.diff.sev || 1) * (a.isPlayer ? 1 : 0.55);   // rivals are locals: traffic rarely catches them square
           const res = a.skid(sg, sev); a.psi = sg * 0.1; a.shoveV = sg * (1.6 + sev * 2.2); if (res !== 'crash') a.rig.react && a.rig.react('hit', sg);
           if (res !== 'none') this.onSkid(a, res, sev, o);
@@ -338,7 +339,7 @@ class Race {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
-  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); }
+  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); if (this.chase) this.chase.dispose(); }
 }
 function buildStatsStock() { const b = BUILDS[0]; return { build: b, top: 100, acc: 1, lean: 45, grip: 1, brake: 1, wobbleRes: 1, zeroTo100: 7.8, boostFill: 1, wheelieEase: 0, lvls: {} }; }
 function makeGhost(rig) { const m = new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.32, depthWrite: false }); rig.root.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = false; } }); rig.blob.visible = false; }

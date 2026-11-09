@@ -163,7 +163,7 @@ class UI {
     seg('#sMode', Object.entries(MODES).filter(([k]) => k !== 'cup').map(([k, m]) => [k, m.label]), s.mode, v => { s.mode = v; if (MODES[v].track) this.game.previewTrack(MODES[v].track); });
     $('#sModeDesc').textContent = M.desc;
     const tSel = M.track || s.track;
-    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small>${t.main ? '<em class="tnew">NEW · MAIN MAP</em>' : ''}</button>`).join('');
+    $('#sTracks').innerHTML = TRACKS.map(t => `<button type="button" class="tcard ${t.id === tSel ? 'on' : ''}" ${M.track && t.id !== M.track ? 'disabled' : ''} data-track="${t.id}">${trackThumb(t)}<b>${t.short}</b><small>${(t.km || t.target / 1000).toFixed(1)} km · ${t.lapTarget}</small>${t.main ? '<em class="tnew">NEW · MAIN MAP</em>' : ''}</button>`).join('');
     $$('[data-track]').forEach(b => b.addEventListener('click', () => { s.track = b.dataset.track; persist(); AUDIO.click(); this.renderSetup(); this.game.previewTrack(s.track); }));
     const lapOpts = [[1, '1'], [2, '2'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 2, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
     seg('#sLaps', lapOpts, M.fixedLaps || s.laps, v => (s.laps = +v), () => !!M.fixedLaps);
@@ -252,9 +252,9 @@ class UI {
   }
 }
 function trackThumb(t) {
-  const P = []; let raw = t.pts; let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; raw.forEach(([x, z]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); });
-  const sc = 80 / Math.max(maxX - minX, maxZ - minZ); const c = new THREE.CatmullRomCurve3(raw.map(([x, z]) => new THREE.Vector3((x - (minX + maxX) / 2) * sc + 60, 0, (z - (minZ + maxZ) / 2) * sc + 50)), true, 'centripetal');
+  const P = []; let raw = t.p2p ? t.pts.slice(0, t.p2p.finish + 1) : t.pts; let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9; raw.forEach(([x, z]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); });
+  const sc = 80 / Math.max(maxX - minX, maxZ - minZ); const c = new THREE.CatmullRomCurve3(raw.map(([x, z]) => new THREE.Vector3((x - (minX + maxX) / 2) * sc + 60, 0, (z - (minZ + maxZ) / 2) * sc + 50)), !t.p2p, 'centripetal');
   const pts = c.getPoints(80).map(p => `${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(' ');
-  const bg = { city: '#5b2c86,#e0589a', market: '#c96f4a,#ffb067', basti: '#3e8e8a,#c96f4a', sea: '#0b1a30,#3a6f8a', flyover: '#4a2a5c,#ff8a1f' }[t.theme].split(',');
+  const bg = { hills: '#3f7f4a,#e08a3c', city: '#5b2c86,#e0589a', market: '#c96f4a,#ffb067', basti: '#3e8e8a,#c96f4a', sea: '#0b1a30,#3a6f8a', flyover: '#4a2a5c,#ff8a1f' }[t.theme].split(',');
   return `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="g${t.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg[0]}"/><stop offset="1" stop-color="${bg[1]}"/></linearGradient></defs><rect width="120" height="100" fill="url(#g${t.id})"/><polyline points="${pts}" fill="none" stroke="#160a12" stroke-width="7" stroke-linejoin="round"/><polyline points="${pts}" fill="none" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>`;
 }

@@ -170,7 +170,7 @@ const AUDIO = {
     MUSIC.engineDuck(this._take);
     let near = null, nd = 1e9; for (const r of race.riders) { if (r === P || r.eliminated) continue; const d = Math.abs(r.dist - P.dist) + Math.abs(r.d - P.d) * 2; if (d < nd) { nd = d; near = r; } }
     if (near) { const closing = (P.v - near.v) * Math.sign(near.dist - P.dist || 1); const doppler = 1 + 0.16 * Math.tanh(closing / 6); this.setEngine(this.riv, near.rpm * 0.97, near.input.throttle, clamp(1 - nd / 35, 0, 1) * 0.55, near.boosting, (near.rig && near.rig.o && near.rig.o.mods && near.rig.o.mods.exhaust) || 'stock', doppler); } else this.riv.out.gain.setTargetAtTime(0, t, 0.2);
-    this.siren(race.police && race.state === 'racing' ? clamp(1.1 - (race.police.copDist || 99) / 90, 0.1, 1) : 0);
+    { const po = race.police || race.chase; this.siren(po && (race.chase ? po.on : true) && race.state === 'racing' ? clamp(1.1 - (po.copDist || 99) / 90, 0.1, 1) : 0); }
     const vn = clamp(P.v / 30, 0, 1.3); this.wind.gain.setTargetAtTime(vn * vn * 0.17 + (P.boosting ? 0.07 : 0), t, 0.15);
     this.rain.gain.setTargetAtTime(race.wet ? (race.world && race.world.ugCover ? 0.02 : 0.11) : 0, t, 0.5);
     // tyre voice

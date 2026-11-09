@@ -734,3 +734,12 @@ kbd { font-family: var(--f-num); }
 .swag.bump { animation: swagBump .28s ease-out; } @keyframes swagBump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @media (orientation: portrait) { .swag { top: 30%; } .swag b { font-size: 2rem; } }
 @media (prefers-reduced-motion: reduce) { .swag.bump { animation: none; } }
+
+/* ghat stage: the police van's meter sits beside the timer, clear of the standings */
+#hud.chase .heat { top: max(.55rem, env(safe-area-inset-top, 0px)); left: calc(max(14px, env(safe-area-inset-left, 0px)) + 23.5rem); width: 11.5rem; padding: .35rem .55rem .4rem; }
+#hud.chase .heat small { display: none; }
+@media (orientation: portrait) { #hud.chase .heat { top: calc(max(.55rem, env(safe-area-inset-top, 0px)) + 6.2rem); left: max(14px, env(safe-area-inset-left, 0px)); width: 10.5rem; } }
+/* the van is right behind you: its lights wash the edges of the screen */
+#hud.cop-near::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: copFlash .46s steps(1) infinite; }
+@keyframes copFlash { 0% { box-shadow: inset 0 0 110px 10px rgba(255, 30, 46, .5); } 50% { box-shadow: inset 0 0 110px 10px rgba(42, 88, 255, .55); } }
+@media (prefers-reduced-motion: reduce) { #hud.cop-near::after { animation: none; box-shadow: inset 0 0 90px rgba(255, 30, 46, .35); } }

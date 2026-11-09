@@ -4,6 +4,19 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
+## Lonavala Ghat Escape (v38): the first point-to-point stage
+
+A 4.8 km one-way run, no laps: start on a hill top, finish at a fort on the next hill. Pick it in Race Setup → **Ghat Escape**.
+
+- **Four kinds of country in one run:** a pine ghat with hairpins, a lake shore, a red canyon on a kachha road with rock lips to jump, and the climb to the fort. The air changes with it (mist in the pines, warm dust in the canyon).
+- **The land is generated from the road** (`src/js/25_hills.js`): every point takes the height of the road near it, then mountains rise with distance; the canyon is cut in terraces. Trees, bushes, rocks and cactus are instanced (about 5,000 on High, plus roadside grass).
+- **Police van** (`src/js/49_chase.js`): waits by the start line, pulls out behind the pack and follows a little slower than you ride. Every so often, and whenever you crash or dawdle, it comes alongside and swipes across the road (dodge it for points). The BUSTED meter fills while it is close and you are slow or down; at 100 you are caught and classified last. It also knocks down rivals in its way.
+- **Things to hit and jump:** fallen rocks, trees standing on the road edge, five rock-ramp kickers, six rock lips in the canyon.
+- **How point-to-point works** (`p2p` in `src/js/10_tracks.js`, `src/js/15_track.js`): control points are `[x, z, height]`; the race ends at control point `finish`; the last few points only close the loop and nothing is built or placed there. Gravity helps downhill and holds you back on the climb.
+- Not tuned by a human yet: van aggression, the BUSTED rates and the jump sizes were set from autopilot runs.
+
+Also in v37: faces that read on both riders (finer ink line on the head, see-through lenses, a face light, a slightly bigger head).
+
 ## Play
 
 Open `dist/chapri-racer.html` in a desktop or mobile browser. It's a single self-contained file, but it needs an internet connection for the three.js CDN and the Google Fonts. Touch controls appear on phones, and the game plays upright (9:16) as well as sideways: in portrait the HUD restacks, the controls sit in the thumb zone and the camera rides higher and further back. A loading screen with a progress bar and tips shows while the game boots and again while each race builds. On a keyboard:
