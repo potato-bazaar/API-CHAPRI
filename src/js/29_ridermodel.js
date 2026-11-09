@@ -28,6 +28,7 @@ async function loadRiderModel() {
 }
 // ── Dogesh: a second rider model on the same skeleton (tools/model/build-dogesh.mjs) ──
 // Long hair, beard, wayfarers and gold hoops; saffron kurta, white churidar and an emerald brocade long jacket with gold zari.
+const HEAD_SCALE = 1.1;
 const DOGESH_MODEL = { ready: false, scene: null, mats: new Map() };
 async function loadDogeshModel() {
   try {
@@ -35,6 +36,8 @@ async function loadDogeshModel() {
     const gltf = await new ADDONS.GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await decodeEmbedded('dogeshglb'), '');
     const sc = gltf.scene, meshes = {}; sc.traverse(o => { if (o.isSkinnedMesh) meshes[o.name] = o; });
     for (const n of ['dg_body', 'dg_jacket', 'dg_hair', 'dg_beard', 'dg_glass', 'dg_ear']) if (!meshes[n]) throw new Error('missing ' + n);
+    DOGESH_MODEL.headBone = meshes.dg_body.skeleton.bones.findIndex(b => b.name === 'Head');
+    { const G = meshes.dg_glass.geometry; G.computeBoundingBox(); const b = G.boundingBox; DOGESH_MODEL.glassBox = [b.min.toArray(), b.max.clone().sub(b.min).toArray()]; }
     DOGESH_MODEL.atlas = meshes.dg_body.material.map; DOGESH_MODEL.scene = sc; DOGESH_MODEL.ready = true; return true;
   } catch (e) { console.warn('Dogesh model unavailable:', e && e.message); return false; }
 }
@@ -58,8 +61,18 @@ function dogeshMats(low) {
     body: low ? new THREE.MeshLambertMaterial({ map: DOGESH_MODEL.atlas }) : new THREE.MeshStandardMaterial({ map: DOGESH_MODEL.atlas, roughness: 0.68, metalness: 0 }),
     jacket: zariHook(low ? new THREE.MeshLambertMaterial({ map: brocadeTexture(), side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial({ map: brocadeTexture(), side: THREE.DoubleSide, roughness: 0.55, metalness: 0.08 })),
     beard: S({ color: '#241811', side: THREE.DoubleSide }, { roughness: 0.9 }),
-    glass: low ? new THREE.MeshLambertMaterial({ color: '#070709' }) : new THREE.MeshStandardMaterial({ color: '#060608', roughness: 0.12, metalness: 0.35, envMap: env, envMapIntensity: 1.4 }),
+    glass: low ? new THREE.MeshLambertMaterial({ color: '#070709', transparent: true }) : new THREE.MeshStandardMaterial({ color: '#060608', roughness: 0.12, metalness: 0.35, envMap: env, envMapIntensity: 1.4, transparent: true }),
   };
+  // his face keeps a little of its own light too (the head is whatever is skinned to the Head bone)
+  const hb = DOGESH_MODEL.headBone; M.body.onBeforeCompile = (sh) => { sh.vertexShader = 'varying float vHeadW;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  vHeadW = dot(skinWeight, vec4(equal(skinIndex, vec4(${hb}.0))));`);
+    sh.fragmentShader = 'varying float vHeadW;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * 0.24 * smoothstep(0.5, 0.9, vHeadW);'); };
+  M.body.customProgramCacheKey = () => 'dg-body-' + M.body.type;
+  // wayfarers: black frames, smoked lenses you can see his eyes through (the lenses are two ovals on the front of the mesh)
+  const gb = DOGESH_MODEL.glassBox; M.glass.onBeforeCompile = (sh) => { sh.vertexShader = 'varying vec3 vGN;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  vGN = (position - vec3(${gb[0].map(v => v.toFixed(5)).join(', ')})) / vec3(${gb[1].map(v => v.toFixed(5)).join(', ')});`);
+    sh.fragmentShader = 'varying vec3 vGN;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  { vec2 q = vec2((abs(vGN.x - 0.49) - 0.29) / 0.165, (vGN.y - 0.4) / 0.36); float lens = step(0.8, vGN.z) * smoothstep(1.0, 0.86, dot(q, q));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.1, 0.07), lens); diffuseColor.a = mix(1.0, 0.4 + 0.25 * vGN.y, lens); }`); };
+  M.glass.customProgramCacheKey = () => 'dg-glass-' + M.glass.type;
   DOGESH_MODEL.mats.set(k, M); return M;
 }
 function dogeshHairMat(low, U) {
@@ -71,6 +84,8 @@ const dogeshJacketCloth = (low, M) => ({ torso: DOGESH_TORSO, spheres: DOGESH_SP
   panels: (lod) => { const b = lod ? [5, 8] : [8, 13], f = lod ? [3, 7] : [5, 12];
     return [[b, -Math.PI / 2 - 1.25, -Math.PI / 2 + 1.25, 1.4, 0.5, [0, 1], 1.0], [f, -0.3, 1.25, 1.4, 0.56, [0], 1.0, f[0] - 1], [f, Math.PI + 0.3, Math.PI - 1.25, 1.4, 0.56, [0], 1.0, f[0] - 1]]; } });
 // body: shirt pattern + jeans colour tinted into the painted grey (mask R = shirt, G = jeans)
+// the face never goes black: a little of its own colour is always there, whatever the street lights are doing
+const FACE_FILL = '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * 0.2 * smoothstep(1.5, 1.57, vRB.y);';
 const RIDER_HOOK = `#include <map_fragment>
   vec3 rM = texture2D(riderMask, vMapUv).rgb;
   float rG = sampledDiffuseColor.g / 0.2140;
@@ -130,8 +145,8 @@ function riderBodyMat(shirtTex, jeans, low, stubble, o = {}) {
   const key = [shirtTex.uuid, jeans, low ? 1 : 0, stubble ? 's' : '', o.top, o.vest, o.band && o.band.id, o.muscle || 0, o.lod ? 'lod' : ''].join('|'); if (RIDER_MODEL.mats.has(key)) return RIDER_MODEL.mats.get(key);
   const m = low ? new THREE.MeshLambertMaterial({ map: RIDER_MODEL.base }) : new THREE.MeshStandardMaterial({ map: RIDER_MODEL.base, roughness: 0.78, metalness: 0 });
   const U = Object.assign({ riderMask: { value: RIDER_MODEL.mask }, riderShirt: { value: shirtTex }, riderJeans: { value: new THREE.Color(jeans || '#26304f') }, riderStubble: { value: stubble ? 1 : 0 } }, riderWardrobeU(o, o.lod ? 'body_lod' : 'body'));
-  m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK); };
-  m.customProgramCacheKey = () => low ? 'rider-l3' : 'rider-s3'; m.userData.riderU = U;
+  m.onBeforeCompile = (sh) => { riderVS(sh, U); sh.fragmentShader = RIDER_FS_HEAD + sh.fragmentShader.replace('#include <map_fragment>', RIDER_HOOK).replace('#include <emissivemap_fragment>', FACE_FILL); };
+  m.customProgramCacheKey = () => low ? 'rider-l4' : 'rider-s4'; m.userData.riderU = U;
   RIDER_MODEL.mats.set(key, m); return m;
 }
 // cloth + hair streaming in the wind: displaced after skinning, in the rider's own space (+z forward), scaled per vertex
@@ -229,6 +244,7 @@ class RiderModel {
     // bones, bind pose and the local axes the IK needs (all measured in the T-pose)
     this.b = {}; this.root.traverse(n => { if (n.isBone) this.b[n.name] = n; });
     this.bind = []; for (const n of Object.values(this.b)) this.bind.push([n, n.quaternion.clone()]);
+    if (this.b.Head) this.b.Head.scale.setScalar(HEAD_SCALE);   // a slightly bigger head: the face has to read from a chase camera and on a phone
     this.root.updateMatrixWorld(true);
     const B = this.b, wq = (n) => B[n].getWorldQuaternion(new THREE.Quaternion()), wp = (n) => B[n].getWorldPosition(new THREE.Vector3());
     const local = (n, v) => v.clone().normalize().applyQuaternion(wq(n).invert());
@@ -352,7 +368,7 @@ const ACC = { mats: null };
 function accMats() {
   if (ACC.mats) return ACC.mats; const env = BIKE_MODEL.env || null;
   ACC.mats = { gold: new THREE.MeshStandardMaterial({ color: '#e7b53c', metalness: 1, roughness: 0.22, envMap: env, envMapIntensity: 1.6 }),
-    lens: new THREE.MeshStandardMaterial({ color: '#141a24', metalness: 0.9, roughness: 0.04, envMap: env, envMapIntensity: 2.2 }),
+    lens: new THREE.MeshStandardMaterial({ color: '#8a4a16', metalness: 0.25, roughness: 0.05, envMap: env, envMapIntensity: 1.3, transparent: true, opacity: 0.5, depthWrite: false }),   // smoked amber: his eyes show through
     dial: new THREE.MeshStandardMaterial({ color: '#0e1830', metalness: 0.4, roughness: 0.15, envMap: env }),
     frames: new Map(), frame(c) { if (!this.frames.has(c)) this.frames.set(c, new THREE.MeshStandardMaterial({ color: c, metalness: 1, roughness: 0.25, envMap: env, envMapIntensity: 1.4, side: THREE.DoubleSide })); return this.frames.get(c); } };
   ACC.mats.lens.side = THREE.DoubleSide; ACC.mats.gold.side = THREE.DoubleSide;

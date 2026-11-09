@@ -170,9 +170,10 @@ function wheelBlurAssets() {
 // ── ink outline (Auto Rush lesson): every solid part of the rider and bike gets a back-face shell pushed out along its
 // normals, drawn in near-black. The push is sized by distance so the line stays ~3 px thick on screen at any range, and
 // skinned meshes keep their skeleton, so the outline bends with the rider. Crisper than the screen-space ink alone.
-let OUTLINE_MAT = null;
-function outlineMat() {
-  if (OUTLINE_MAT) return OUTLINE_MAT;
+// head = the index of the Head bone on a skinned rider: the ink line is drawn much finer there, or it swallows the face
+const OUTLINE_MATS = new Map();
+function outlineMat(head = -1) {
+  if (OUTLINE_MATS.has(head)) return OUTLINE_MATS.get(head);
   const m = new THREE.MeshBasicMaterial({ color: 0x140a1a, side: THREE.BackSide });
   m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `
       #if !defined( USE_ENVMAP ) && !defined( USE_SKINNING )
@@ -183,18 +184,22 @@ function outlineMat() {
         mvPosition = instanceMatrix * mvPosition;
       #endif
       mvPosition = modelViewMatrix * mvPosition;
-      mvPosition.xyz += normalize( normalMatrix * objectNormal ) * clamp( -mvPosition.z * 0.0052, 0.011, 0.07 );
+      float oW = clamp( -mvPosition.z * 0.0052, 0.011, 0.07 );
+      #ifdef USE_SKINNING
+        oW *= mix( 1.0, 0.3, dot( skinWeight, vec4( equal( skinIndex, vec4( ${head}.0 ) ) ) ) );
+      #endif
+      mvPosition.xyz += normalize( normalMatrix * objectNormal ) * oW;
       gl_Position = projectionMatrix * mvPosition;`); };
-  m.customProgramCacheKey = () => 'chapri-outline';
-  return OUTLINE_MAT = m;
+  m.customProgramCacheKey = () => 'chapri-outline' + head;
+  OUTLINE_MATS.set(head, m); return m;
 }
 // a muscular rider's outline has to grow with him: same shell, plus the rider's own muscle push (shared uniform)
 const OUTLINE_MUSCLE = new Map();
-function outlineMatMuscle(U) {
+function outlineMatMuscle(U, head) {
   if (OUTLINE_MUSCLE.has(U)) return OUTLINE_MUSCLE.get(U);
-  const base = outlineMat(), m = base.clone(); const ob = base.onBeforeCompile;
+  const base = outlineMat(head), m = base.clone(); const ob = base.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => { ob(sh, r); sh.uniforms.riderMuscle = U.riderMuscle; sh.uniforms.riderDeq = U.riderDeq; sh.vertexShader = 'uniform float riderMuscle; uniform vec4 riderDeq; varying vec3 vRB;\n' + sh.vertexShader.replace('#include <begin_vertex>', RIDER_VS); };
-  m.customProgramCacheKey = () => 'chapri-outline-m'; OUTLINE_MUSCLE.set(U, m); return m;
+  m.customProgramCacheKey = () => 'chapri-outline-m' + head; OUTLINE_MUSCLE.set(U, m); return m;
 }
 // soft contact shadow under a bike: always there, day or night, so the bike sits on the road instead of floating
 function blobShadowTex() {
@@ -295,7 +300,7 @@ class BikeRig {
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal || m.userData.cloth || m.userData.noOutline) return; const M = m.material;   // (capes: no shell, it would show through the scalloped hem)
       if (!M || Array.isArray(M) || M.transparent || M.blending !== THREE.NormalBlending || M.isMeshBasicMaterial || M.isShaderMaterial || /eye/i.test(m.name)) return;
       if (partRadius(m) < minR) return; list.push(m); });
-    for (const m of list) { const U = m.material.userData.riderU, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U) : mat;
+    for (const m of list) { const U = m.material.userData.riderU, hd = m.isSkinnedMesh ? m.skeleton.bones.findIndex(b => b.name === 'Head') : -1, om = U && U.riderMuscle.value > 0 ? outlineMatMuscle(U, hd) : hd >= 0 ? outlineMat(hd) : mat;
       const o = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, om) : new THREE.Mesh(m.geometry, om);
       if (m.isSkinnedMesh) { o.bind(m.skeleton, m.bindMatrix); o.frustumCulled = false; } o.castShadow = o.receiveShadow = false; o.raycast = () => {}; o.renderOrder = m.renderOrder; o.userData.outline = true; m.add(o); this.outlines.push(o); }
     this.outlineOn = true;
