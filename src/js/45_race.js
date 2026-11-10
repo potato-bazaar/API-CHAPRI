@@ -65,7 +65,8 @@ class Race {
     this.aheadSet = new Set(this.riders.filter(r => r !== this.player && r.dist > this.player.dist)); this.lastOvertakeT = -9; this.nearMissT = new Map();
     const T0 = this.track; if (T0.nakas.length || T0.dogSpots.length || T0.nala || T0.stairs) this.stage = new StageOps(this);
     if (M.police) this.police = new PoliceOps(this);
-    if (this.def.chase && !M.police) this.chase = new ChaseOps(this);   // the ghat stage: a police van behind the pack
+    if (this.def.chase && !M.police) this.chase = new ChaseOps(this);
+    if (this.def.p2p && this.def.p2p.wild) this.wild = new HillLife(this);   // off-road: animals and eagles on the trail   // the ghat stage: a police van behind the pack
     this.street = new StreetOps(this);
     if (T0.ug) this.ug = new UGOps(this);
     this.taunts = new Taunts(this);
@@ -113,7 +114,7 @@ class Race {
     if (this.stage) this.stage.update(dt);
     if (this.ug) this.ug.update(dt);
     this.street.update(dt);
-    if (this.police) this.police.update(dt); if (this.chase) this.chase.update(dt);
+    if (this.police) this.police.update(dt); if (this.chase) this.chase.update(dt); if (this.wild) this.wild.update(dt);
     this.collectCoins();
     this.scoring(dt);
     if (this.ghost) this.updateGhost();
@@ -339,7 +340,7 @@ class Race {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (r.rig.gesture(pick, Math.random() < 0.5 ? 1 : -1)) r.swagT = (r.isPlayer ? 7 : 14) + Math.random() * (r.isPlayer ? 7 : 12); else r.swagT = 1;
   }
-  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); if (this.chase) this.chase.dispose(); }
+  dispose() { this.riders.forEach(r => r.rig.dispose()); if (this.ghost) this.ghost.rig.dispose(); this.combat.dispose(); if (this.ug) this.ug.dispose(); if (this.taunts) this.taunts.dispose(); if (this.street) this.street.dispose(); if (this.chase) this.chase.dispose(); if (this.wild) this.wild.dispose(); }
 }
 function buildStatsStock() { const b = BUILDS[0]; return { build: b, top: 100, acc: 1, lean: 45, grip: 1, brake: 1, wobbleRes: 1, zeroTo100: 7.8, boostFill: 1, wheelieEase: 0, lvls: {} }; }
 function makeGhost(rig) { const m = new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.32, depthWrite: false }); rig.root.traverse(o => { if (o.isMesh) { o.material = m; o.castShadow = false; } }); rig.blob.visible = false; }

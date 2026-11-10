@@ -2,8 +2,20 @@
 // A point-to-point stage has no city round it. The land is a height field grown out of the road itself: every point takes
 // the height of the road near it, then mountains rise (or fall away) with distance. Four country in one run: a pine ghat,
 // a lake, a red canyon on a kachha road and the climb to the fort.
-const HZ = ['pine', 'lake', 'desert', 'climb'];
-const HILL_PAL = [['#4f7a36', '#3f652d', '#6b6458'], ['#5f8c3c', '#4d7733', '#786c58'], ['#cf8442', '#e0a560', '#a04a26'], ['#94893f', '#aa9a4c', '#857360']].map(r => r.map(c => new THREE.Color(c)));
+// every kind of country: ground colours (flat, second, steep), how the land sits round the trail (mount = ridges and valleys,
+// canyon = terraced walls on both sides, ridge = the land falls away on both sides), its air (tint, how much, how far you see),
+// what grows there and the colours of its scrub and rock
+const HC = (c) => new THREE.Color(c);
+const HILL_Z = {
+  pine: { pal: ['#4f7a36', '#3f652d', '#6b6458'], shape: 'mount', air: ['#cfe2e4', 0.55, 0.62], scat: 'pine', tuft: '#6f9a3e', bush: '#5f8f3a', rock: '#8a8276' },
+  lake: { pal: ['#5f8c3c', '#4d7733', '#786c58'], shape: 'mount', air: ['#d8ecf2', 0.3, 1.0], scat: 'lake', tuft: '#7fae48', bush: '#6fa043', rock: '#8f8572' },
+  desert: { pal: ['#cf8442', '#e0a560', '#a04a26'], shape: 'canyon', strata: true, air: ['#f2c292', 0.8, 1.1], scat: 'desert', tuft: '#c9a85a', bush: '#b9a04a', rock: '#b5653a' },
+  climb: { pal: ['#94893f', '#aa9a4c', '#857360'], shape: 'mount', air: ['#f2dcae', 0.45, 0.95], scat: 'climb', tuft: '#b5a650', bush: '#9a9a4a', rock: '#96866e' },
+  snow: { pal: ['#eef2f7', '#dde6f0', '#7f8a98'], shape: 'ridge', air: ['#e4eef8', 0.7, 0.8], scat: 'snow', tuft: '#dfe6ee', bush: '#cfd8e2', rock: '#8d96a2' },
+  alpine: { pal: ['#55803a', '#6a8f45', '#727068'], shape: 'ridge', air: ['#cfe2e4', 0.5, 0.85], scat: 'pine', tuft: '#7aa046', bush: '#5f8f3a', rock: '#8a8276' },
+  badland: { pal: ['#d18340', '#e2a45c', '#a64a24'], shape: 'ridge', strata: true, air: ['#f3c796', 0.85, 1.15], scat: 'desert', tuft: '#c9a85a', bush: '#b9a04a', rock: '#b5653a' },
+};
+for (const k in HILL_Z) { const z = HILL_Z[k]; z.pal = z.pal.map(HC); z.air = [HC(z.air[0]), z.air[1], z.air[2]]; }
 const hHash = (ix, iz) => { let n = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; };
 function hNoise(x, z) { const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz); return lerp(lerp(hHash(ix, iz), hHash(ix + 1, iz), u), lerp(hHash(ix, iz + 1), hHash(ix + 1, iz + 1), u), v); }
 function hFbm(x, z, o = 4) { let a = 0.5, s = 0, n = 0; for (let i = 0; i < o; i++) { s += a * hNoise(x, z); n += a; x = x * 2.03 + 17.1; z = z * 2.03 - 9.3; a *= 0.5; } return s / n; }
@@ -12,8 +24,9 @@ function hillGeo(parts) { const b = new Batch(), M = new THREE.Matrix4(); for (c
 
 Object.assign(World.prototype, {
   hillInit() {
-    const T = this.track, S = []; this.hLake = null;
-    for (let i = 0; i < T.N; i += 16) { const s = i * STEP; if (!T.live(s)) continue; const z = T.hillZone(s); S.push(T.px[i], T.pz[i], T.py[i], z ? HZ.indexOf(z) : s > T.L / 2 ? 0 : 3); }
+    const T = this.track, S = [], P2 = this.def.p2p; this.hLake = null; this.hZn = Object.keys(P2.zones); this.hZt = this.hZn.map(n => HILL_Z[(P2.zoneType || {})[n] || n]);
+    this.hillType = (s) => { const z = T.hillZone(s); return this.hZt[z ? this.hZn.indexOf(z) : 0]; };
+    for (let i = 0; i < T.N; i += 16) { const s = i * STEP; if (!T.live(s)) continue; const z = T.hillZone(s); S.push(T.px[i], T.pz[i], T.py[i], z ? this.hZn.indexOf(z) : s > T.L / 2 ? 0 : this.hZn.length - 1); }
     this.hS = new Float32Array(S); this.hh = { y: 0, d: 0, zw: [0, 0, 0, 0], zone: 0 };
     const lk = this.def.p2p.lake; if (lk) this.hLake = { x: lk.x * T.xzS, z: lk.z * T.xzS, r: lk.r * T.xzS, y: lk.y };
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < S.length; i += 4) { x0 = Math.min(x0, S[i]); x1 = Math.max(x1, S[i]); z0 = Math.min(z0, S[i + 1]); z1 = Math.max(z1, S[i + 1]); }
@@ -25,27 +38,29 @@ Object.assign(World.prototype, {
     for (let i = 0; i < n; i += 4) { const dx = x - S[i], dz = z - S[i + 1], d2 = dx * dx + dz * dz, q = d2 + 20, w = 1 / (q * q); sw += w; sy += w * S[i + 2]; zw[S[i + 3]] += w; if (d2 < dm) dm = d2; }
     const d = Math.sqrt(dm), base = sy / sw; for (let k = 0; k < 4; k++) zw[k] /= sw;
     const ramp = hStep(15, 170, d) * (1 + d / 650), m = hFbm(x / 270, z / 270, 4);
-    let off = (m - 0.4) * 210;                                                      // ridges and valleys
-    const cy = (0.2 + m * 0.95) * 150, ter = 20, q = cy / ter, fq = Math.floor(q);   // the canyon: walls on both sides, cut in terraces
-    off = lerp(off, (fq + hStep(0.72, 1, q - fq)) * ter, zw[2]);
+    const cy = (0.2 + m * 0.95) * 150, ter = 20, q = cy / ter, fq = Math.floor(q), Zt = this.hZt;
+    const shp = { mount: (m - 0.4) * 210, canyon: (fq + hStep(0.72, 1, q - fq)) * ter, ridge: -(0.1 + m * 1.05) * 185 };   // ridges and valleys / terraced walls / falling away
+    let off = 0; for (let k = 0; k < Zt.length; k++) off += zw[k] * shp[Zt[k].shape];
     let y = base + off * ramp;
+    const pk = this.def.p2p.peaks; if (pk) { const f = hFbm(x / 430 + 9, z / 430 - 4, 3); y += hStep(330, 760, d) * Math.pow(f, 1.6) * pk * 2.2; }   // far off, the big peaks stand up again
     const L = this.hLake; H.wet = false;
     if (L) { const r = Math.hypot(x - L.x, z - L.z); if (r < L.r + 60) { const bed = r < L.r ? L.y - 0.4 - 7 * (1 - (r / L.r) * (r / L.r)) : L.y - 0.4 + (r - L.r) * 0.07; y = lerp(bed, y, hStep(L.r, L.r + 60, r)); H.wet = r < L.r + 30; } }
-    H.y = y; H.d = d; H.zone = zw[0] > zw[1] ? (zw[0] > zw[2] ? (zw[0] > zw[3] ? 0 : 3) : (zw[2] > zw[3] ? 2 : 3)) : (zw[1] > zw[2] ? (zw[1] > zw[3] ? 1 : 3) : (zw[2] > zw[3] ? 2 : 3));
+    H.y = y; H.d = d; { let b = 0; for (let k = 1; k < 4; k++) if (zw[k] > zw[b]) b = k; H.zone = Math.min(b, Zt.length - 1); }
     return y;
   },
   // ground colour: each country's own flat / second / steep tone, strata in the canyon, sand at the water
   hillCol(out, x, z, y, steep) {
     const zw = this.hh.zw, n = hNoise(x / 38, z / 38), n2 = hNoise(x / 7 + 40, z / 7); let r = 0, g = 0, b = 0;
-    for (let k = 0; k < 4; k++) { const w = zw[k]; if (w < 0.002) continue; const P = HILL_PAL[k]; let cr = lerp(P[0].r, P[1].r, n), cg = lerp(P[0].g, P[1].g, n), cb = lerp(P[0].b, P[1].b, n);
-      let st = steep; if (k === 2) { const band = 0.5 + 0.5 * Math.sin(y * 0.42 + n * 2.5); st = Math.min(1, steep * (0.75 + 0.5 * band)); cr *= 0.93 + 0.14 * band; }
+    for (let k = 0; k < this.hZt.length; k++) { const w = zw[k]; if (w < 0.002) continue; const P = this.hZt[k].pal; let cr = lerp(P[0].r, P[1].r, n), cg = lerp(P[0].g, P[1].g, n), cb = lerp(P[0].b, P[1].b, n);
+      let st = steep; if (this.hZt[k].strata) { const band = 0.5 + 0.5 * Math.sin(y * 0.42 + n * 2.5); st = Math.min(1, steep * (0.75 + 0.5 * band)); cr *= 0.93 + 0.14 * band; }
       cr = lerp(cr, P[2].r, st); cg = lerp(cg, P[2].g, st); cb = lerp(cb, P[2].b, st); r += cr * w; g += cg * w; b += cb * w; }
     const L = this.hLake; if (L) { const k = hStep(L.y + 1.5, L.y + 0.1, y) * hStep(L.r + 70, L.r + 20, Math.hypot(x - L.x, z - L.z)); r = lerp(r, 0.72, k); g = lerp(g, 0.6, k); b = lerp(b, 0.34, k); }
+    const sl = this.def.p2p.snowLine; if (sl) { const k = hStep(sl - 30, sl + 30, y + n * 50) * (1 - steep * 0.65); r = lerp(r, 0.93, k); g = lerp(g, 0.95, k); b = lerp(b, 0.99, k); }   // above the snow line everything is white but the cliffs
     const v = 0.9 + 0.2 * n2; return out.setRGB(r * v, g * v, b * v);
   },
   buildHills(B) {
     const T = this.track, low = this.opts.quality === 'low'; this.hillInit(); RNG = mulberry32(4711);
-    const hb = this.hB = new Batch(), rock = new THREE.Color('#8a8072'), col = new THREE.Color(), cell = low ? 19 : 12;
+    const hb = this.hB = new Batch(), rock = new THREE.Color('#8a8072'), col = new THREE.Color(), cell = low ? 19 : this.def.p2p.bigLand ? 15 : 12;
     const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3(), pD = new THREE.Vector3(), p = new THREE.Vector3(), white = new THREE.Color('#ffffff');
     // ── the road: tarmac on the hills, kachha through the canyon; rock lips where it jumps ──
     const rows = [], bz = T.bumps.map(b => [b.s - 1, b.s + b.len + 1]);
@@ -65,7 +80,7 @@ Object.assign(World.prototype, {
           if (Math.floor(s0 / 7.5) % 2 === 0 || Math.abs(T.kAt(s0)) > 1 / 70) { T.pos(s0, -0.09, pA, 0.014); T.pos(s1, -0.09, pB, 0.014); T.pos(s1, 0.09, pC, 0.014); T.pos(s0, 0.09, pD, 0.014); B.marks.quad(pA, pB, pC, pD, yel, undefined, UP); } }   // dashes; a solid line through the bends
       }
       if (cur && prev) for (let sd = 0; sd < 2; sd++) for (let k = 0; k < OFF.length - 1; k++) { const a = prev[sd][k], b = cur[sd][k], c = cur[sd][k + 1], d = prev[sd][k + 1];
-        if (k === 0) { hb.quad(a, b, c, d, T.dirtAt(s1) ? sandC : grav, [[0, 0], [0, 1], [1, 1], [1, 0]], UP); continue; }
+        if (k === 0) { hb.quad(a, b, c, d, T.offroad ? this.hillType(s1).pal[1] : T.dirtAt(s1) ? sandC : grav, [[0, 0], [0, 1], [1, 1], [1, 0]], UP); continue; }
         const mx = (a.x + c.x) / 2, mz = (a.z + c.z) / 2, my = (a.y + c.y) / 2; this.hillH(mx, mz); const run = Math.hypot(c.x - b.x, c.z - b.z) || 1, st = hStep(0.45, 1.1, Math.abs(c.y - b.y) / run);
         hb.quad(a, b, c, d, this.hillCol(col, mx, mz, my, st), [[a.x / 16, a.z / 16], [b.x / 16, b.z / 16], [c.x / 16, c.z / 16], [d.x / 16, d.z / 16]], UP); q4++; }
       if (cur) { prev = cur; prevS = s1; }
@@ -74,7 +89,7 @@ Object.assign(World.prototype, {
     for (const [sL, name] of [[0, 'start'], [T.finS, 'finish']]) { const w = T.wAt(sL) / 2, n = Math.round(w * 2 / 1.5);
       for (let k = 0; k < 2; k++) for (let i = 0; i < n; i++) { const d0 = -w + (i / n) * w * 2, d1 = -w + ((i + 1) / n) * w * 2, s0 = sL + k * 0.9;
         T.pos(s0, d0, pA, 0.02); T.pos(s0 + 0.9, d0, pB, 0.02); T.pos(s0 + 0.9, d1, pC, 0.02); T.pos(s0, d1, pD, 0.02); B.glow.quad(pA, pB, pC, pD, new THREE.Color((i + k) % 2 ? '#f4f4f4' : '#151515'), undefined, UP); }
-      this.hillGate(B, sL, name === 'finish'); }
+      this.hillGate(B, sL, name === 'finish' && !this.def.p2p.plainFinish); }
     // ── the land ──
     const [bx0, bx1, bz0, bz1] = this.hBox, M = low ? 430 : 560, nx = Math.ceil((bx1 - bx0 + 2 * M) / cell) + 1, nz = Math.ceil((bz1 - bz0 + 2 * M) / cell) + 1, ox = bx0 - M, oz = bz0 - M;
     const hy = new Float32Array(nx * nz), hd = new Float32Array(nx * nz), hz = new Float32Array(nx * nz * 4), pos = new Float32Array(nx * nz * 3), cl = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2);
@@ -107,7 +122,7 @@ void main(){ float w = sin(vW.x*0.21 + time*0.9)*0.5 + sin(vW.z*0.27 - time*1.2 
     if (this.lakeMat) this.lakeMat.uniforms.time.value += dt;
     if (!focus || !this.fog || !this.hS) return; if (this._hfog !== this.fog) { this._hfog = this.fog; this._hbase = { c: this.fog.color.clone(), n: this.fog.near, f: this.fog.far }; this._hc = new THREE.Color(); }
     this.hillH(focus.x, focus.z); const zw = this.hh.zw, b = this._hbase, c = this._hc.setRGB(0, 0, 0); let range = 0;
-    for (let k = 0; k < 4; k++) { const [tint, amt, rg] = HILL_AIR[k]; HILL_TMP.copy(b.c).lerp(tint, amt); c.r += HILL_TMP.r * zw[k]; c.g += HILL_TMP.g * zw[k]; c.b += HILL_TMP.b * zw[k]; range += rg * zw[k]; }
+    for (let k = 0; k < this.hZt.length; k++) { const [tint, amt, rg] = this.hZt[k].air; HILL_TMP.copy(b.c).lerp(tint, amt); c.r += HILL_TMP.r * zw[k]; c.g += HILL_TMP.g * zw[k]; c.b += HILL_TMP.b * zw[k]; range += rg * zw[k]; }
     const k = 1 - Math.exp(-1.2 * dt); this.fog.color.lerp(c, k); this.fog.near += (b.n * range - this.fog.near) * k; this.fog.far += (b.f * range - this.fog.far) * k;
   },
   // ── a gate over the road: bamboo and bunting at the start, the fort's stone gate at the finish ──
@@ -135,18 +150,18 @@ void main(){ float w = sin(vW.x*0.21 + time*0.9)*0.5 + sin(vW.z*0.27 - time*1.2 
       tuft: hillGeo([[cone(0.34, 0.7), 0, 0.3, 0, 1, 1, 0.5, '#ffffff'], [cone(0.26, 0.55), 0.3, 0.24, 0.1, 0.6, 1, 1, '#dddddd'], [cone(0.24, 0.5), -0.25, 0.22, -0.12, 1, 1, 0.6, '#eeeeee']]),
       cactus: hillGeo([[cyl, 0, 1.5, 0, 0.5, 3.0, 0.5, '#4d8a48'], [cyl, 0.62, 1.7, 0, 0.3, 1.2, 0.3, '#458043'], [cyl, 0.42, 1.2, 0, 0.6, 0.26, 0.26, '#458043'], [cyl, -0.58, 2.2, 0, 0.28, 1.0, 0.28, '#519150'], [cyl, -0.4, 1.8, 0, 0.56, 0.24, 0.24, '#519150']]) };
     const L = { pine: [], leaf: [], bush: [], rock: [], cactus: [], tuft: [] }, put = (kind, x, y, z, sc, c) => L[kind].push(x, y, z, sc, RNG() * 6.28, c);
-    const BUSH = ['#5f8f3a', '#6fa043', '#b9a04a', '#9a9a4a'], ROCK = ['#8a8276', '#8f8572', '#b5653a', '#96866e'];
     const place = (x, z, near) => { const y = this.hillH(x, z), H = this.hh, d = H.d; if (d < T.wAt(0) / 2 + 4.8 || H.wet || (this.hLake && y < this.hLake.y + 0.5)) return;
-      if (!near && RNG() > (d < 130 ? 1 : Math.max(0.14, 1 - (d - 130) / 380))) return; const zn = H.zone, r = RNG(), big = 0.75 + RNG() * 0.7;
-      if (zn === 0) r < 0.8 ? put('pine', x, y, z, big * 1.25, 0) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.6, ROCK[0]) : put('bush', x, y, z, big, BUSH[0]);
-      else if (zn === 1) r < 0.55 ? put('leaf', x, y, z, big * 1.1, 0) : r < 0.72 ? put('pine', x, y, z, big, 0) : r < 0.9 ? put('bush', x, y, z, big, BUSH[1]) : put('rock', x, y, z, 0.5 + RNG(), ROCK[1]);
-      else if (zn === 2) { if (r < 0.42) put('bush', x, y, z, big * 0.9, BUSH[2]); else if (r < 0.7) put('rock', x, y, z, 0.6 + RNG() * 2.4, ROCK[2]); else if (r < 0.78 && d > 12) { const h = 3 + RNG() * 4; put('rock', x, y, z, h, '#b96a3e'); put('rock', x + 0.4, y + h * 0.62, z - 0.3, h * 0.62, '#c9783f'); if (RNG() < 0.5) put('rock', x - 0.2, y + h * 1.02, z + 0.2, h * 0.4, '#a85a34'); }   // a stack of red boulders
+      if (!near && RNG() > (d < 130 ? 1 : Math.max(0.14, 1 - (d - 130) / 380))) return; const Z = this.hZt[H.zone], zn = Z.scat, r = RNG(), big = 0.75 + RNG() * 0.7;
+      if (zn === 'pine') r < 0.8 ? put('pine', x, y, z, big * 1.25, 0) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.6, Z.rock) : put('bush', x, y, z, big, Z.bush);
+      else if (zn === 'lake') r < 0.55 ? put('leaf', x, y, z, big * 1.1, 0) : r < 0.72 ? put('pine', x, y, z, big, 0) : r < 0.9 ? put('bush', x, y, z, big, Z.bush) : put('rock', x, y, z, 0.5 + RNG(), Z.rock);
+      else if (zn === 'desert') { if (r < 0.42) put('bush', x, y, z, big * 0.9, Z.bush); else if (r < 0.7) put('rock', x, y, z, 0.6 + RNG() * 2.4, Z.rock); else if (r < 0.78 && d > 12) { const h = 3 + RNG() * 4; put('rock', x, y, z, h, '#b96a3e'); put('rock', x + 0.4, y + h * 0.62, z - 0.3, h * 0.62, '#c9783f'); if (RNG() < 0.5) put('rock', x - 0.2, y + h * 1.02, z + 0.2, h * 0.4, '#a85a34'); }   // a stack of red boulders
         else if (r < 0.9) put('cactus', x, y, z, big, 0); }
-      else r < 0.3 ? put('pine', x, y, z, big, 0) : r < 0.6 ? put('bush', x, y, z, big, BUSH[3]) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.5, ROCK[3]) : put('leaf', x, y, z, big, 0); };
+      else if (zn === 'snow') { if (r < 0.5) put('rock', x, y, z, 0.7 + RNG() * 2.6, r < 0.25 ? '#eef2f7' : Z.rock); else if (r < 0.62) put('bush', x, y, z, big, Z.bush); else if (r < 0.7) put('pine', x, y, z, big * 0.8, '#cfe0e4'); }   // rock, drifts and the odd frosted pine
+      else r < 0.3 ? put('pine', x, y, z, big, 0) : r < 0.6 ? put('bush', x, y, z, big, Z.bush) : r < 0.9 ? put('rock', x, y, z, 0.6 + RNG() * 1.5, Z.rock) : put('leaf', x, y, z, big, 0); };
     const [x0, x1, z0, z1] = this.hBox, m = 300, n = low ? 4200 : 9500; for (let i = 0; i < n; i++) place(x0 - m + RNG() * (x1 - x0 + 2 * m), z0 - m + RNG() * (z1 - z0 + 2 * m), false);
     const p = new THREE.Vector3(); for (let s = 30; s < T.finS + 130; s += low ? 11 : 6) for (const sd of [-1, 1]) { if (RNG() < 0.2) continue; T.pos(s + RNG() * 6, sd * (T.wAt(s) / 2 + 5.5 + RNG() * RNG() * 16), p, 0); place(p.x, p.z, true); }
-    const TUFT = ['#6f9a3e', '#7fae48', '#c9a85a', '#b5a650'];   // grass and scrub right at the roadside: what gives the speed
-    for (let s = 10; s < T.finS + 130; s += low ? 4.5 : 2.2) for (const sd of [-1, 1]) { T.pos(s + RNG() * 2, sd * (T.wAt(s) / 2 + 2.2 + RNG() * RNG() * 9), p, 0); const y = this.hillH(p.x, p.z); if (this.hh.wet && y < this.hLake.y + 0.4) continue; put('tuft', p.x, y + 0.2, p.z, 0.7 + RNG() * 0.9, TUFT[this.hh.zone]); }
+    // grass and scrub right at the roadside: what gives the speed
+    for (let s = 10; s < T.finS + 130; s += low ? 4.5 : 2.2) for (const sd of [-1, 1]) { T.pos(s + RNG() * 2, sd * (T.wAt(s) / 2 + 2.2 + RNG() * RNG() * 9), p, 0); const y = this.hillH(p.x, p.z); if (this.hh.wet && y < this.hLake.y + 0.4) continue; put('tuft', p.x, y + 0.2, p.z, 0.7 + RNG() * 0.9, this.hZt[this.hh.zone].tuft); }
     const mat = this.hillPropMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }); this.disposables.push(mat); const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S3 = new THREE.Vector3(), c = new THREE.Color();
     for (const k in L) { const a = L[k], cnt = a.length / 6; if (!cnt) continue; const im = new THREE.InstancedMesh(G[k], mat, cnt);
       for (let i = 0; i < cnt; i++) { const sc = a[i * 6 + 3]; Q.setFromAxisAngle(UP, a[i * 6 + 4]); M4.compose(V.set(a[i * 6], a[i * 6 + 1] - 0.15, a[i * 6 + 2]), Q, S3.set(sc, sc * (0.9 + (i % 5) * 0.06), sc)); im.setMatrixAt(i, M4); im.setColorAt(i, c.set(a[i * 6 + 5] || '#ffffff')); }
@@ -164,14 +179,14 @@ void main(){ float w = sin(vW.x*0.21 + time*0.9)*0.5 + sin(vW.z*0.27 - time*1.2 
     for (let km = 1; km * 1000 < T.finS; km++) { const s = T.finS - km * 1000; T.pos(s, -(T.wAt(s) / 2 + 1.5), p, 0); const yaw = T.yawAt(s); B.props.box(p.x, p.y - 0.2, p.z, 0.5, 0.75, 0.22, yaw, '#f2efe6'); B.props.box(p.x, p.y + 0.55, p.z, 0.5, 0.3, 0.23, yaw, '#e8b62a'); }
     // things on the road you can hit: rocks that have come down the slope, and trunks standing right on the edge
     const free = (s) => s > 140 && s < T.finS - 60 && !T.bumps.some(b => s > b.s - 40 && s < b.s + b.len + 60) && !T.kickers.some(k => Math.abs(s - k.s) < 60) && !(T.nitros || []).some(n => Math.abs(s - n.s) < 40) && !this.obstacles.some(o => Math.abs(o.s - s) < 45);
-    for (let s = 180, k = 0; s < T.finS - 80; s += 150 + RNG() * 110, k++) { if (!free(s)) continue; const zn = T.hillZone(s), w = T.wAt(s) / 2, sd = RNG() < 0.5 ? -1 : 1, yaw = T.yawAt(s);
-      if (zn === 'desert' || k % 2) { const d = sd * (w * (0.25 + RNG() * 0.5)), r = 0.7 + RNG() * 0.35; T.pos(s, d, p, 0); B.props.geom(BLOB, p.x, p.y + r * 0.45, p.z, RNG() * 6, r, r * 0.75, r * 0.9, zn === 'desert' ? '#b5653a' : '#8a8276');
-        for (let j = 0; j < 3; j++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 2.6, p.y + 0.12, p.z + (RNG() - 0.5) * 2.6, RNG() * 6, 0.2 + RNG() * 0.2, 0.16, 0.22, zn === 'desert' ? '#a85a34' : '#7d7568'); this.obstacles.push({ s, d, hw: r * 0.8, hl: r * 0.8, kind: 'rock' }); }
+    for (let s = 180, k = 0; s < T.finS - 80; s += 150 + RNG() * 110, k++) { if (!free(s)) continue; const Zt = this.hillType(s), zn = Zt.scat, w = T.wAt(s) / 2, sd = RNG() < 0.5 ? -1 : 1, yaw = T.yawAt(s);
+      if (zn === 'desert' || zn === 'snow' || k % 2) { const d = sd * (w * (0.25 + RNG() * 0.5)), r = 0.7 + RNG() * 0.35; T.pos(s, d, p, 0); B.props.geom(BLOB, p.x, p.y + r * 0.45, p.z, RNG() * 6, r, r * 0.75, r * 0.9, Zt.rock);
+        for (let j = 0; j < 3; j++) B.props.geom(BLOB, p.x + (RNG() - 0.5) * 2.6, p.y + 0.12, p.z + (RNG() - 0.5) * 2.6, RNG() * 6, 0.2 + RNG() * 0.2, 0.16, 0.22, Zt.rock); this.obstacles.push({ s, d, hw: r * 0.8, hl: r * 0.8, kind: 'rock' }); }
       else { const d = sd * (w - 0.5); T.pos(s, d, p, 0); B.props.box(p.x, p.y, p.z, 0.5, 3.4, 0.5, yaw, '#5b4028'); for (const [dy, r, c] of [[2.6, 1.9, '#2f6a33'], [4.1, 1.5, '#35763a'], [5.5, 1.05, '#3f8642']]) B.props.geom(HILL_CONE, p.x, p.y + dy + 1.2, p.z, 0, r, 2.4, r, c); this.obstacles.push({ s, d, hw: 0.36, hl: 0.36, kind: 'tree' }); } }
   },
 });
 const HILL_CONE = new THREE.ConeGeometry(1, 1, 7);
-const HILL_AIR = [[new THREE.Color('#cfe2e4'), 0.55, 0.62], [new THREE.Color('#d8ecf2'), 0.3, 1.0], [new THREE.Color('#f2c292'), 0.8, 1.1], [new THREE.Color('#f2dcae'), 0.45, 0.95]], HILL_TMP = new THREE.Color();
+const HILL_TMP = new THREE.Color();
 let HILL_DETAIL = null;
 function hillDetailTexture() {
   if (HILL_DETAIL) return HILL_DETAIL; const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#e6e6e6'; x.fillRect(0, 0, 128, 128); const r = mulberry32(99);

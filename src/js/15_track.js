@@ -3,7 +3,7 @@
 // s = distance along the lap, d = lateral offset (positive = left of travel).
 const STEP = 0.5;
 
-const ROAD_SCALE = { hills: 1.15, city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
+const ROAD_SCALE = { hills: 1.15, trail: 1.15, city: 1.3, sea: 1.3, flyover: 1.3, market: 1.2, basti: 1.12 };
 class Track {
   constructor(def) {
     this.def = def;
@@ -41,7 +41,7 @@ class Track {
     for (const f of def.triples || []) for (let k = -1; k <= 1; k++) this.bumps.push({ s: f * this.L + k * 3.4, h: 0.13, len: 1.5, type: 'breaker', triple: true });
     this.rng = mulberry32(hashStr(def.id));
     const base = this.baseY = A(N);
-    if (def.p2p) { this.p2p = true; const sAt = this.sAt = (a) => { const i = Math.floor(a), t = a - i, n = keyF.length; return lerp(keyF[i % n], i + 1 >= n ? 1 : keyF[i + 1], t) * this.L; };
+    if (def.p2p) { this.p2p = true; this.allDirt = !!def.offroad; this.offroad = !!def.offroad; const sAt = this.sAt = (a) => { const i = Math.floor(a), t = a - i, n = keyF.length; return lerp(keyF[i % n], i + 1 >= n ? 1 : keyF[i + 1], t) * this.L; };
       this.finS = sAt(def.p2p.finish); this.hz = {}; for (const k in def.p2p.zones) this.hz[k] = def.p2p.zones[k].map(sAt);
       const keys = def.pts.map((q, i) => [keyF[i], q[2]]); for (let i = 0; i < N; i++) base[i] = cyclicKey(keys, i / N, false);
       for (let pass = 0; pass < 2; pass++) { const src = base.slice(), win = 28; for (let i = 0; i < N; i++) { let sum = 0; for (let j = -win; j <= win; j += 4) sum += src[(i + j + N) % N]; base[i] = sum / (2 * win / 4 + 1); } }
@@ -182,7 +182,7 @@ class Track {
   }
   // which Underground section is at s (or null)
   zoneAt(s) { const Z = this.ug; if (!Z) return null; for (const k of ['tunnel', 'chevron', 'cut', 'docks', 'bridge', 'kachha', 'market', 'metro']) { const [a, b] = Z[k]; const x = this.wrapD(s - a); if (x >= 0 && x <= b - a) return k; } return null; }
-  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : this.hz ? this.hillZone(s) === 'desert' : false; }
+  dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : this.hz ? (this.allDirt || this.hillZone(s) === 'desert') : false; }
   hillZone(s) { const Z = this.hz; if (!Z) return null; s = ((s % this.L) + this.L) % this.L; for (const k in Z) if (s >= Z[k][0] && s < Z[k][1]) return k; return null; }
   // is this stretch of a point-to-point stage really there (start grid → run-off past the finish)?
   live(s) { if (!this.p2p) return true; s = ((s % this.L) + this.L) % this.L; return s <= this.finS + 150 || s >= this.L - 90; }

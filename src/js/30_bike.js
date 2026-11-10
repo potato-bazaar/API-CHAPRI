@@ -238,6 +238,7 @@ class BikeRig {
       this.body.add(this.wheelR, this.wheelF);
       const lg = modelLightsGeom(o.neon); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights); this.addStopLamp();
       if (o.mods && !o.ghost) this.mods = addBikeMods(this, o, low, cast);
+      if (o.offroad && !o.ghost) addDirtKit(this, o);
       if (!o.ghost) { const W = wheelBlurAssets(); this.blurMat = new THREE.MeshLambertMaterial({ map: W.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 }); this.blurs = [];
         for (const [wh, geo] of [[this.wheelF, W.gF], [this.wheelR, W.gR]]) { const grp = new THREE.Group(); for (const sx of [1, -1]) { const m = new THREE.Mesh(geo, this.blurMat); m.position.x = sx * 0.058; m.renderOrder = 2; grp.add(m); } grp.visible = false; this.body.add(grp); this.blurs.push({ grp, wh }); }
         this.blurAng = Math.random() * 6; }
@@ -527,3 +528,22 @@ class BikeRig {
 }
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _wv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], _wq = new THREE.Quaternion();
+
+// ── the dirt kit (off-road stages): knobbly tyres over the road ones, a high front mudguard, a number board, hand guards ──
+let DIRT_KIT = null;
+function dirtKit() {
+  if (DIRT_KIT) return DIRT_KIT; const R = WHEEL_R_M, M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler();
+  const tb = new Batch(), ty = new THREE.TorusGeometry(R - 0.035, 0.07, 7, 22).rotateY(Math.PI / 2); tb.add(ty, M.identity(), new THREE.Color('#141414'));
+  const kb = new THREE.BoxGeometry(0.05, 0.035, 0.045); for (let i = 0; i < 22; i++) for (const sx of [-0.045, 0, 0.045]) { const a = (i + (sx ? 0.5 : 0)) / 22 * Math.PI * 2;
+    M.makeRotationX(a); M.multiply(new THREE.Matrix4().makeTranslation(sx, R + 0.028, 0)); tb.add(kb, M, new THREE.Color(i % 2 ? '#1c1c1c' : '#232323')); }
+  const fb = new Batch(), box = (x, y, z, sx, sy, sz, rx, c) => { Q.setFromEuler(E.set(rx, 0, 0)); M.compose(new THREE.Vector3(x, y, z), Q, new THREE.Vector3(sx, sy, sz)); fb.add(UNIT_BOX, M, new THREE.Color(c)); };
+  box(0, R * 2 + 0.2, FRONT_Z + 0.06, 0.16, 0.025, 0.62, -0.16, '#f2f2f2'); box(0, R * 2 + 0.15, FRONT_Z + 0.38, 0.14, 0.02, 0.16, 0.5, '#f2f2f2');     // high mudguard with a beak
+  box(0, R * 2 + 0.42, FRONT_Z - 0.02, 0.26, 0.24, 0.02, -0.3, '#ffd23f'); box(0, R * 2 + 0.42, FRONT_Z - 0.008, 0.1, 0.13, 0.02, -0.3, '#151515');       // number board
+  box(0, R + 0.34, REAR_Z - 0.12, 0.17, 0.02, 0.5, 0.22, '#f2f2f2');                                                                                   // rear guard, up and away from the tyre
+  return DIRT_KIT = { tyre: tb.build(), kit: fb.build(), mat: new THREE.MeshLambertMaterial({ vertexColors: true }) };
+}
+function addDirtKit(rig, o) {
+  const K = dirtKit();
+  for (const w of [rig.wheelF, rig.wheelR]) { const m = new THREE.Mesh(K.tyre, K.mat); m.userData.dyn = true; m.castShadow = !o.lod; w.add(m); }
+  const k = new THREE.Mesh(K.kit, K.mat); k.userData.dyn = true; rig.body.add(k);
+}

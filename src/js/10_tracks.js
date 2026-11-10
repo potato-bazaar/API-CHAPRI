@@ -2,6 +2,21 @@
 // Each track: authored centre-line control points (x,z metres before scaling),
 // a cyclic width profile, optional elevation keys and bumps. The spline is the
 // single source of truth for road extrusion, AI lines, checkpoints and minimap.
+// Himalaya Downhill: the line down the mountain ([x, z, height]; heights are stretched so the top stands at 1,150 m), and its
+// jumps, laid out by rule: a kicker lip, a set of whoops, a big lip, a table-top drop, round and round all the way down
+const HIMALAYA_PTS = [[0,0,1000],[110,0,988],[220,20,972],[310,80,956],[350,170,940],[320,260,924],[240,320,908],[200,410,892],[250,500,876],[350,550,860],
+  [460,560,845],[560,610,830],[610,700,814],[580,800,798],[500,860,782],[400,900,768],[340,980,752],[360,1080,736],[440,1150,720],[550,1180,704],[660,1160,690],
+  [760,1110,676],[850,1050,660],[950,1030,644],[1040,1070,628],[1090,1160,612],[1080,1260,596],[1020,1340,580],[1000,1440,564],[1050,1530,548],[1140,1580,532],[1250,1570,518],[1340,1520,504],[1410,1440,490],
+  [1500,1400,478],[1600,1420,468],[1680,1480,458],[1720,1570,450],[1700,1670,444],[1640,1750,440],[1560,1810,438],[1470,1860,438],
+  [1300,1900,440],[800,1800,600],[200,1300,800],[-250,600,950],[-300,150,1000],[-200,0,1000],[-100,0,1000]].map(([x, z, y]) => [x, z, Math.round(438 + (y - 438) * 1.27)]);
+const HIMALAYA_LEN = 9700;
+const HIMALAYA_BUMPS = (() => { const out = []; let k = 0;
+  for (let a = 1.5; a < 38.7; a += 1.12, k++) { const m = k % 4;
+    if (m === 0) out.push({ at: a, h: 2.0, len: 11, type: 'ramp' });
+    else if (m === 1) for (let i = 0; i < 4; i++) out.push({ at: a + i * 0.125, h: 0.75, len: 13 });
+    else if (m === 2) out.push({ at: a, h: 2.7, len: 14, type: 'ramp' });
+    else out.push({ at: a, h: 3.2, len: 44, type: 'ramp' }); }
+  return out; })();
 const TRACKS = [
   {
     // the main map: one night run through every kind of Mumbai underworld. Sections are fractions of the lap.
@@ -93,6 +108,18 @@ const TRACKS = [
     p2p: { finish: 39, zones: { pine: [0, 14.5], lake: [14.5, 20.6], desert: [20.6, 29.6], climb: [29.6, 40.6] }, lake: { x: 640, z: 520, r: 150, y: 168.4 },
       bumps: [{ at: 10.2, h: 1.6, len: 26, type: 'ramp' }, { at: 21.5, h: 2.2, len: 34, type: 'ramp' }, { at: 23.4, h: 1.1, len: 9, type: 'ramp' }, { at: 25.2, h: 2.6, len: 38, type: 'ramp' }, { at: 26.8, h: 1.2, len: 9, type: 'ramp' }, { at: 28.3, h: 1.8, len: 24, type: 'ramp' }] },
     triples: [], shortcuts: 0, kickers: 5, kickOver: 'rocks', potholes: 5, bigPotholes: 2, mud: 4,
+  },
+  {
+    // Himalaya Downhill: pure off-road, one way, all the way down. Snow ridge at the top, pine slopes, then red badlands and a
+    // dry wash. A narrow dirt trail on the ridge line, a jump or a set of whoops every 150 m, eagles and animals on the trail.
+    // offroad = every bike gets the dirt kit (knobbly tyres, long travel) and dirt costs it nothing.
+    id: 'himalaya-downhill', name: 'Himalaya Downhill', short: 'Downhill', special: true, offroad: true,
+    theme: 'hills', target: HIMALAYA_LEN, km: 5.5, lapTarget: '2:50–3:30', time: 'morning', laps: 1,
+    blurb: 'Off-road, one way: from the snow line down through the pines to the red badlands. Jumps every few seconds, eagles and yaks in the way.',
+    pts: HIMALAYA_PTS, widths: [[0, 7.6]],
+    p2p: { finish: 40, plainFinish: true, bigLand: true, peaks: 300, snowLine: 1010, zones: { snow: [0, 9.5], alpine: [9.5, 20.5], badland: [20.5, 33.5], wash: [33.5, 41.6] }, zoneType: { wash: 'desert' }, bumps: HIMALAYA_BUMPS,
+      wild: true },
+    triples: [], shortcuts: 0, kickers: 4, kickOver: 'rocks', potholes: 0, bigPotholes: 0, mud: 3,
   },
 ];
 // the Championship runs every circuit (not the special stages)

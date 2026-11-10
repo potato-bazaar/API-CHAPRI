@@ -16,6 +16,7 @@ class Rider {
     // steering assist (the player): the stick sets where the bike points relative to the road, and the bike follows the road's curve by itself
     this.assist = this.isPlayer && !DEBUG.autopilot && SAVE.settings.steerAssist !== false;
     if (this.assist) this.gripLat *= 1.1;   // arcade handling for the human: tighter lines than the AI's tyres allow
+    if (race.def.offroad) cfg.look = { ...cfg.look, offroad: true };   // the dirt kit for off-road stages
     this.rig = new BikeRig(this.isPlayer ? cfg.look : { ...cfg.look, lod: true });
     this.rig.showWeapon(null);
     // state
@@ -43,7 +44,7 @@ class Rider {
     this.hopCD = Math.max(0, this.hopCD - dt); this.hopT += dt; this.flatT = Math.max(0, this.flatT - dt);
     // road surface under the wheels: 0 tarmac, 1 kichad (mud), 2 kachha lane
     this.surf = this.air ? 0 : this.surfaceHere(T);
-    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : this.surf === 5 ? 0.9 : 1);
+    const gripMul = (this.race.wet ? 0.8 : 1) * (this.gripT > 0 ? 0.62 : 1) * (this.surf === 1 ? (this.race.wet ? 0.5 : 0.62) : this.surf === 2 ? 0.86 : this.surf === 4 ? 0.8 : this.surf === 3 ? 0.9 : this.surf === 5 ? (T.offroad ? 1 : 0.9) : 1);
     // gears + rpm
     const gt = GEAR_SPLIT.map(f => f * vTopEff * 1.06);
     if (!(this.isPlayer && SAVE.settings.manualGears)) {
@@ -66,7 +67,7 @@ class Rider {
     if (this.boosting) a += 3.3;
     if (this.wheelie && this.pitch > 0.12) a += 1.6;   // a wheelie is a stunt AND a speed trick: less drag, the rear tyre hooks up
     if (this.gripT > 0) a -= 0.8;
-    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4; else if (this.surf === 5) a -= 0.45;
+    if (this.v > 2) { if (this.surf === 1) a -= this.race.wet ? 3.6 : 2.8; else if (this.surf === 2) a -= 1.4; else if (this.surf === 5) a -= T.offroad ? 0 : 0.45;   // (knobbly tyres: dirt costs nothing)
       else if (this.surf === 4) a -= 1.2 + this.v * 0.11;      // water drag: wheels a quarter under
       else if (this.surf === 3) a -= 0.9 + this.v * 0.05; }    // steps
     // stairs: every step edge kicks the suspension
@@ -150,7 +151,7 @@ class Rider {
       this.vy -= G * dt; this.y += this.vy * dt; this.airT += dt;
       // rooftop gaps: too slow and you drop between the buildings
       if (T.roof && ((T.gapAt(this.s) && this.y < T.roof.h - 1.1) || (this.y <= gy && T.onRoofTop(this.s) && this.y < gy - 0.75))) { this.y = Math.min(this.y, gy); this.crash('fell'); return; }
-      if (this.y <= gy) { const gvy = clamp((T.gy(this.s + 0.6, this.d) - gy) / 0.6 * this.v, -12, 12), impact = Math.max(0, gvy - this.vy); this.y = gy; this.air = false; this.vy = gvy;   /* landing on a down-ramp is soft */ this.suspV -= clamp(impact * 0.55, 0.3, 4.5);
+      if (this.y <= gy) { const gvy = clamp((T.gy(this.s + 0.6, this.d) - gy) / 0.6 * this.v, -12, 12), impact = Math.max(0, gvy - this.vy) * (T.offroad ? 0.6 : 1); this.y = gy; this.air = false; this.vy = gvy;   /* landing on a down-ramp is soft */ this.suspV -= clamp(impact * 0.55, 0.3, 4.5);
         this.landImpact = impact; if (this.airT > 0.5) this.race.onAir(this, this.airT); if (Math.abs(this.lean) > 0.65) this.addWobble(12); if (impact > 7.5) this.addWobble((impact - 7.5) * 3 / this.st.wobbleRes);
         this.race.onLand(this, impact); if (this.isPlayer) this.race.rumble(clamp(impact / 8, 0.25, 0.9), 0.15); }
     }

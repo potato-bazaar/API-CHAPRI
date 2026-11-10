@@ -4,6 +4,17 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
+## Himalaya Downhill (v39): the off-road stage
+
+A 5.5 km one-way descent on a dirt trail, about 700 m of drop. Pick it in Race Setup → **Downhill**.
+
+- **Three kinds of country:** a snow ridge at the top, pine slopes, then red badlands and a dry wash. On the ridges the land falls away on both sides; far off, snow peaks stand up again.
+- **A jump every 150 m or so**, laid out by rule in `src/js/10_tracks.js` (`HIMALAYA_BUMPS`): kicker lip, a set of four whoops, a bigger lip, a table-top drop, repeated all the way down.
+- **Dirt kit** (`addDirtKit` in `src/js/30_bike.js`): every bike on this stage gets knobbly tyres, a high front mudguard, a number board and a rear guard. Dirt costs no grip or speed here and landings are 40% softer.
+- **Wildlife** (`src/js/47_wild.js`): yaks and goats graze by the trail and walk across as you arrive; eagles swoop across your line at handlebar height. Each gets a yellow warning sign when it moves. Hit one and you crash; pass close for a near-miss bonus. The models are simple blocks.
+- Country types are now named and reusable (`HILL_Z` in `src/js/25_hills.js`): pine, lake, desert, climb, snow, alpine, badland.
+- No police van on this stage. You still cannot ride off the edge of the trail. Jump sizes and animal timing were set from autopilot runs, not by a human.
+
 ## Lonavala Ghat Escape (v38): the first point-to-point stage
 
 A 4.8 km one-way run, no laps: start on a hill top, finish at a fort on the next hill. Pick it in Race Setup → **Ghat Escape**.
