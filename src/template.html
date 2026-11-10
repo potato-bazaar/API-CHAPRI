@@ -56,7 +56,8 @@
         </div>
         <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
         <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
-        <button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
+        <div class="mode-row"><button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
+        <button id="flyBtn" class="safar-btn fly-home" type="button" data-open="flyG"><span class="sb-ico"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg></span><span class="sb-txt"><b>FLYING MODE <small>new</small></b><i>Bamboo wings · jump the cliff · fly the canyon</i></span><em id="flyBest"></em><span class="chev">›</span></button></div>
         <div class="two-btns three">
           <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
           <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
@@ -134,6 +135,16 @@
     <div id="warnL" class="warn left" hidden>‹‹</div><div id="warnR" class="warn right" hidden>››</div>
     <div id="splat" class="splat" hidden></div>
     <div id="pops"></div>
+    <!-- Flying Mode: phase, readiness meter, flight stats and the flight controls (51_flight.js shows what each phase needs) -->
+    <div id="fly" hidden>
+      <div class="fly-phase" id="flyPhase"></div>
+      <div class="fly-meter"><div class="fm-bar"><i id="flyFill"></i><em>90</em></div><div class="fm-wing" id="flyWing"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg><b>WINGS</b><span>FOLDED</span></div></div>
+      <div class="fly-stats"><div><small>ALT</small><b id="fAlt">0</b><i>m</i></div><div><small>FLOWN</small><b id="fDist">0</b><i>m</i></div><div><small>AIR</small><b id="fTime">0.0</b><i>s</i></div><div><small>RINGS</small><b id="fRings">0/9</b></div><div><small id="fLandL">RAMP</small><b id="fLand">0</b><i>m</i></div><div class="fs-boost"><small>BOOST</small><span><i id="flyBoost"></i></span></div></div>
+      <button class="tbtn fly-btn fly-deploy" data-t="deploy" type="button" aria-label="Deploy wings"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg><b>DEPLOY<br>WINGS</b><kbd>Space</kbd></button>
+      <button class="tbtn fly-btn fly-roll" data-t="deploy" type="button" aria-label="Barrel roll"><b>ROLL</b><kbd>Space</kbd></button>
+      <button class="tbtn fly-btn fly-up" data-t="pup" type="button" aria-label="Pitch up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-8 7 8" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><kbd>W</kbd></button>
+      <button class="tbtn fly-btn fly-dn" data-t="pdn" type="button" aria-label="Pitch down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 8 7-8" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><kbd>S</kbd></button>
+    </div>
     <div class="weapon-slots" id="wSlots"></div>
     <div class="hud-bottom">
       <div class="steer-pad"><button class="tbtn round-xl" data-t="left" type="button" aria-label="Lean left"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="tbtn round-xl" data-t="right" type="button" aria-label="Lean right"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
@@ -237,6 +248,10 @@
   <div id="career" class="modal panel wide" role="dialog" aria-modal="true" aria-labelledby="crTitle" hidden>
     <header><h2 id="crTitle">SAFAR <small>gali se Don tak</small></h2><span class="cr-stars" id="crStars"></span><button class="x" type="button" data-close aria-label="Close">×</button></header>
     <div class="modal-body" id="crBody"></div>
+  </div>
+  <div id="flyG" class="modal panel wide" role="dialog" aria-modal="true" aria-labelledby="flyTitle" hidden>
+    <header><h2 id="flyTitle">FLYING MODE <small>the flying garage</small></h2><button class="x" type="button" data-close aria-label="Close">×</button></header>
+    <div class="modal-body" id="flyBody"></div>
   </div>
   <div id="cupModal" class="modal panel" role="dialog" aria-modal="true" aria-labelledby="cupTitle" hidden>
     <header><h2 id="cupTitle">CHAMPIONSHIP</h2><button class="x" type="button" data-close aria-label="Close">×</button></header>

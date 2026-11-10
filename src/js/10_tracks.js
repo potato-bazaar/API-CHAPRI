@@ -17,6 +17,12 @@ const HIMALAYA_BUMPS = (() => { const out = []; let k = 0;
     else if (m === 2) out.push({ at: a, h: 2.7, len: 14, type: 'ramp' });
     else out.push({ at: a, h: 3.2, len: 44, type: 'ramp' }); }
   return out; })();
+// Cliff Run: runway, canyon corridor and landing mesa ([x, z, height]); the last points only close the loop
+const CLIFF_PTS = [[0,0,600],[140,0,598],[280,0,596],[410,0,593],[520,0,591],
+  [720,10,585],[940,60,575],[1140,170,560],[1300,330,545],[1460,480,530],[1660,560,515],[1880,560,500],[2080,480,485],[2260,360,470],[2460,300,455],[2660,320,440],
+  [2820,330,438],[2980,330,436],[3080,330,436],
+  [3260,200,440],[3060,-400,500],[1800,-700,560],[500,-600,600],[-300,-300,600],[-350,-60,600],[-200,0,600]];
+const CLIFF_LEN = 8316;
 const TRACKS = [
   {
     // the main map: one night run through every kind of Mumbai underworld. Sections are fractions of the lap.
@@ -120,6 +126,17 @@ const TRACKS = [
     p2p: { finish: 40, plainFinish: true, bigLand: true, peaks: 300, snowLine: 1010, zones: { snow: [0, 9.5], alpine: [9.5, 20.5], badland: [20.5, 33.5], wash: [33.5, 41.6] }, zoneType: { wash: 'desert' }, bumps: HIMALAYA_BUMPS,
       wild: true },
     triples: [], shortcuts: 0, kickers: 4, kickOver: 'rocks', potholes: 0, bigPotholes: 0, mud: 3,
+  },
+  {
+    // Cliff Run (Flying Mode only): a runway on a mesa, a wooden ramp at the cliff edge, a canyon with a river far below and a
+    // landing strip on the mesa across it. pit = the stretch where the ground is the canyon floor: no road there, you fly it.
+    id: 'cliff-run', name: 'Cliff Run', short: 'Cliff Run', special: true, flyOnly: true,
+    theme: 'hills', target: CLIFF_LEN, km: 3.2, lapTarget: 'score attack', time: 'morning', laps: 1,
+    blurb: 'Flying Mode: build speed on the runway, open the wings, jump the cliff, fly the canyon and land on the far mesa.',
+    pts: CLIFF_PTS, widths: [[0, 13]],
+    p2p: { finish: 17, plainFinish: true, bigLand: true, peaks: 200, nitros: 0, clean: true, canyonK: 2.0, zones: { runway: [0, 4.02], canyon: [4.02, 14.98], mesa: [14.98, 18.6] }, zoneType: { runway: 'mesa', canyon: 'gorge', mesa: 'mesa' },
+      pit: { from: 4, to: 15, depth: 330 }, bumps: [{ at: 4, off: -12.5, h: 3.6, len: 24, type: 'ramp' }] },
+    triples: [], shortcuts: 0, kickers: 0, potholes: 0, bigPotholes: 0, mud: 0,
   },
 ];
 // the Championship runs every circuit (not the special stages)

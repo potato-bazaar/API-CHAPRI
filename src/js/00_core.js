@@ -190,6 +190,7 @@ const MODES = {
   timetrial: { label: 'Time Trial', desc: 'Solo laps against your ghost', rivals: false, combat: false, laps: true },
   stunt: { label: 'Stunt Run', desc: 'One lap · stunts score only', rivals: false, combat: false, fixedLaps: 1 },
   cup: { label: 'Championship', desc: 'All 6 tracks · points carry over', rivals: true, combat: true, laps: true },
+  flying: { label: 'Flying Mode', desc: 'Solo · wings on the bike · jump the cliff, fly the canyon, land it', rivals: false, combat: false, fixedLaps: 1, flying: true, track: 'cliff-run', time: 'morning' },
   police: { label: 'Police Express+', desc: 'Solo escape across the night nakabandi · jump the barricades, dodge the bullets, don\'t get caught', rivals: false, combat: 'force', fixedLaps: 2, police: true, track: 'bhaag-chapri', time: 'night' },
 };
 const TIMES = { morning: 'Morning chai', golden: 'Golden hour', night: 'Sodium night' };
@@ -232,7 +233,7 @@ function defaultSave() {
     cos: { rider: 'chapri', shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim', cape: 'none' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
     setup: { mode: 'quick', track: 'mumbai-underground', laps: 2, diff: 'normal', time: 'auto', weather: 'clear', combat: true },
-    records: {}, ghosts: {}, career: { stars: {}, paid: {} },
+    records: {}, ghosts: {}, career: { stars: {}, paid: {} }, fly: { up: {}, own: { bamboo: true }, build: 'bamboo', best: 0 },
     daily: { date: todayStr(), prog: {}, claimed: {}, bonus: false },
     streak: 0, wins: 0, races: 0, lastLogin: null, loginDays: 0,
     seenHelp: false,

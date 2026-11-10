@@ -4,6 +4,19 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
+## Flying Mode (v40)
+
+A solo score-attack mode: the bike with a home-made flying machine bolted on. Home screen → **FLYING MODE** opens the flying garage; **TAKE OFF** starts a run on the Cliff Run stage (3.2 km).
+
+- **The run:** build speed on the runway → open the wings at 90 km/h or more → hit the wooden ramp at the cliff edge → fly the canyon through 9 rings → land on the marked strip on the far mesa.
+- **Opening the wings is a skill:** open wings drag on the ground, so opening early costs take-off speed; opening within 170 m of the ramp at 96 km/h or more is a PERFECT deployment (extra lift). Miss it and you can still open them in the air while you fall.
+- **Flying:** nose up trades speed for height, nose down gains speed, too slow and you stall. Rings give speed, lift and boost. Rock spires end the flight, bird flocks cost speed. Space does a barrel roll (+150).
+- **Scoring:** run-up, wing deployment, take-off, distance, rings, coins, stunts, landing (softness, level nose, distance from the mark, centre line). Ratings: Bronze 1,500 · Silver 2,900 · Gold 4,300 · Legendary 5,600.
+- **Flying garage:** 7 upgrades (wing size, wing material, wooden frame, propeller, rope mechanism, flight control, boost capacity; 4 levels each) and 5 builds (Classic Bamboo, Vintage Canvas Glider, Double Wing, Experimental Propeller, Ornate Royal).
+- **Controls:** W/S or ↑/↓ pitch, A/D steer, Space wings (then barrel roll), Shift boost. Touch: steering pad on the left; DEPLOY WINGS, pitch up/down, ROLL and boost on the right. Flight controls only appear in the air.
+- **How it is built** (`src/js/51_flight.js`): the canyon is part of the same track spline (`pit` in `src/js/15_track.js`), so a flight is still position along the corridor + sideways drift + height. `FlightOps` owns speed, climb and drift in the air and hands the bike back to the ordinary physics at touchdown. `FlyRig` is the machine: five bamboo ribs per wing on hinges, canvas re-stretched between them every frame (no cloth simulation), ropes from a kingpost, lanterns, propeller.
+- Tuned from autopilot runs only (a clean autopilot run scores about 4,700, Gold, on a stock build). Light is morning, not sunset: the game's golden hour turned the whole red canyon one colour and the rings were hard to see.
+
 ## Himalaya Downhill (v39): the off-road stage
 
 A 5.5 km one-way descent on a dirt trail, about 700 m of drop. Pick it in Race Setup → **Downhill**.

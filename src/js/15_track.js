@@ -45,7 +45,8 @@ class Track {
       this.finS = sAt(def.p2p.finish); this.hz = {}; for (const k in def.p2p.zones) this.hz[k] = def.p2p.zones[k].map(sAt);
       const keys = def.pts.map((q, i) => [keyF[i], q[2]]); for (let i = 0; i < N; i++) base[i] = cyclicKey(keys, i / N, false);
       for (let pass = 0; pass < 2; pass++) { const src = base.slice(), win = 28; for (let i = 0; i < N; i++) { let sum = 0; for (let j = -win; j <= win; j += 4) sum += src[(i + j + N) % N]; base[i] = sum / (2 * win / 4 + 1); } }
-      for (const b of def.p2p.bumps || []) this.bumps.push({ ...b, s: sAt(b.at) }); }
+      if (def.p2p.pit) { const a = sAt(def.p2p.pit.from), b = sAt(def.p2p.pit.to); this.pit = [a, b]; for (let i = Math.ceil(a / STEP); i * STEP < b; i++) base[i] -= def.p2p.pit.depth; }   // the canyon: its floor is the ground here
+      for (const b of def.p2p.bumps || []) this.bumps.push({ ...b, s: sAt(b.at) + (b.off || 0) }); }
     this.planShortcuts(def.shortcuts || 0);
     this.planSetPieces(def);
     for (let i = 0; i < N; i++) {
@@ -133,7 +134,7 @@ class Track {
       let a = -1, b = -1; for (let i = 0; i < N; i++) if (cyclicKey(def.elev, i / N, false) > bh - 0.05) { if (a < 0) a = i * STEP; b = i * STEP; }
       if (a >= 0) this.rail = { s: (a + b) / 2, h: bh }; }
     // nitro strips on every track (the Underground authors its own): on straights, spread round the lap, a coin line after each
-    if (!def.underground) { this.nitros = []; const n = this.p2p ? 7 : Math.max(3, Math.round(L / 480));
+    if (!def.underground) { this.nitros = []; const n = this.p2p ? (def.p2p.nitros ?? 7) : Math.max(3, Math.round(L / 480));
       for (let k = 0; k < n; k++) { const s0 = take(34, 2); if (s0 === null) break; const s = s0 + 8, f = [0.3, -0.3, 0, 0.25, -0.2][k % 5], d = f * this.get(this.w0, s);
         this.nitros.push({ s, d, len: 8, hw: 1.0 }); this.pieceZones.push([s0, s0 + 34]); for (let i = 0; i < 4; i++) this.coins.push({ s: s + 11 + i * 3, d, h: 0.95 }); } }
   }
@@ -183,6 +184,7 @@ class Track {
   // which Underground section is at s (or null)
   zoneAt(s) { const Z = this.ug; if (!Z) return null; for (const k of ['tunnel', 'chevron', 'cut', 'docks', 'bridge', 'kachha', 'market', 'metro']) { const [a, b] = Z[k]; const x = this.wrapD(s - a); if (x >= 0 && x <= b - a) return k; } return null; }
   dirtAt(s) { return this.ug ? this.zoneAt(s) === 'kachha' : this.hz ? (this.allDirt || this.hillZone(s) === 'desert') : false; }
+  pitAt(s) { const P = this.pit; return !!P && s > P[0] && s < P[1]; }
   hillZone(s) { const Z = this.hz; if (!Z) return null; s = ((s % this.L) + this.L) % this.L; for (const k in Z) if (s >= Z[k][0] && s < Z[k][1]) return k; return null; }
   // is this stretch of a point-to-point stage really there (start grid → run-off past the finish)?
   live(s) { if (!this.p2p) return true; s = ((s % this.L) + this.L) % this.L; return s <= this.finS + 150 || s >= this.L - 90; }

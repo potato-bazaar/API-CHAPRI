@@ -54,7 +54,7 @@ class UI {
   open(id, fromPause = false) {
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
-    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); }
+    if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); } if (id === 'flyG') FLYUI.render(this.game);
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = false; $('#' + id).hidden = false; this.returnToPause = fromPause;
     const f = $('#' + id).querySelector('button'); if (f) f.focus({ preventScroll: true });
   }
@@ -82,7 +82,7 @@ class UI {
     const bonus = $('#dailyBonus');
     if (allDone && !d.bonus) { bonus.innerHTML = `<button class="claim" type="button" id="claimBonus">CLAIM +${DAILY_BONUS_ALL} BONUS</button>`; $('#claimBonus').addEventListener('click', () => { SAVE.daily.bonus = true; SAVE.coins += DAILY_BONUS_ALL; persist(); AUDIO.pickup(); this.renderMenu(); }); }
     else bonus.textContent = d.bonus ? 'All done for today. New challenges tomorrow.' : `→ ALL 3 DONE → +${DAILY_BONUS_ALL} BONUS`;
-    $('#bellDot').hidden = SAVE.lastLogin === todayStr(); CAREER.renderButton();
+    $('#bellDot').hidden = SAVE.lastLogin === todayStr(); CAREER.renderButton(); { const f = flySave(); $('#flyBest').textContent = f.best ? `${f.best.toLocaleString()} pts` : ''; }
   }
   statRows(st, withUp) {
     const rows = [['speed', 'SPEED', st.top / 140, Math.round(st.top)], ['accel', 'ACCEL', clamp((12 - st.zeroTo100) / 8, 0.05, 1), st.zeroTo100.toFixed(1) + 's'], ['grip', 'GRIP', (st.lean - 38) / 18, (st.grip * 4.2).toFixed(1)], ['brake', 'BRAKES', (st.brake - 0.6) / 0.9, (st.brake * 4.1).toFixed(1)]];

@@ -193,6 +193,7 @@ class Game {
     if (id === 'menu' || id === 'garage' || id === 'store') { this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.nav === 'home' && id === 'menu')); }
   }
   // ── race lifecycle ──
+  startFlying() { this.career = null; this.cup = null; return this.startRace(Object.assign({}, SAVE.setup, { mode: 'flying', laps: 1, time: 'auto' })); }
   startFromSetup() { this.career = null; if (SAVE.setup.mode === 'cup') return this.startCup(); this.cup = null; return this.startRace(Object.assign({}, SAVE.setup)); }
   // a career event (84_career.js): its own track, mode and rules, with three goals to meet
   startCareer(id) { const e = CAREER.find(id); if (!e) return; this.cup = null; this.career = id; return this.startRace(CAREER.setupOf(e), null); }
@@ -293,7 +294,7 @@ class Game {
   }
   showResults(R) {
     if (this.race !== R || this.state === 'results') return;
-    const res = this.computeResults(R); if (this.career) { res.careerHtml = CAREER.finish(this, R); persist(); } this.lastRes = res; this.state = 'results'; this.setMusic('menu');
+    const res = this.computeResults(R); if (this.career) { res.careerHtml = CAREER.finish(this, R); persist(); } if (R.flight && R.flight.result) res.careerHtml = FLYUI.results(R.flight); this.lastRes = res; this.state = 'results'; this.setMusic('menu');
     $$('.screen').forEach(s => s.classList.remove('show')); $('#results').classList.add('show');
     this.ui.renderResults(R, res); this.ui.renderMenu();
   }
@@ -301,6 +302,7 @@ class Game {
     const P = R.player, M = MODES[R.mode], S = R.score, items = [];
     const rank = R.ranking(); const pos = R.playerPos || rank.indexOf(P) + 1; const n = R.riders.length;
     if (M.rivals) items.push(['Position points', PTS.finish[pos - 1] || 0]);
+    if (R.flight && R.flight.result) { items.length = 0; items.push([`Flight score (${R.flight.result.total.toLocaleString()} pts)`, R.flight.result.coins]); S.stunts = 0; }
     if (R.mode === 'timetrial') items.push([`Laps completed (${P.laps.length})`, P.laps.length * 50]);
     const PO = R.police; if (PO) { if (!PO.busted) items.push(['Escaped the nakabandi', 800]); else items.push([`Laps before the arrest (${P.laps.length})`, P.laps.length * 120]); }
     const add = (k, label) => { if (S[k]) items.push([label, S[k]]); };
@@ -327,7 +329,7 @@ class Game {
       cupTable = `<h3 style="margin-top:.8rem">CHAMPIONSHIP · ROUND ${this.cup.idx + 1}/${CUP_TRACKS.length}</h3><table class="cup-table">${table.map(([k, v], i) => `<tr class="${k === '__you' ? 'me' : ''}"><td>${i + 1}</td><td>${k === '__you' ? SAVE.name + ' (You)' : k}</td><td class="n">${v}</td></tr>`).join('')}</table>`;
     }
     persist();
-    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : R.chase && R.chase.busted ? 'PAKDA GAYA!' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
+    const title = PO ? (PO.busted ? 'PAKDA GAYA!' : 'BACH GAYA!') : R.mode === 'stunt' ? 'STUNT RUN DONE' : R.mode === 'timetrial' ? 'TIME TRIAL DONE' : R.mode === 'elimination' && P.eliminated ? 'ELIMINATED' : R.flight && R.flight.result ? (R.flight.result.landed ? R.flight.result.rating + ' FLIGHT' : (R.flight.result.msg || 'CRASHED')) : R.chase && R.chase.busted ? 'PAKDA GAYA!' : pos === 1 ? 'JEET GAYA!' : 'RACE COMPLETE';
     const sub2 = `${R.def.short} · ${R.laps} lap${R.laps > 1 ? 's' : ''} · ${MODES[R.mode].label}${M.rivals ? ' · ' + R.diff.label : ''} · Best lap ${fmtTime(P.bestLap)}`;
     const totalShown = total + (items.find(i => i[0].startsWith('Cup bonus')) ? items.find(i => i[0].startsWith('Cup bonus'))[1] : 0);
     if (PO) { const rec2 = SAVE.records[R.def.id] || {}; if (!PO.busted && (!rec2.bestEscape || R.raceT < rec2.bestEscape)) { rec2.bestEscape = R.raceT; SAVE.records[R.def.id] = rec2; persist(); } }
@@ -459,9 +461,10 @@ class Game {
       const pk = this.portraitK();   // portrait: a higher, longer camera (Auto Rush style) so you see the road ahead past the bike
       // udaan: high in the air (bridge gap, rooftop jumps) the lens eases back and up so you see the rider and the drop below
       C.airK = smooth(C.airK || 0, P.air ? clamp((P.y - T.gy(P.s, P.d) - 1.5) / 4, 0, 1) : 0, P.air ? 3 : 2, dt);
-      const back = (far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring) + pk * 1.6 + C.airK * 1.4, up = (far ? 3.4 : 1.62) - fx.dip + pk * 1.0 + C.airK * 0.45;
+      const fl = R.flight ? R.flight.camK : 0;   // Flying Mode: the lens drops back and up to take in the wings and the canyon
+      const back = (far ? 7.6 + spring : 2.6 + P.v * 0.016 + spring) + pk * 1.6 + C.airK * 1.4 * (1 - fl) + fl * 6.6, up = (far ? 3.4 : 1.62) - fx.dip + pk * 1.0 + C.airK * 0.45 * (1 - fl) + fl * 3.6;
       const cs = ((C.dist - back * Math.cos(C.psi)) % T.L + T.L) % T.L; let cd = C.d + C.side - back * Math.sin(C.psi);
-      const lim = T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 1.8) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
+      const lim = fl > 0.02 ? 400 : T.wAt(cs) / 2 + Math.min(SIDEWALK[this.world.theme], 1.8) - 0.2, soft = lim - 0.6, ad = Math.abs(cd); if (ad > soft) cd = Math.sign(cd) * (soft + 0.6 * Math.tanh((ad - soft) / 0.6));
       const g0 = T.roof && T.gapAt(cs) ? C.y : T.yAt(cs); C.gy = C.gy === undefined || !this.camInit ? g0 : smooth(C.gy, clamp(g0, C.y - 2, C.y + 2), 6, dt);   // ground under the lens, smoothed (breaker humps, roof gaps)
       const target = T.pos(cs, cd, this._w); C.su = smooth(C.su, P.susp || 0, 9, dt); target.y = lerp(C.gy, C.y, 0.75) + up + C.su * 0.25;
       this.camPos.copy(target); this.camInit = true;
@@ -469,7 +472,7 @@ class Game {
       // look ahead along the camera's heading, leaning a little into the coming bend
       const la = (far ? 6 : 4.6) + pk * 5, yawC = T.yawAt(P.s) + C.psi, yawL = yawC + wrapAngle(T.yawAt(P.s + 7 + P.v * 0.3) - T.yawAt(P.s)) * 0.35;
       const lp = T.pos(P.s, lerp(C.d, P.d, 0.6), this._v2 || (this._v2 = new THREE.Vector3()), C.y - T.yAt(P.s));
-      C.sl = smooth(C.sl || 0, T.p2p ? clamp(T.yAt(P.s + 14) - T.yAt(P.s), -4, 4) * 0.3 : 0, 3, dt);   // on the ghat the lens tips with the road: down the descents, up the climbs
+      C.sl = smooth(C.sl || 0, fl > 0.02 ? clamp((P.vy || 0) * 0.12, -2.2, 1.6) - 0.5 * fl : T.p2p ? clamp(T.yAt(P.s + 14) - T.yAt(P.s), -4, 4) * 0.3 : 0, 3, dt);   // on the ghat the lens tips with the road: down the descents, up the climbs
       this.camLook.set(lp.x + Math.sin(yawL) * la, lp.y + (far ? 1.0 : 0.62) - C.nod * 0.35 - C.airK * 0.5 + C.sl, lp.z + Math.cos(yawL) * la);
       cam.lookAt(this.camLook); cam.rotateZ(-C.lean * 0.2 + vr);
     }

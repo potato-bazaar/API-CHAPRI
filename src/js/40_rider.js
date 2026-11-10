@@ -33,7 +33,7 @@ class Rider {
     this.wheelieDist = 0; this.slideDist = 0; this.wheeliesDone = 0;
     this.susp = 0; this.suspV = 0; this.surf = 0; this.lastHole = -1; this.lastHoleT = -9; this.ai.shortcut = this.isPlayer ? DEBUG.autopilot : RNG() < 0.4; this.ai.jumper = this.isPlayer ? DEBUG.autopilot : RNG() < 0.55;
   }
-  get halfW() { return this.race.track.wAt(this.s) / 2 - 0.42; }
+  get halfW() { return this.flyW || this.race.track.wAt(this.s) / 2 - 0.42; }   // (flyW: Flying Mode opens the whole canyon)
   place(dist, d) { const T = this.race.track; this.dist = dist; this.s = ((dist % T.L) + T.L) % T.L; this.d = d; this.psi = 0; this.v = 0; this.y = T.yAt(this.s); }
   // ── one physics step ──
   step(dt, raceT) {
@@ -148,7 +148,7 @@ class Rider {
       else { const nvy = clamp((gy - this.y) / dt, -20, Math.min(20, 1 + this.v * 0.32)); /* a step up (ramp edge, respawn) is not a launch */ this.suspV -= clamp((nvy - this.vy), -6, 6) * 0.35; this.vy = nvy; this.y = gy; }
     }
     if (this.air) {
-      this.vy -= G * dt; this.y += this.vy * dt; this.airT += dt;
+      if (!this.gliding) this.vy -= G * dt; this.y += this.vy * dt; this.airT += dt;   // (gliding: the wings decide the climb, 51_flight.js)
       // rooftop gaps: too slow and you drop between the buildings
       if (T.roof && ((T.gapAt(this.s) && this.y < T.roof.h - 1.1) || (this.y <= gy && T.onRoofTop(this.s) && this.y < gy - 0.75))) { this.y = Math.min(this.y, gy); this.crash('fell'); return; }
       if (this.y <= gy) { const gvy = clamp((T.gy(this.s + 0.6, this.d) - gy) / 0.6 * this.v, -12, 12), impact = Math.max(0, gvy - this.vy) * (T.offroad ? 0.6 : 1); this.y = gy; this.air = false; this.vy = gvy;   /* landing on a down-ramp is soft */ this.suspV -= clamp(impact * 0.55, 0.3, 4.5);
@@ -186,7 +186,7 @@ class Rider {
     if (Math.cos(this.psi) < -0.2 && this.v > 2) this.wrongT += dt; else this.wrongT = 0;
     // laps
     const lap = Math.floor(this.dist / T.L);
-    if (T.p2p) { this.lap = Math.max(this.lap, this.dist >= 0 ? 0 : -1); if (!this.p2pDone && this.dist >= T.finS) { this.p2pDone = true; this.race.onLap(this, raceT); }
+    if (T.p2p) { this.lap = Math.max(this.lap, this.dist >= 0 ? 0 : -1); if (!this.p2pDone && this.dist >= T.finS && !this.race.flight /* a flight ends when the bike has landed and stopped, not at a line */) { this.p2pDone = true; this.race.onLap(this, raceT); }
       if (this.dist > T.finS + 125) { this.v = 0; this.dist = T.finS + 125; } }   // the road ends past the finish
     else if (lap > this.lap) { if (this.lap >= 0) this.race.onLap(this, raceT); this.lap = lap; }
   }
