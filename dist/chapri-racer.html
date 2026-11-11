@@ -830,6 +830,102 @@ kbd { font-family: var(--f-num); }
 @media (max-height: 520px) and (orientation: landscape) { .mode-row { grid-template-columns: 1fr 1fr; gap: .35rem; } .mode-row .safar-btn { min-width: 0; padding: .1rem .45rem; gap: .35rem; } .mode-row .safar-btn .sb-txt i, .mode-row .safar-btn .chev, .mode-row .safar-btn.fly-home em { display: none; } .mode-row .safar-btn .sb-txt b { font-size: 1.05rem; white-space: nowrap; } .mode-row .safar-btn em { font-size: 1rem; } }
 @media (orientation: portrait) { .fly-phase { top: calc(max(.5rem, env(safe-area-inset-top, 0px)) + 5.2rem); left: max(14px, env(safe-area-inset-left, 0px)); transform: none; justify-items: start; text-align: left; } .fly-phase[data-p="READY"] { animation: none; }
   .fly-stats { top: calc(max(.5rem, env(safe-area-inset-top, 0px)) + 9.6rem); left: max(14px, env(safe-area-inset-left, 0px)); right: auto; width: 9.4rem; } }
+
+/* ───────── MENU REVAMP (docs/MENU_REVAMP_BRIEF.md): hub, dock, play ─────────
+   One primary action per screen. Marigold = the primary action and the current selection; panels are dark glass with a
+   1px light edge; the same dock on every menu screen. */
+:root { --glass: linear-gradient(165deg, rgba(38, 20, 48, .9), rgba(18, 9, 26, .9)); --edge: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 10px 28px rgba(0, 0, 0, .4); --dock-h: 4.3rem; }
+#menu, #play, #garage, #store { padding-bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + var(--dock-h) + .5rem); }
+#menu.show, #play.show, #garage.show, #store.show { animation: scrIn .26s ease-out; }
+@keyframes scrIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#garage .back, #store .back { display: none; }
+/* the dock */
+.dock { position: absolute; left: 50%; bottom: max(8px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 12; display: grid; grid-template-columns: 1fr 1fr 1.25fr 1fr 1fr; align-items: end; gap: .2rem; width: min(36rem, calc(100% - 20px)); height: var(--dock-h); padding: .3rem .4rem; border-radius: 20px; background: rgba(16, 8, 22, .94); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 8px 24px rgba(0, 0, 0, .55); }
+.dk { display: grid; justify-items: center; align-content: center; gap: .1rem; height: 100%; border-radius: 14px; color: var(--muted); font-weight: 700; font-size: .82rem; letter-spacing: .02em; transition: background .15s, color .15s, transform .08s; }
+.dk svg { width: 1.55rem; height: 1.55rem; fill: currentColor; stroke: currentColor; } .dk:active { transform: scale(.94); }
+.dk.on { color: #160a12; background: var(--marigold); }
+.dk.d-play { height: calc(100% + 1.1rem); border-radius: 18px; color: #160a12; background: linear-gradient(180deg, #ffd84a, #ff9a1f); box-shadow: 0 0 0 3px rgba(16, 8, 22, .94), 0 0 22px rgba(255, 194, 26, .55); font-family: var(--f-num); font-style: italic; font-size: 1.35rem; letter-spacing: .06em; }
+.dk.d-play svg { width: 1.7rem; height: 1.7rem; } .dk.d-play.on { box-shadow: 0 0 0 3px #fff, 0 0 26px rgba(255, 194, 26, .8); }
+/* home: top bar */
+.hub-prof { min-width: 0; border-left: 0; padding: .2rem .7rem .2rem .25rem; border-radius: 99px; background: rgba(20, 10, 26, .82); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+.round .qm { font-family: var(--f-num); font-size: 1.7rem; line-height: 1; padding-top: .1em; }
+/* home: body */
+.hub { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; min-height: 0; padding-top: .5rem; }
+.hub-left { display: grid; gap: .6rem; width: min(27rem, 36vw); } .hub-right { display: grid; gap: .6rem; width: min(23rem, 30vw); align-self: stretch; align-content: space-between; }
+.hub .panel, .pl-side { background: var(--glass); box-shadow: var(--edge); } .hub .build-card::after, .hub .daily::after { display: none; }
+.hub .daily { width: auto; padding: .7rem .9rem; } .hub .daily h3 { font-size: 1.45rem; margin-bottom: .3rem; } .hub .daily li { padding: .38rem 0; font-size: .95rem; }
+.hub .build-card { padding: .65rem 1.8rem .7rem; } .hub .build-card h2 { font-size: 1.6rem; margin-bottom: .35rem; } .hub .stat { font-size: 1.15rem; grid-template-columns: 1.2rem 4.6rem 1fr 2.8rem; }
+.hub-now { display: grid; gap: .5rem; padding: .55rem; border-radius: 18px; background: var(--glass); box-shadow: var(--edge); }
+.hn-map { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) auto; align-items: center; gap: .7rem; padding: .3rem .5rem .3rem .3rem; border-radius: 12px; background: rgba(0, 0, 0, .28); text-align: left; color: #fff; }
+.hn-thumb svg { display: block; width: 5.6rem; height: 3.7rem; border-radius: 9px; }
+.hn-txt { display: grid; line-height: 1.1; min-width: 0; } .hn-txt small { font-size: .68rem; letter-spacing: .14em; color: var(--pink); font-weight: 800; }
+.hn-txt b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .hn-txt i { font-style: normal; font-size: .85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hn-chg { display: flex; align-items: center; gap: .25rem; padding: .3rem .6rem; border-radius: 9px; background: rgba(255, 255, 255, .1); font-weight: 800; font-size: .78rem; letter-spacing: .06em; } .hn-chg i { font-style: normal; font-size: 1.2rem; line-height: 1; color: var(--marigold); }
+.hub .start-btn, .pl-go .start-btn { width: 100%; height: 4.4rem; font-size: 2.8rem; box-shadow: 0 0 0 2px #160a12, 0 0 0 4px var(--marigold), 0 0 26px rgba(255, 194, 26, .5); background: linear-gradient(100deg, #ff4d9a 0%, var(--marigold) 20%, #ffd84a 65%, var(--marigold)); }
+.start-btn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .55) 50%, transparent 60%); transform: translateX(-120%); animation: sheen 3.6s ease-in-out infinite; pointer-events: none; }
+@keyframes sheen { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+.start-btn:active { transform: translateY(2px) scale(.99); }
+.hub-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.tile { position: relative; display: grid; grid-template-columns: 2.1rem minmax(0, 1fr); grid-template-rows: auto auto; column-gap: .5rem; align-items: center; padding: .5rem .6rem; border-radius: 14px; text-align: left; color: #fff; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22), 0 4px 0 rgba(0, 0, 0, .45); transition: transform .08s; }
+.tile:active { transform: translateY(2px); } .tile .t-ico { grid-row: 1 / 3; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 10px; background: rgba(0, 0, 0, .32); font-size: 1.2rem; color: #fff; }
+.tile .t-ico svg { width: 1.4rem; fill: currentColor; } .tile b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.3rem; line-height: 1; letter-spacing: .03em; white-space: nowrap; }
+.tile i { font-style: normal; font-size: .72rem; color: rgba(255, 255, 255, .85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .tile em { position: absolute; right: .5rem; top: .4rem; font-style: normal; font-family: var(--f-num); font-size: 1rem; color: var(--marigold); }
+.tile .t-new { position: absolute; right: 0; top: 0; padding: .1rem .5rem .05rem .6rem; border-radius: 0 0 0 10px; background: var(--pink); font-weight: 800; font-size: .58rem; letter-spacing: .08em; } .tile em:not(:empty) + .t-new { display: none; }
+.t-safar { background: linear-gradient(120deg, #4a1560, #b21c5e); } .t-fly { background: linear-gradient(120deg, #6a3d14, #d98826); } .t-dh { background: linear-gradient(120deg, #1f5a52, #7a8f3a); } .t-police { background: linear-gradient(120deg, #14204f, #3a2a8a); }
+.tile .siren { display: flex; gap: 2px; } .tile .siren i { width: .5rem; height: .95rem; }
+/* play */
+#play.show { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: .5rem; }
+.pl-maps { position: relative; }
+.pl-top { align-items: center; gap: .8rem; } .pl-top .screen-title { flex: none; }
+.pl-modes { flex: 1; min-width: 0; display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; touch-action: pan-x; padding: .15rem .1rem; } .pl-modes::-webkit-scrollbar { display: none; }
+.pm { flex: none; display: flex; align-items: center; gap: .4rem; height: 2.5rem; padding: 0 .85rem; border-radius: 9px; transform: skewX(-10deg); background: rgba(16, 8, 22, .82); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); color: var(--muted); font-weight: 800; font-size: .92rem; white-space: nowrap; transition: background .15s, color .15s; }
+.pm > * { transform: skewX(10deg); } .pm svg { width: 1.15rem; height: 1.15rem; fill: currentColor; } .pm.on { background: var(--marigold); color: #160a12; box-shadow: 0 0 16px rgba(255, 194, 26, .5); }
+.pm.link { background: rgba(255, 46, 136, .16); color: #ffd0e4; box-shadow: inset 0 0 0 1px rgba(255, 46, 136, .6); } .pm.link::after { content: "›"; transform: skewX(10deg); font-size: 1.2rem; line-height: 1; }
+.pl-body { display: grid; grid-template-columns: minmax(0, 1fr) min(24rem, 38vw); gap: .8rem; min-height: 0; }
+.pl-view { position: relative; min-height: 0; pointer-events: none; }
+.pl-live { position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: .4rem; padding: .22rem .6rem; border-radius: 7px; background: rgba(16, 8, 22, .7); font-weight: 800; font-size: .68rem; letter-spacing: .14em; color: #fff; } .pl-live i { width: .5rem; height: .5rem; border-radius: 50%; background: #ff3b4e; animation: liveDot 1.2s ease-in-out infinite; }
+@keyframes liveDot { 50% { opacity: .25; } }
+.pl-title { position: absolute; left: 0; bottom: .3rem; right: 0; display: grid; gap: .1rem; text-shadow: 0 2px 0 #160a12, 0 0 14px rgba(0, 0, 0, .8); } .pl-title b { font-family: var(--f-num); font-style: italic; font-weight: 700; font-size: clamp(2.2rem, 5vw, 4rem); line-height: .95; letter-spacing: .02em; } .pl-title small { max-width: 34rem; font-size: .92rem; line-height: 1.3; color: #fff; }
+.pl-side { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; border-radius: 18px; overflow: hidden; }
+.pl-info { padding: .7rem .9rem .2rem; } .pl-info h2 { display: none; }
+.pl-side > .pl-info, .pl-side > .pl-opts { grid-row: 1; } .pl-side { grid-template-rows: auto minmax(0, 1fr) auto; } .pl-side > .pl-info { grid-row: 1; } .pl-side > .pl-opts { grid-row: 2; overflow-y: auto; touch-action: pan-y; } .pl-side > .pl-go { grid-row: 3; }
+.pl-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; } .pl-stats > div { padding: .3rem .45rem; border-radius: 9px; background: rgba(0, 0, 0, .3); line-height: 1; min-width: 0; }
+.pl-stats small { display: block; font-size: .56rem; letter-spacing: .1em; color: var(--dim); margin-bottom: .2rem; white-space: nowrap; } .pl-stats b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.45rem; white-space: nowrap; } .pl-stats b.sm { font-size: 1.05rem; } .pl-stats b i { font-style: normal; font-size: .6em; color: var(--muted); margin-left: .1em; }
+.pl-info h4 { margin: .6rem 0 .35rem; font-family: var(--f-num); font-weight: 500; font-size: 1.05rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.pl-facts { display: flex; flex-wrap: wrap; gap: .3rem; max-height: 6.6rem; overflow: hidden; } .fact { display: inline-flex; align-items: center; gap: .3rem; padding: .22rem .55rem; border-radius: 99px; background: rgba(255, 255, 255, .09); font-size: .8rem; font-weight: 600; white-space: nowrap; } .fact svg { width: .95rem; height: .95rem; fill: var(--marigold); color: var(--marigold); }
+.pl-opts { display: grid; gap: .3rem; align-content: start; padding: .5rem .9rem; border-top: 1px solid rgba(255, 255, 255, .1); margin-top: .6rem; }
+.opt { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); align-items: center; gap: .5rem; } .opt > span { font-size: .8rem; font-weight: 700; color: var(--muted); } .opt .lk { font-style: normal; font-size: .7rem; margin-left: .25rem; opacity: .7; }
+.opt .seg { display: flex; padding: .18rem; } .opt .seg button { flex: 1; padding: .3em .2em; font-size: .86rem; } .opt.lock .seg button.on { background: rgba(255, 255, 255, .22); color: #fff; opacity: 1; }
+.pl-extra { margin-top: .2rem; padding: .45rem .7rem; border-radius: 10px; font-size: .9rem; text-align: left; }
+.pl-go { padding: .55rem .7rem .7rem; }
+.pl-maps-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .4rem; }
+.pl-arrow { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: rgba(16, 8, 22, .85); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); font-size: 1.7rem; line-height: 1; color: var(--marigold); }
+.pl-maps { display: flex; gap: .55rem; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; touch-action: pan-x; padding: .5rem .2rem .35rem; } .pl-maps::-webkit-scrollbar { display: none; }
+.mcard { position: relative; flex: none; scroll-snap-align: center; display: grid; width: 11.5rem; border-radius: 14px; overflow: hidden; text-align: left; color: #fff; background: rgba(16, 8, 22, .9); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), 0 6px 14px rgba(0, 0, 0, .4); opacity: .78; transition: transform .16s, opacity .16s, box-shadow .16s; }
+.mcard svg { display: block; width: 100%; height: 5.2rem; } .mc-txt { display: grid; padding: .3rem .55rem .4rem; line-height: 1.1; } .mc-txt b { font-family: var(--f-num); font-style: italic; font-weight: 600; font-size: 1.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mc-txt small { font-size: .74rem; color: var(--muted); }
+.mcard.on { opacity: 1; transform: translateY(-.35rem); box-shadow: 0 0 0 2px var(--marigold), 0 0 22px rgba(255, 194, 26, .5), 0 10px 18px rgba(0, 0, 0, .5); }
+.mc-tag { position: absolute; left: .4rem; top: .4rem; padding: .08rem .45rem; border-radius: 6px; background: var(--pink); font-style: normal; font-weight: 800; font-size: .58rem; letter-spacing: .08em; } .mc-tag.b-pol { background: #2a58ff; } .mc-tag.b-dirt { background: #2f8a5a; } .mc-tag.b-fly { background: #d98826; }
+.mc-won { position: absolute; right: .45rem; top: .3rem; font-style: normal; color: var(--marigold); text-shadow: 0 1px 0 #160a12; }
+/* short landscape (phones on their side) */
+@media (max-height: 480px) and (orientation: landscape) {
+  :root { --dock-h: 3.7rem; } .dock { width: min(31rem, calc(100% - 20px)); }
+  .hub .daily li { padding: .22rem 0; } .hub .daily h3 { font-size: 1.25rem; } .hub .daily-bonus { font-size: 1.05rem; margin-top: .2rem; }
+  .hub .start-btn, .pl-go .start-btn { height: 3.6rem; font-size: 2.3rem; } .mcard svg { height: 3.6rem; } .mcard { width: 10rem; } .pl-facts { max-height: 3.4rem; } .pl-title small { display: none; }
+  .hub .stat:nth-child(n+3) { display: none; }
+}
+/* portrait: the bike keeps the top of the screen; everything else scrolls under it */
+@media (orientation: portrait) {
+  .hub { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .6rem; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; padding-top: 40vh; scrollbar-width: none; -webkit-mask: linear-gradient(#000 0 0) top / 100% 100% no-repeat; }
+  .hub::-webkit-scrollbar { display: none; } .hub-left, .hub-right { width: 100%; } .hub-right { align-content: start; }
+  #menu .topbar .logo { transform: rotate(-6deg) scale(.82); } .hub-prof .pname { display: none; } .hub-prof { padding: .2rem; } #menu .wallet { gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
+  #play.show { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(8rem, 26vh) auto minmax(0, 1fr); } .pl-top .screen-title { display: none; }
+  .pl-body { display: contents; } .pl-view { grid-row: 2; } .pl-maps-wrap { grid-row: 3; } .pl-side { grid-row: 4; } .pl-arrow { display: none; } .pl-maps-wrap { grid-template-columns: minmax(0, 1fr); }
+  .pl-title b { font-size: 2.3rem; } .pl-title small { font-size: .8rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dock { width: calc(100% - 16px); }
+}
+@media (prefers-reduced-motion: reduce) { #menu.show, #play.show, #garage.show, #store.show, .start-btn::after, .pl-live i { animation: none; } .mcard, .dk { transition: none; } }
+
+.dock { display: none; } #menu.show ~ .dock, #play.show ~ .dock, #garage.show ~ .dock, #store.show ~ .dock { display: grid; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 
@@ -857,14 +953,28 @@ kbd { font-family: var(--f-num); }
       <div class="logo"><svg class="crown" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg><span class="l1">CHAPRI</span><span class="l2">RACER</span><span class="tape">BIKE RACING GAME</span></div>
       <button id="soundPill" class="pill sound-pill" type="button"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8c1.5 1.2 1.5 6.8 0 8M18.5 5.5c3 2.5 3 10.5 0 13" fill="none" stroke-width="2"/></svg><span>Tap or press any key for sound</span></button>
       <div class="wallet">
+        <button class="profile hub-prof" type="button" id="profileBtn"><span class="avatar"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#ff2e88"/><circle cx="20" cy="14" r="10" fill="#1b120e"/><circle cx="12" cy="12" r="5" fill="#1b120e"/><circle cx="28" cy="12" r="5" fill="#1b120e"/><circle cx="20" cy="20" r="7.5" fill="#a86d4a"/><rect x="12.5" y="17" width="15" height="4" rx="1.5" fill="#fff"/><path d="M6 40c1-8 7-12 14-12s13 4 14 12z" fill="#ffd23f"/></svg></span><span class="pname"><b id="pName">PotatoBazaar</b><small>Lv <b id="pLv">1</b></small><span class="xpbar mini"><i id="pXp"></i></span></span></button>
         <button class="pill coin" type="button" data-open="store" aria-label="Coins"><i class="ico-coin"></i><b id="coins">0</b><span class="plus">+</span></button>
         <button class="pill parts" type="button" data-open="garage" aria-label="Spare parts"><i class="ico-wrench"></i><b id="parts">0</b><span class="plus">+</span></button>
         <button id="bell" class="round" type="button" aria-label="Daily bonus"><svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zM9.5 19a2.5 2.5 0 0 0 5 0"/></svg><i id="bellDot" class="dot" hidden></i></button>
+        <button class="round" type="button" data-open="howto" aria-label="How to play"><b class="qm">?</b></button>
         <button class="round" type="button" data-open="settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg></button>
       </div>
     </header>
-    <div class="menu-body">
-      <div class="menu-left">
+    <div class="hub">
+      <div class="hub-left">
+        <section class="hub-now" aria-label="Next race">
+          <button class="hn-map" type="button" data-open="play"><span class="hn-thumb" id="nowThumb"></span><span class="hn-txt"><small>NEXT RACE</small><b id="nowName">Underground</b><i id="setupLine">Quick Race · 2 laps · Normal</i></span><span class="hn-chg">CHANGE<i>›</i></span></button>
+          <button id="startBtn" class="start-btn" type="button"><span class="flag"></span><span class="sb-l">START RACE</span><span class="chev">››</span></button>
+        </section>
+        <div class="hub-tiles" aria-label="Featured">
+          <button id="safarBtn" class="tile t-safar" type="button" data-open="career"><span class="t-ico">★</span><b>SAFAR</b><i id="safarSub">Career</i><em id="safarStars">★ 0/60</em></button>
+          <button id="flyBtn" class="tile t-fly" type="button" data-open="flyG"><span class="t-ico"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg></span><b>FLYING MODE</b><i>Jump the cliff, fly the canyon</i><em id="flyBest"></em><span class="t-new">NEW</span></button>
+          <button id="dhBtn" class="tile t-dh" type="button"><span class="t-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20 9 7l4 6 3-4 6 11z"/></svg></span><b>DOWNHILL</b><i>Off-road, 5.5 km of jumps</i><span class="t-new">NEW</span></button>
+          <button id="policeBtn" class="tile t-police" type="button"><span class="t-ico"><span class="siren"><i></i><i></i></span></span><b>POLICE EXPRESS+</b><i>Bhaag Chapri Bhaag</i></button>
+        </div>
+      </div>
+      <div class="hub-right">
         <article class="panel build-card">
           <button class="arrow-btn" id="buildPrev" type="button" aria-label="Previous build">‹</button>
           <div class="build-inner">
@@ -874,37 +984,13 @@ kbd { font-family: var(--f-num); }
           </div>
           <button class="arrow-btn right" id="buildNext" type="button" aria-label="Next build">›</button>
         </article>
-        <div class="city-tabs" role="tablist">
-          <button class="city on" type="button"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>Mumbai</button>
-          <button class="city locked" type="button" data-soon="Delhi">Delhi</button>
-          <button class="city locked" type="button" data-soon="Gurugram">Gurugram</button>
-          <button class="city rain-tog" id="rainTog" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6.5 15a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.5A3.8 3.8 0 0 1 17 15z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Rain off</span></button>
-        </div>
-        <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
-        <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
-        <div class="mode-row"><button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
-        <button id="flyBtn" class="safar-btn fly-home" type="button" data-open="flyG"><span class="sb-ico"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg></span><span class="sb-txt"><b>FLYING MODE <small>new</small></b><i>Bamboo wings · jump the cliff · fly the canyon</i></span><em id="flyBest"></em><span class="chev">›</span></button></div>
-        <div class="two-btns three">
-          <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
-          <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
-          <button id="policeBtn" class="police-btn" type="button"><span class="siren"><i></i><i></i></span><b>POLICE EXPRESS+</b><small>Bhaag Chapri Bhaag</small></button>
-        </div>
+        <aside class="panel daily">
+          <h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4" stroke-width="2"/></svg>DAILY CHALLENGES</h3>
+          <ul id="dailyList"></ul>
+          <p class="daily-bonus" id="dailyBonus">— ALL 3 DONE → +500 BONUS</p>
+        </aside>
       </div>
-      <aside class="panel daily">
-        <h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4" stroke-width="2"/></svg>DAILY CHALLENGES</h3>
-        <ul id="dailyList"></ul>
-        <p class="daily-bonus" id="dailyBonus">— ALL 3 DONE → +500 BONUS</p>
-      </aside>
     </div>
-    <nav class="bottom-nav" aria-label="Main">
-      <button class="nav on" type="button" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span class="nl">Home</span><span class="ns">Home</span></button>
-      <button class="nav" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg><span class="nl">Garage</span><span class="ns">Garage</span></button>
-      <button class="nav" type="button" data-nav="cup"><svg viewBox="0 0 24 24"><path d="M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z"/></svg><span class="nl">Championship</span><span class="ns">Cup</span></button>
-      <button class="nav" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg><span class="nl">Leaderboard</span><span class="ns">Ranks</span></button>
-      <button class="nav" type="button" data-open="howto"><svg viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1a5 5 0 0 1-9 3h-2a5 5 0 0 1-9-3v-1a5 5 0 0 1 5-5zm0 3v2H5v2h2v2h2v-2h2v-2H9v-2zm9.5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm2.5 2.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg><span class="nl">How to Play</span><span class="ns">Help</span></button>
-      <button class="nav" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M2 3h3l2.5 11h11L21 6H7M9 20a1.6 1.6 0 1 0 0 .1M18 20a1.6 1.6 0 1 0 0 .1" fill="none" stroke-width="2.2"/></svg><span class="nl">Store</span><span class="ns">Store</span></button>
-      <button class="profile" type="button" id="profileBtn"><span class="avatar"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#ff2e88"/><circle cx="20" cy="14" r="10" fill="#1b120e"/><circle cx="12" cy="12" r="5" fill="#1b120e"/><circle cx="28" cy="12" r="5" fill="#1b120e"/><circle cx="20" cy="20" r="7.5" fill="#a86d4a"/><rect x="12.5" y="17" width="15" height="4" rx="1.5" fill="#fff"/><path d="M6 40c1-8 7-12 14-12s13 4 14 12z" fill="#ffd23f"/></svg></span><span class="pname"><b id="pName">PotatoBazaar</b><small>Lv <b id="pLv">1</b></small><span class="xpbar mini"><i id="pXp"></i></span></span></button>
-    </nav>
   </section>
 
   <!-- GARAGE -->
@@ -926,10 +1012,29 @@ kbd { font-family: var(--f-num); }
 
   <!-- STORE -->
   <section id="store" class="screen ui-pad">
-    <header class="topbar"><button class="back" type="button" data-back>‹ Back</button><h1 class="screen-title">STORE · RIDER STYLE</h1><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
+    <header class="topbar"><button class="back" type="button" data-back>‹ Back</button><h1 class="screen-title">STYLE · RIDER &amp; WARDROBE</h1><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
     <div class="store-body" id="storeBody"></div>
     <p class="store-note">Everything here is bought with coins you earn on track. Cosmetics change your look, never your speed.</p>
   </section>
+
+  <!-- PLAY: mode, map (with a live fly-through of the map behind), options, start -->
+  <section id="play" class="screen ui-pad">
+    <header class="topbar pl-top"><h1 class="screen-title">PLAY</h1><div class="pl-modes" id="plModes" role="tablist" aria-label="Game mode"></div><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
+    <div class="pl-body">
+      <div class="pl-view"><span class="pl-live"><i></i>LIVE PREVIEW</span><div class="pl-title"><b id="plName"></b><small id="plBlurb"></small></div></div>
+      <aside class="panel pl-side"><div class="pl-info" id="plInfo"></div><div class="pl-opts" id="plOpts"></div><div class="pl-go"><button id="plStart" class="start-btn" type="button"><span class="flag"></span><span class="sb-l">START RACE</span><span class="chev">››</span></button></div></aside>
+    </div>
+    <div class="pl-maps-wrap"><button class="pl-arrow" id="plPrev" type="button" aria-label="Previous map">‹</button><div class="pl-maps" id="plMaps" role="listbox" aria-label="Map"></div><button class="pl-arrow" id="plNext" type="button" aria-label="Next map">›</button></div>
+  </section>
+
+  <!-- the dock: the same five places on every menu screen -->
+  <nav id="dock" class="dock" aria-label="Main">
+<button class="dk d-menu" type="button" data-back><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span>Home</span></button>
+<button class="dk d-garage" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg><span>Garage</span></button>
+<button class="dk d-play" type="button" data-open="play"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg><span>PLAY</span></button>
+<button class="dk d-store" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M8 3 3 7l3 4 2-1v11h8V10l2 1 3-4-5-4c-1 2-2 3-4 3S9 5 8 3z"/></svg><span>Style</span></button>
+<button class="dk d-board" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg><span>Ranks</span></button>
+  </nav>
 
   <!-- WINNER'S ENTRY (letterbox + title over the cutscene) -->
   <div id="entry" class="entry" hidden aria-live="polite">
@@ -8842,6 +8947,29 @@ const DAILY_ICON = {
   wheelies: '<svg viewBox="0 0 24 24"><circle cx="5" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="11" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 17l5-6h5l3 0M10 11l-1-3h3M13 11l2-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   knockdowns: '<svg viewBox="0 0 24 24"><path d="M12 2l2 6 6-3-3 6 5 2-6 2 2 6-6-4-6 4 2-6-6-2 5-2-3-6 6 3z" fill="currentColor"/></svg>' };
 
+const PLAY_GO = { police: 'START ESCAPE', flying: 'TAKE OFF', timetrial: 'START TRIAL', stunt: 'START RUN' };
+const PI = (d, o = '') => `<svg viewBox="0 0 24 24" aria-hidden="true" ${o}><path d="${d}"/></svg>`;
+const PLAY_ICON = { quick: PI('M4 21V3M4 4h13l-2.5 4L17 12H4', 'fill="none" stroke="currentColor" stroke-width="2.4"'), rumble: PI('M12 2l2 6 6-3-3 6 5 2-6 2 2 6-6-4-6 4 2-6-6-2 5-2-3-6 6 3z'), elimination: PI('M6 6l12 12M18 6 6 18', 'fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"'),
+  timetrial: PI('M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 3v5l3 2M9 2h6', 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"'), stunt: PI('M3 18c4 0 5-9 9-9s5 9 9 9', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"'),
+  police: PI('M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z'), flying: '<svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg>', career: PI('M12 2l3 7 7 .6-5.3 4.6L18.4 21 12 17.2 5.6 21l1.7-6.8L2 9.6 9 9z'), cup: PI('M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z') };
+const FACT_ICON = { jump: PI('M3 18c4 0 5-9 9-9s5 9 9 9', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"'), tunnel: PI('M3 21V11a9 9 0 0 1 18 0v10h-5v-9a4 4 0 0 0-8 0v9z'), police: PI('M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z'), animal: PI('M4 10c0-3 2-5 4-5l2 3h4l2-3c2 0 4 2 4 5 0 5-4 9-8 9s-8-4-8-9z'),
+  dirt: PI('M2 20 9 7l4 6 3-4 6 11z'), water: PI('M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z'), turn: PI('M5 20V10a5 5 0 0 1 5-5h9M15 1l4 4-4 4', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"'), hazard: PI('M12 3 1 21h22zM12 9v6M12 17.5v1.5', 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"'),
+  city: PI('M3 21V9l5-3v15M10 21V3l7 3v15M19 21V11l2 1v9'), night: PI('M20 14A8 8 0 1 1 10 4a6.5 6.5 0 0 0 10 10z'), sun: PI('M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2', 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'), wing: '<svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg>', nitro: PI('M13 2 4 14h6l-1 8 9-12h-6z'), short: PI('M4 18h6l4-12h6M17 3l3 3-3 3', 'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"') };
+// what is on a map, read off its definition: this is what the Play screen shows as "What's inside"
+function trackFacts(t) {
+  const L = [], P = t.p2p || {}, U = t.underground, TH = { city: 'City streets', market: 'Market lanes', basti: 'Basti gullies', sea: 'Sea face road', flyover: 'Flyover and service road', hills: null }[t.theme];
+  if (TH) L.push(['city', TH]);
+  if (U) { L.push(['tunnel', 'Tunnel and underpass']); if (U.docks) L.push(['water', 'Docks']); if (U.bridge) L.push(['jump', 'Broken bridge jump']); if (U.kachha) L.push(['dirt', 'Kachha salt-pan road']); }
+  if (P.zones) { const N = { pine: 'Pine ghat', lake: 'Lake shore', desert: 'Red canyon', climb: 'Hill climb', snow: 'Snow ridge', alpine: 'Pine slopes', badland: 'Red badlands', wash: 'Dry wash', runway: 'Runway', canyon: 'Canyon flight', mesa: 'Landing mesa' }; for (const z in P.zones) if (N[z]) L.push([z === 'lake' ? 'water' : z === 'canyon' ? 'wing' : 'dirt', N[z]]); }
+  const jumps = (t.kickers || 0) + (P.bumps || []).filter(b => b.type === 'ramp').length + (t.bumps || []).filter(b => b.type === 'ramp').length; if (jumps && !t.flyOnly) L.push(['jump', `${jumps} jump${jumps > 1 ? 's' : ''}`]);
+  if (t.flyOnly) { L.push(['wing', '9 rings, rock spires, birds']); L.push(['jump', 'Cliff launch ramp']); }
+  if (t.chase) L.push(['police', 'Police van chase']); if (t.police) L.push(['police', 'Nakabandi and cops']); if (P.wild) L.push(['animal', 'Yaks, goats, eagles']); if (t.offroad) L.push(['dirt', 'All off-road']);
+  if (t.elev || t.flyover) L.push(['turn', 'Flyover climb']); if (t.shortcuts) L.push(['short', 'Shortcut lane']); if ((t.triples || []).length || (t.bumps || []).some(b => b.type === 'breaker')) L.push(['hazard', 'Speed breakers']);
+  if ((t.potholes || 0) + (t.bigPotholes || 0)) L.push(['hazard', 'Potholes']); if (t.mud) L.push(['hazard', 'Mud']); if (P.nitros !== 0) L.push(['nitro', 'Nitro gates']);
+  L.push([t.time === 'night' ? 'night' : 'sun', TIMES[t.time] || 'Morning']);
+  const badge = t.flyOnly ? 'FLY' : t.offroad ? 'OFF-ROAD' : t.chase || t.police ? 'POLICE' : t.p2p ? 'STAGE' : '';
+  return { list: L, badge, badgeCls: t.chase || t.police ? 'b-pol' : t.offroad ? 'b-dirt' : t.flyOnly ? 'b-fly' : '' };
+}
 class UI {
   constructor(game) {
     this.game = game; this.stack = [];
@@ -8849,12 +8977,15 @@ class UI {
     document.addEventListener('click', (e) => {
       const o = e.target.closest('[data-open]'); if (o) { AUDIO.click(); this.open(o.dataset.open); return; }
       const c = e.target.closest('[data-close]'); if (c) { AUDIO.click(); this.closeModal(); return; }
-      const b = e.target.closest('[data-back]'); if (b) { AUDIO.click(); this.game.toMenu(); return; }
+      const b = e.target.closest('[data-back]'); if (b) { if (this.game.state === 'menu') return; AUDIO.click(); this.game.toMenu(); return; }
       const soon = e.target.closest('[data-soon]'); if (soon) { this.flashNote(`${soon.dataset.soon} circuits are coming soon. Mumbai is open now.`); return; }
     });
     $('#modalBack').addEventListener('click', () => this.closeModal());
     $('#startBtn').addEventListener('click', () => { AUDIO.click(); this.game.startFromSetup(); });
-    $('#rainTog').addEventListener('click', () => { AUDIO.click(); SAVE.setup.weather = SAVE.setup.weather === 'monsoon' ? 'clear' : 'monsoon'; persist(); this.renderMenu(); this.game.previewTrack(SAVE.setup.track); });
+    $('#dhBtn').addEventListener('click', () => { AUDIO.click(); const s = SAVE.setup; if (MODES[s.mode].track || s.mode === 'cup') s.mode = 'quick'; s.track = 'himalaya-downhill'; persist(); this.open('play'); });
+    $('#plStart').addEventListener('click', () => { AUDIO.click(); this.game.startFromSetup(); });
+    $('#plPrev').addEventListener('click', () => this.stepMap(-1)); $('#plNext').addEventListener('click', () => this.stepMap(1));
+    addEventListener('keydown', (e) => { if (this.game.state !== 'play' || this.modalOpen()) return; if (e.code === 'ArrowLeft') this.stepMap(-1); else if (e.code === 'ArrowRight') this.stepMap(1); else if (e.code === 'Enter') { AUDIO.click(); this.game.startFromSetup(); } });
     $('#sStart').addEventListener('click', () => { this.closeModal(); this.game.startFromSetup(); });
     $('#policeBtn').addEventListener('click', () => { AUDIO.click(); SAVE.setup.mode = 'police'; persist(); this.renderMenu(); this.game.startFromSetup(); });
     $('#buildPrev').addEventListener('click', () => this.cycleBuild(-1)); $('#buildNext').addEventListener('click', () => this.cycleBuild(1));
@@ -8885,11 +9016,12 @@ class UI {
   open(id, fromPause = false) {
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
+    if (id === 'play') { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; this.game.showScreen('play'); this.renderPlay(); this.game.previewTrack(this.playTrack().id); return; }
     if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); } if (id === 'flyG') FLYUI.render(this.game);
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = false; $('#' + id).hidden = false; this.returnToPause = fromPause;
     const f = $('#' + id).querySelector('button'); if (f) f.focus({ preventScroll: true });
   }
-  closeModal() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; if (this.returnToPause && this.game.state === 'paused') { this.returnToPause = false; this.open('pause'); } this.renderMenu(); }
+  closeModal() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; if (this.returnToPause && this.game.state === 'paused') { this.returnToPause = false; this.open('pause'); } this.renderMenu(); if (this.game.state === 'play') this.renderPlay(); }
   confirm(title, text, yes = 'Yes') { $('#cfTitle').textContent = title; $('#cfText').textContent = text; $('#cfYes').textContent = yes; this.open('confirm'); return new Promise(r => (this._cf = r)); }
   flashNote(text) { { const n = document.createElement('div'); n.className = 'callout info'; n.style.cssText = 'position:absolute;left:50%;top:18%;translate:-50% 0;z-index:40;font-size:1.6rem;white-space:normal;max-width:80vw;text-align:center'; n.textContent = text; $('#app').appendChild(n); setTimeout(() => n.remove(), 1700); } }
   // ── main menu ──
@@ -8902,8 +9034,8 @@ class UI {
     $('#pName').textContent = SAVE.name; $('#pLv').textContent = L.lvl; $('#pXp').style.width = (L.into / L.need * 100).toFixed(1) + '%';
     $('#upDot').hidden = !this.canUpgradeSomething();
     const s = SAVE.setup; const M = MODES[s.mode]; const t = TRACKS.find(x => x.id === (M.track || s.track)) || TRACKS[0];
-    { const wet = SAVE.setup.weather === 'monsoon'; const rt = $('#rainTog'); rt.classList.toggle('on', wet); rt.setAttribute('aria-pressed', wet); rt.querySelector('span').textContent = wet ? 'Rain on' : 'Rain off'; }
-    $('#setupLine').textContent = `${M.label} · ${t.short} · ${M.fixedLaps || s.laps} lap${(M.fixedLaps || s.laps) > 1 ? 's' : ''} · ${DIFFICULTY[s.diff].label}${s.weather === 'monsoon' ? ' · Rain' : ''}`;
+    $('#nowName').textContent = t.short; $('#nowThumb').innerHTML = trackThumb(t); $('#startBtn .sb-l').textContent = PLAY_GO[s.mode] || 'START RACE';
+    $('#setupLine').textContent = `${M.label} · ${t.p2p ? 'one way' : `${M.fixedLaps || s.laps} lap${(M.fixedLaps || s.laps) > 1 ? 's' : ''}`}${M.rivals || M.police ? ' · ' + DIFFICULTY[s.diff].label : ''}${s.weather === 'monsoon' ? ' · Rain' : ''}`;
     // daily challenges
     const d = SAVE.daily; let html = ''; let allDone = true;
     for (const c of DAILY) { const p = Math.min(c.goal, d.prog[c.id] || 0); const done = p >= c.goal; if (!d.claimed[c.id]) allDone = false;
@@ -8970,7 +9102,7 @@ class UI {
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
     const TABS = [['rider', 'Rider'], ['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades'], ['cape', 'Cape']];
-    const tab = this.storeTab = this.storeTab || 'shirt';
+    const tab = this.storeTab = this.storeTab || 'rider';
     const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
       : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;
     const items = COSMETICS[tab].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0, on = SAVE.cos[tab] === it.id;
@@ -8986,6 +9118,39 @@ class UI {
         if (!ok) { SAVE.cos[key] = prev; this.renderStore(); this.game.refreshMenuRig(); return; }
         SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; }
       SAVE.cos[key] = id; persist(); AUDIO.pickup(); this.renderStore(); this.game.refreshMenuRig(); }));
+  }
+  // ── PLAY: mode rail, map carousel (the world behind flies the chosen map), map sheet, options, start ──
+  playTrack() { const s = SAVE.setup, M = MODES[s.mode]; let t = TRACKS.find(x => x.id === (M.track || s.track)) || TRACKS[0]; if (!M.track && t.flyOnly) t = TRACKS[0]; return t; }
+  playMaps() { const M = MODES[SAVE.setup.mode]; return M.track ? TRACKS.filter(t => t.id === M.track) : TRACKS.filter(t => !t.flyOnly); }
+  stepMap(dir) { const L = this.playMaps(); if (L.length < 2) return; const i = L.indexOf(this.playTrack()); this.pickMap(L[(i + dir + L.length) % L.length].id); }
+  pickMap(id) { const s = SAVE.setup; if (s.track === id && !MODES[s.mode].track) return; s.track = id; persist(); AUDIO.click(); this.renderPlay(); clearTimeout(this._pv); this._pv = setTimeout(() => { if (this.game.state === 'play') this.game.previewTrack(this.playTrack().id); }, 380); }
+  renderPlay() {
+    const s = SAVE.setup, M = MODES[s.mode], t = this.playTrack(), rec = SAVE.records[t.id] || {};
+    $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
+    // modes
+    const rail = [['quick'], ['rumble'], ['elimination'], ['timetrial'], ['stunt'], ['police'], ['flying'], ['career', 'Safar', 'Career · 20 events'], ['cup', 'Championship', 'All circuits · points']];
+    $('#plModes').innerHTML = rail.map(([k, n, d]) => `<button type="button" role="tab" aria-selected="${k === s.mode}" class="pm ${k === s.mode ? 'on' : ''} ${k === 'career' || k === 'cup' ? 'link' : ''}" data-pm="${k}" title="${d || MODES[k].desc}">${PLAY_ICON[k] || ''}<span>${n || MODES[k].label}</span></button>`).join('');
+    $$('[data-pm]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.pm; AUDIO.click(); if (k === 'career') return this.open('career'); if (k === 'cup') return this.openCup(); s.mode = k; persist(); this.renderPlay(); this.game.previewTrack(this.playTrack().id); }));
+    // maps
+    const maps = this.playMaps();
+    $('#plMaps').innerHTML = maps.map(m => { const r = SAVE.records[m.id] || {}, f = trackFacts(m); return `<button type="button" role="option" aria-selected="${m.id === t.id}" class="mcard ${m.id === t.id ? 'on' : ''}" data-track="${m.id}">${trackThumb(m)}<span class="mc-txt"><b>${m.short}</b><small>${(m.km || m.target / 1000).toFixed(1)} km · ${m.p2p ? 'one way' : 'circuit'}</small></span>${m.main ? '<em class="mc-tag">MAIN</em>' : f.badge ? `<em class="mc-tag ${f.badgeCls || ''}">${f.badge}</em>` : ''}${r.bestPos === 1 ? '<i class="mc-won" title="Won">★</i>' : ''}</button>`; }).join('');
+    $$('#plMaps [data-track]').forEach(b => b.addEventListener('click', () => this.pickMap(b.dataset.track)));
+    { const box = $('#plMaps'), on = box.querySelector('.on'); if (on) box.scrollTo({ left: on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2, behavior: this._plOnce ? 'smooth' : 'auto' }); this._plOnce = true; }   // (never scrollIntoView: it drags the whole screen sideways)
+    $('#plPrev').hidden = $('#plNext').hidden = maps.length < 2;
+    // the map sheet
+    const F = trackFacts(t); $('#plName').textContent = t.name; $('#plBlurb').textContent = M.track ? M.desc : t.blurb || '';
+    $('#plInfo').innerHTML = `<h2>${t.name}</h2><div class="pl-stats"><div><small>LENGTH</small><b>${(t.km || t.target / 1000).toFixed(1)}<i>km</i></b></div><div><small>${t.p2p ? 'ROUTE' : 'LAP TARGET'}</small><b class="sm">${t.p2p ? 'One way' : t.lapTarget}</b></div><div><small>BEST LAP</small><b>${rec.bestLap ? fmtTime(rec.bestLap) : '—'}</b></div><div><small>BEST FINISH</small><b>${rec.bestPos ? rec.bestPos + '<i>' + ordinal(rec.bestPos).toLowerCase() + '</i>' : '—'}</b></div></div>
+      <h4>What's inside</h4><div class="pl-facts">${F.list.map(([ic, l]) => `<span class="fact">${FACT_ICON[ic] || ''}${l}</span>`).join('')}</div>`;
+    // options (what a mode fixes is shown locked)
+    const lapOpts = [[1, '1'], [2, '2'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 2, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
+    const fixedTime = M.time && s.time === 'auto', row = (id, label, opts, cur, lock, note) => `<div class="opt ${lock ? 'lock' : ''}"><span>${label}${lock ? '<i class="lk" aria-label="Fixed by the mode">🔒</i>' : ''}</span><div class="seg" id="${id}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${lock ? 'disabled' : ''}>${l}</button>`).join('')}</div></div>`;
+    $('#plOpts').innerHTML = (t.p2p ? '' : row('oLaps', 'Laps', lapOpts, M.fixedLaps || s.laps, !!M.fixedLaps)) + row('oDiff', M.police ? 'Police' : 'Rivals', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], s.diff, !M.rivals && !M.police)
+      + row('oTime', 'Time', [['auto', 'Auto'], ['morning', 'Morning'], ['golden', 'Golden'], ['night', 'Night']], s.time, false) + row('oWeather', 'Weather', [['clear', 'Dry'], ['monsoon', 'Rain']], s.weather, false)
+      + row('oCombat', 'Combat', [['true', 'On'], ['false', 'Off']], M.combat === 'force' ? true : M.combat ? s.combat : false, M.combat === 'force' || !M.combat)
+      + (s.mode === 'flying' ? '<button class="btn-dark pl-extra" type="button" data-open="flyG">Flying garage: wings and upgrades ›</button>' : '');
+    const bind = (id, fn, preview) => $$(`#${id} button`).forEach(b => b.addEventListener('click', () => { fn(b.dataset.v); persist(); AUDIO.click(); this.renderPlay(); if (preview) this.game.previewTrack(this.playTrack().id); }));
+    bind('oLaps', v => (s.laps = +v)); bind('oDiff', v => (s.diff = v)); bind('oTime', v => (s.time = v), true); bind('oWeather', v => (s.weather = v), true); bind('oCombat', v => (s.combat = v === 'true'));
+    $('#plStart .sb-l').textContent = PLAY_GO[s.mode] || 'START RACE';
   }
   // ── race setup ──
   renderSetup() {
@@ -9495,9 +9660,9 @@ class Game {
   }
   // the setup screen previews the chosen track behind it; a new map takes a moment to build, so say so
   async previewTrack(id) {
-    if (this.state !== 'menu' && this.state !== 'garage') return; const def = TRACKS.find(t => t.id === id) || TRACKS[0];
+    if (this.state !== 'menu' && this.state !== 'garage' && this.state !== 'play') return; const def = TRACKS.find(t => t.id === id) || TRACKS[0];
     if (this.worldKey !== def.id + '|' + this.quality && !this.loadingRace) { const st = this.state; this.state = 'loading'; this.showLoader(def, 'Loading the preview', true); this.setLoad(0.3, `Building ${def.short || def.name}…`); await painted();
-      try { this.loadTrack(id); this.refreshMenuRig(); this.setLoad(0.8, 'Warming up the engine…'); await painted(); await this.compileScene(false); } finally { this.hideLoader(); this.state = st; this.last = performance.now(); } return; }
+      try { this.loadTrack(id); this.refreshMenuRig(); this.setLoad(0.8, 'Warming up the engine…'); await painted(); await this.compileScene(false); } finally { this.hideLoader(); if (this.state === 'loading') this.state = st; this.last = performance.now(); } return; }   // (the player may have moved to another screen while it built)
     this.loadTrack(id); this.refreshMenuRig();
   }
   // rain: GPU streaks. Each drop is a camera-facing quad stretched along its motion relative to the rider; the CPU only
@@ -9576,7 +9741,8 @@ class Game {
   }
   showScreen(id) {
     $$('.screen').forEach(s => s.classList.remove('show')); $('#' + id).classList.add('show');
-    if (id === 'menu' || id === 'garage' || id === 'store') { this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.nav === 'home' && id === 'menu')); }
+    const hub = id === 'menu' || id === 'garage' || id === 'store' || id === 'play'; // (the dock shows itself whenever one of these four screens is up: see .dock in style.css)
+    if (hub) { if (id === 'play' || this.state === 'play') this.menuCamInit = false; this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('#dock .dk').forEach(n => n.classList.toggle('on', n.classList.contains('d-' + id))); if (id === 'play') this.menuCamInit = false; }
   }
   // ── race lifecycle ──
   startFlying() { this.career = null; this.cup = null; return this.startRace(Object.assign({}, SAVE.setup, { mode: 'flying', laps: 1, time: 'auto' })); }
@@ -9905,8 +10071,13 @@ class Game {
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0;
-    if (this.state === 'garage') {
+    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0; rig.root.visible = this.state !== 'play';
+    if (this.state === 'play') {
+      // the Play screen: a fly-through of the chosen map, round and round its route, in the part of the screen the panels leave free
+      const L = T.p2p ? T.finS : T.L, hills = T.p2p; this.tourS = ((this.tourS || 0) + dt * (hills ? 34 : 24)) % L; const s = this.tourS, h = (T.pitAt && T.pitAt(s) ? 130 : hills ? 8.5 : 3.3) + Math.sin(this.t * 0.4) * 0.5;
+      this.tourH = smooth(this.tourH === undefined ? h : this.tourH, h, 1.2, dt); target = T.pos(s, Math.sin(this.t * 0.23) * 1.5, new THREE.Vector3(), this.tourH); look = T.pos(s + (hills ? 44 : 30), 0, new THREE.Vector3(), 1.2 + (T.pitAt && T.pitAt(s) ? 60 : 0));
+      shiftX = pk > 0.3 ? 0 : -0.17; shift = pk > 0.3 ? 0.16 : 0.06; fovAdd = 12;
+    } else if (this.state === 'garage') {
       const U = this.ui; U.exFocus = Math.max(0, (U.exFocus || 0) - dt);
       if (U.garageYawTo != null) { const d = wrapAngle(U.garageYawTo - U.garageYaw); U.garageYaw += d * Math.min(1, dt * 3.5); if (Math.abs(d) < 0.01) U.garageYawTo = null; U.dragT = Math.max(U.dragT || 0, 1); }
       else if (!(U.dragT > 0)) U.garageYaw += dt * 0.25; else U.dragT -= dt;
@@ -9928,10 +10099,11 @@ class Game {
       look = new THREE.Vector3(p.x - lx * (0.34 - lo) + fx * 0.15, p.y + 1.04 - pk * 0.32, p.z - lz * (0.34 - lo) + fz * 0.15);
       if (this.state === 'menu') { shift = pk * 0.19; fovAdd = pk * 10; }
     }
-    if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-4 * dt));
+    if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-(this.state === 'play' ? 7 : 4) * dt));
     this.camera.lookAt(look); this.viewShift(shift, shiftX); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
     // idle exhaust puffs
-    this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1) { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
+    this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1 && this.state !== 'play') { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
+    if (this.state === 'play') this._puff = 0;
     this.menuSmoke.mat.uniforms.scale.value = this.vh * 0.6; this.menuSmoke.update(dt);
     if (this.state === 'menu' && (inp.pause || false)) { /* esc in menu does nothing */ }
   }

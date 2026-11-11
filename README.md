@@ -4,6 +4,16 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
+## Menus (v41)
+
+The menus were rebuilt from a written brief: [`docs/MENU_REVAMP_BRIEF.md`](docs/MENU_REVAMP_BRIEF.md).
+
+- **Dock** on every menu screen: Home · Garage · PLAY · Style · Ranks. Settings, help and the daily bonus are in the top bar.
+- **Home**: the bike, a "Next race" card (START, or CHANGE to pick something else), four featured tiles (Safar, Flying Mode, Downhill, Police Express+), the bike card and daily challenges.
+- **Play** (`renderPlay` in `src/js/80_ui.js`): mode rail, map carousel, a sheet for the selected map ("What's inside" is read off the track definition by `trackFacts`), race options and START on one screen. The 3D world behind is the selected map and the camera flies its route (`menuFrame`, state `play`, in `src/js/90_main.js`). Arrow keys change map, Enter starts.
+- **Style** opens on the Rider tab, so choosing the character comes first.
+- The old Race Setup pop-up is no longer linked from anywhere; its code is still there.
+
 ## Flying Mode (v40)
 
 A solo score-attack mode: the bike with a home-made flying machine bolted on. Home screen → **FLYING MODE** opens the flying garage; **TAKE OFF** starts a run on the Cliff Run stage (3.2 km).

@@ -109,9 +109,9 @@ class Game {
   }
   // the setup screen previews the chosen track behind it; a new map takes a moment to build, so say so
   async previewTrack(id) {
-    if (this.state !== 'menu' && this.state !== 'garage') return; const def = TRACKS.find(t => t.id === id) || TRACKS[0];
+    if (this.state !== 'menu' && this.state !== 'garage' && this.state !== 'play') return; const def = TRACKS.find(t => t.id === id) || TRACKS[0];
     if (this.worldKey !== def.id + '|' + this.quality && !this.loadingRace) { const st = this.state; this.state = 'loading'; this.showLoader(def, 'Loading the preview', true); this.setLoad(0.3, `Building ${def.short || def.name}…`); await painted();
-      try { this.loadTrack(id); this.refreshMenuRig(); this.setLoad(0.8, 'Warming up the engine…'); await painted(); await this.compileScene(false); } finally { this.hideLoader(); this.state = st; this.last = performance.now(); } return; }
+      try { this.loadTrack(id); this.refreshMenuRig(); this.setLoad(0.8, 'Warming up the engine…'); await painted(); await this.compileScene(false); } finally { this.hideLoader(); if (this.state === 'loading') this.state = st; this.last = performance.now(); } return; }   // (the player may have moved to another screen while it built)
     this.loadTrack(id); this.refreshMenuRig();
   }
   // rain: GPU streaks. Each drop is a camera-facing quad stretched along its motion relative to the rider; the CPU only
@@ -190,7 +190,8 @@ class Game {
   }
   showScreen(id) {
     $$('.screen').forEach(s => s.classList.remove('show')); $('#' + id).classList.add('show');
-    if (id === 'menu' || id === 'garage' || id === 'store') { this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('.nav').forEach(n => n.classList.toggle('on', n.dataset.nav === 'home' && id === 'menu')); }
+    const hub = id === 'menu' || id === 'garage' || id === 'store' || id === 'play'; // (the dock shows itself whenever one of these four screens is up: see .dock in style.css)
+    if (hub) { if (id === 'play' || this.state === 'play') this.menuCamInit = false; this.setMusic('menu'); this.state = id; this.ui.renderMenu(); $$('#dock .dk').forEach(n => n.classList.toggle('on', n.classList.contains('d-' + id))); if (id === 'play') this.menuCamInit = false; }
   }
   // ── race lifecycle ──
   startFlying() { this.career = null; this.cup = null; return this.startRace(Object.assign({}, SAVE.setup, { mode: 'flying', laps: 1, time: 'auto' })); }
@@ -519,8 +520,13 @@ class Game {
     rig.update(dt, { lean: 0, pitch: 0, speed: 0, idle: this.state === 'menu', tuck: 0 });
     const T = this.track, p = rig.root.position, yaw = rig.root.rotation.y;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw);
-    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0;
-    if (this.state === 'garage') {
+    let target, look; const pk = this.portraitK(); let shift = 0, shiftX = 0, fovAdd = 0; rig.root.visible = this.state !== 'play';
+    if (this.state === 'play') {
+      // the Play screen: a fly-through of the chosen map, round and round its route, in the part of the screen the panels leave free
+      const L = T.p2p ? T.finS : T.L, hills = T.p2p; this.tourS = ((this.tourS || 0) + dt * (hills ? 34 : 24)) % L; const s = this.tourS, h = (T.pitAt && T.pitAt(s) ? 130 : hills ? 8.5 : 3.3) + Math.sin(this.t * 0.4) * 0.5;
+      this.tourH = smooth(this.tourH === undefined ? h : this.tourH, h, 1.2, dt); target = T.pos(s, Math.sin(this.t * 0.23) * 1.5, new THREE.Vector3(), this.tourH); look = T.pos(s + (hills ? 44 : 30), 0, new THREE.Vector3(), 1.2 + (T.pitAt && T.pitAt(s) ? 60 : 0));
+      shiftX = pk > 0.3 ? 0 : -0.17; shift = pk > 0.3 ? 0.16 : 0.06; fovAdd = 12;
+    } else if (this.state === 'garage') {
       const U = this.ui; U.exFocus = Math.max(0, (U.exFocus || 0) - dt);
       if (U.garageYawTo != null) { const d = wrapAngle(U.garageYawTo - U.garageYaw); U.garageYaw += d * Math.min(1, dt * 3.5); if (Math.abs(d) < 0.01) U.garageYawTo = null; U.dragT = Math.max(U.dragT || 0, 1); }
       else if (!(U.dragT > 0)) U.garageYaw += dt * 0.25; else U.dragT -= dt;
@@ -542,10 +548,11 @@ class Game {
       look = new THREE.Vector3(p.x - lx * (0.34 - lo) + fx * 0.15, p.y + 1.04 - pk * 0.32, p.z - lz * (0.34 - lo) + fz * 0.15);
       if (this.state === 'menu') { shift = pk * 0.19; fovAdd = pk * 10; }
     }
-    if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-4 * dt));
+    if (!this.menuCamInit) { this.camera.position.copy(target); this.menuCamInit = true; } else this.camera.position.lerp(target, 1 - Math.exp(-(this.state === 'play' ? 7 : 4) * dt));
     this.camera.lookAt(look); this.viewShift(shift, shiftX); this.camera.fov = smooth(this.camera.fov, (this.state === 'menu' ? 50 : 46) + fovAdd, 4, dt); this.camera.updateProjectionMatrix();
     // idle exhaust puffs
-    this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1) { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
+    this._puff = (this._puff || 0) + dt * 9; while (this._puff > 1 && this.state !== 'play') { this._puff--; const ex = p.x - fx * 1.0 - lx * 0.17, ez = p.z - fz * 1.0 - lz * 0.17; this.menuSmoke.emit(ex, p.y + 0.42, ez, -fx * 1.2 + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.3, -fz * 1.2 + (Math.random() - 0.5) * 0.4, 1.6, 0.3, 1.8, C_SMOKE, 0.35, 0.8, -0.15); }
+    if (this.state === 'play') this._puff = 0;
     this.menuSmoke.mat.uniforms.scale.value = this.vh * 0.6; this.menuSmoke.update(dt);
     if (this.state === 'menu' && (inp.pause || false)) { /* esc in menu does nothing */ }
   }

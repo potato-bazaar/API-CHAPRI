@@ -11,6 +11,29 @@ const DAILY_ICON = {
   wheelies: '<svg viewBox="0 0 24 24"><circle cx="5" cy="17" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="11" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 17l5-6h5l3 0M10 11l-1-3h3M13 11l2-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   knockdowns: '<svg viewBox="0 0 24 24"><path d="M12 2l2 6 6-3-3 6 5 2-6 2 2 6-6-4-6 4 2-6-6-2 5-2-3-6 6 3z" fill="currentColor"/></svg>' };
 
+const PLAY_GO = { police: 'START ESCAPE', flying: 'TAKE OFF', timetrial: 'START TRIAL', stunt: 'START RUN' };
+const PI = (d, o = '') => `<svg viewBox="0 0 24 24" aria-hidden="true" ${o}><path d="${d}"/></svg>`;
+const PLAY_ICON = { quick: PI('M4 21V3M4 4h13l-2.5 4L17 12H4', 'fill="none" stroke="currentColor" stroke-width="2.4"'), rumble: PI('M12 2l2 6 6-3-3 6 5 2-6 2 2 6-6-4-6 4 2-6-6-2 5-2-3-6 6 3z'), elimination: PI('M6 6l12 12M18 6 6 18', 'fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"'),
+  timetrial: PI('M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 3v5l3 2M9 2h6', 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"'), stunt: PI('M3 18c4 0 5-9 9-9s5 9 9 9', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"'),
+  police: PI('M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z'), flying: '<svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg>', career: PI('M12 2l3 7 7 .6-5.3 4.6L18.4 21 12 17.2 5.6 21l1.7-6.8L2 9.6 9 9z'), cup: PI('M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z') };
+const FACT_ICON = { jump: PI('M3 18c4 0 5-9 9-9s5 9 9 9', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"'), tunnel: PI('M3 21V11a9 9 0 0 1 18 0v10h-5v-9a4 4 0 0 0-8 0v9z'), police: PI('M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z'), animal: PI('M4 10c0-3 2-5 4-5l2 3h4l2-3c2 0 4 2 4 5 0 5-4 9-8 9s-8-4-8-9z'),
+  dirt: PI('M2 20 9 7l4 6 3-4 6 11z'), water: PI('M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z'), turn: PI('M5 20V10a5 5 0 0 1 5-5h9M15 1l4 4-4 4', 'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"'), hazard: PI('M12 3 1 21h22zM12 9v6M12 17.5v1.5', 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"'),
+  city: PI('M3 21V9l5-3v15M10 21V3l7 3v15M19 21V11l2 1v9'), night: PI('M20 14A8 8 0 1 1 10 4a6.5 6.5 0 0 0 10 10z'), sun: PI('M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2', 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'), wing: '<svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg>', nitro: PI('M13 2 4 14h6l-1 8 9-12h-6z'), short: PI('M4 18h6l4-12h6M17 3l3 3-3 3', 'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"') };
+// what is on a map, read off its definition: this is what the Play screen shows as "What's inside"
+function trackFacts(t) {
+  const L = [], P = t.p2p || {}, U = t.underground, TH = { city: 'City streets', market: 'Market lanes', basti: 'Basti gullies', sea: 'Sea face road', flyover: 'Flyover and service road', hills: null }[t.theme];
+  if (TH) L.push(['city', TH]);
+  if (U) { L.push(['tunnel', 'Tunnel and underpass']); if (U.docks) L.push(['water', 'Docks']); if (U.bridge) L.push(['jump', 'Broken bridge jump']); if (U.kachha) L.push(['dirt', 'Kachha salt-pan road']); }
+  if (P.zones) { const N = { pine: 'Pine ghat', lake: 'Lake shore', desert: 'Red canyon', climb: 'Hill climb', snow: 'Snow ridge', alpine: 'Pine slopes', badland: 'Red badlands', wash: 'Dry wash', runway: 'Runway', canyon: 'Canyon flight', mesa: 'Landing mesa' }; for (const z in P.zones) if (N[z]) L.push([z === 'lake' ? 'water' : z === 'canyon' ? 'wing' : 'dirt', N[z]]); }
+  const jumps = (t.kickers || 0) + (P.bumps || []).filter(b => b.type === 'ramp').length + (t.bumps || []).filter(b => b.type === 'ramp').length; if (jumps && !t.flyOnly) L.push(['jump', `${jumps} jump${jumps > 1 ? 's' : ''}`]);
+  if (t.flyOnly) { L.push(['wing', '9 rings, rock spires, birds']); L.push(['jump', 'Cliff launch ramp']); }
+  if (t.chase) L.push(['police', 'Police van chase']); if (t.police) L.push(['police', 'Nakabandi and cops']); if (P.wild) L.push(['animal', 'Yaks, goats, eagles']); if (t.offroad) L.push(['dirt', 'All off-road']);
+  if (t.elev || t.flyover) L.push(['turn', 'Flyover climb']); if (t.shortcuts) L.push(['short', 'Shortcut lane']); if ((t.triples || []).length || (t.bumps || []).some(b => b.type === 'breaker')) L.push(['hazard', 'Speed breakers']);
+  if ((t.potholes || 0) + (t.bigPotholes || 0)) L.push(['hazard', 'Potholes']); if (t.mud) L.push(['hazard', 'Mud']); if (P.nitros !== 0) L.push(['nitro', 'Nitro gates']);
+  L.push([t.time === 'night' ? 'night' : 'sun', TIMES[t.time] || 'Morning']);
+  const badge = t.flyOnly ? 'FLY' : t.offroad ? 'OFF-ROAD' : t.chase || t.police ? 'POLICE' : t.p2p ? 'STAGE' : '';
+  return { list: L, badge, badgeCls: t.chase || t.police ? 'b-pol' : t.offroad ? 'b-dirt' : t.flyOnly ? 'b-fly' : '' };
+}
 class UI {
   constructor(game) {
     this.game = game; this.stack = [];
@@ -18,12 +41,15 @@ class UI {
     document.addEventListener('click', (e) => {
       const o = e.target.closest('[data-open]'); if (o) { AUDIO.click(); this.open(o.dataset.open); return; }
       const c = e.target.closest('[data-close]'); if (c) { AUDIO.click(); this.closeModal(); return; }
-      const b = e.target.closest('[data-back]'); if (b) { AUDIO.click(); this.game.toMenu(); return; }
+      const b = e.target.closest('[data-back]'); if (b) { if (this.game.state === 'menu') return; AUDIO.click(); this.game.toMenu(); return; }
       const soon = e.target.closest('[data-soon]'); if (soon) { this.flashNote(`${soon.dataset.soon} circuits are coming soon. Mumbai is open now.`); return; }
     });
     $('#modalBack').addEventListener('click', () => this.closeModal());
     $('#startBtn').addEventListener('click', () => { AUDIO.click(); this.game.startFromSetup(); });
-    $('#rainTog').addEventListener('click', () => { AUDIO.click(); SAVE.setup.weather = SAVE.setup.weather === 'monsoon' ? 'clear' : 'monsoon'; persist(); this.renderMenu(); this.game.previewTrack(SAVE.setup.track); });
+    $('#dhBtn').addEventListener('click', () => { AUDIO.click(); const s = SAVE.setup; if (MODES[s.mode].track || s.mode === 'cup') s.mode = 'quick'; s.track = 'himalaya-downhill'; persist(); this.open('play'); });
+    $('#plStart').addEventListener('click', () => { AUDIO.click(); this.game.startFromSetup(); });
+    $('#plPrev').addEventListener('click', () => this.stepMap(-1)); $('#plNext').addEventListener('click', () => this.stepMap(1));
+    addEventListener('keydown', (e) => { if (this.game.state !== 'play' || this.modalOpen()) return; if (e.code === 'ArrowLeft') this.stepMap(-1); else if (e.code === 'ArrowRight') this.stepMap(1); else if (e.code === 'Enter') { AUDIO.click(); this.game.startFromSetup(); } });
     $('#sStart').addEventListener('click', () => { this.closeModal(); this.game.startFromSetup(); });
     $('#policeBtn').addEventListener('click', () => { AUDIO.click(); SAVE.setup.mode = 'police'; persist(); this.renderMenu(); this.game.startFromSetup(); });
     $('#buildPrev').addEventListener('click', () => this.cycleBuild(-1)); $('#buildNext').addEventListener('click', () => this.cycleBuild(1));
@@ -54,11 +80,12 @@ class UI {
   open(id, fromPause = false) {
     if (id === 'garage') { this.game.showScreen('garage'); this.renderGarage(); return; }
     if (id === 'store') { this.game.showScreen('store'); this.renderStore(); return; }
+    if (id === 'play') { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; this.game.showScreen('play'); this.renderPlay(); this.game.previewTrack(this.playTrack().id); return; }
     if (id === 'setup') this.renderSetup(); if (id === 'settings') this.renderSettings(); if (id === 'howto') this.renderHow(); if (id === 'board') this.renderBoard(); if (id === 'career') { CAREER.sel = null; CAREER.render(this.game); } if (id === 'flyG') FLYUI.render(this.game);
     $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = false; $('#' + id).hidden = false; this.returnToPause = fromPause;
     const f = $('#' + id).querySelector('button'); if (f) f.focus({ preventScroll: true });
   }
-  closeModal() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; if (this.returnToPause && this.game.state === 'paused') { this.returnToPause = false; this.open('pause'); } this.renderMenu(); }
+  closeModal() { $$('.modal').forEach(m => (m.hidden = true)); $('#modalBack').hidden = true; if (this.returnToPause && this.game.state === 'paused') { this.returnToPause = false; this.open('pause'); } this.renderMenu(); if (this.game.state === 'play') this.renderPlay(); }
   confirm(title, text, yes = 'Yes') { $('#cfTitle').textContent = title; $('#cfText').textContent = text; $('#cfYes').textContent = yes; this.open('confirm'); return new Promise(r => (this._cf = r)); }
   flashNote(text) { { const n = document.createElement('div'); n.className = 'callout info'; n.style.cssText = 'position:absolute;left:50%;top:18%;translate:-50% 0;z-index:40;font-size:1.6rem;white-space:normal;max-width:80vw;text-align:center'; n.textContent = text; $('#app').appendChild(n); setTimeout(() => n.remove(), 1700); } }
   // ── main menu ──
@@ -71,8 +98,8 @@ class UI {
     $('#pName').textContent = SAVE.name; $('#pLv').textContent = L.lvl; $('#pXp').style.width = (L.into / L.need * 100).toFixed(1) + '%';
     $('#upDot').hidden = !this.canUpgradeSomething();
     const s = SAVE.setup; const M = MODES[s.mode]; const t = TRACKS.find(x => x.id === (M.track || s.track)) || TRACKS[0];
-    { const wet = SAVE.setup.weather === 'monsoon'; const rt = $('#rainTog'); rt.classList.toggle('on', wet); rt.setAttribute('aria-pressed', wet); rt.querySelector('span').textContent = wet ? 'Rain on' : 'Rain off'; }
-    $('#setupLine').textContent = `${M.label} · ${t.short} · ${M.fixedLaps || s.laps} lap${(M.fixedLaps || s.laps) > 1 ? 's' : ''} · ${DIFFICULTY[s.diff].label}${s.weather === 'monsoon' ? ' · Rain' : ''}`;
+    $('#nowName').textContent = t.short; $('#nowThumb').innerHTML = trackThumb(t); $('#startBtn .sb-l').textContent = PLAY_GO[s.mode] || 'START RACE';
+    $('#setupLine').textContent = `${M.label} · ${t.p2p ? 'one way' : `${M.fixedLaps || s.laps} lap${(M.fixedLaps || s.laps) > 1 ? 's' : ''}`}${M.rivals || M.police ? ' · ' + DIFFICULTY[s.diff].label : ''}${s.weather === 'monsoon' ? ' · Rain' : ''}`;
     // daily challenges
     const d = SAVE.daily; let html = ''; let allDone = true;
     for (const c of DAILY) { const p = Math.min(c.goal, d.prog[c.id] || 0); const done = p >= c.goal; if (!d.claimed[c.id]) allDone = false;
@@ -139,7 +166,7 @@ class UI {
   renderStore() {
     $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
     const TABS = [['rider', 'Rider'], ['shirt', 'Tops'], ['chaddi', 'Chaddi'], ['jeans', 'Jeans'], ['body', 'Body'], ['hair', 'Hair'], ['helmet', 'Helmet'], ['shades', 'Shades'], ['cape', 'Cape']];
-    const tab = this.storeTab = this.storeTab || 'shirt';
+    const tab = this.storeTab = this.storeTab || 'rider';
     const sw = (key, it) => key === 'body' ? `<span class="sw body" style="--m:${it.muscle}">💪</span>` : key === 'chaddi' ? (it.band ? `<span class="sw band" style="--b:${it.band};--i:${it.ink || it.band}">${it.style === 'brand' ? '<i>' + UW_BRAND.split(' ')[0] + '</i>' : it.style === 'lace' ? '<i>❀❀</i>' : it.style === 'pantie' ? '<i>🎀</i>' : ''}</span>` : '<span class="sw none"></span>')
       : `<span class="sw" style="background:${it.base || it.color || 'repeating-linear-gradient(45deg,#333 0 6px,#444 6px 12px)'}"></span>`;
     const items = COSMETICS[tab].map(it => { const own = SAVE.ownedCos[it.id] || it.cost === 0, on = SAVE.cos[tab] === it.id;
@@ -155,6 +182,39 @@ class UI {
         if (!ok) { SAVE.cos[key] = prev; this.renderStore(); this.game.refreshMenuRig(); return; }
         SAVE.coins -= it.cost; SAVE.ownedCos[id] = true; }
       SAVE.cos[key] = id; persist(); AUDIO.pickup(); this.renderStore(); this.game.refreshMenuRig(); }));
+  }
+  // ── PLAY: mode rail, map carousel (the world behind flies the chosen map), map sheet, options, start ──
+  playTrack() { const s = SAVE.setup, M = MODES[s.mode]; let t = TRACKS.find(x => x.id === (M.track || s.track)) || TRACKS[0]; if (!M.track && t.flyOnly) t = TRACKS[0]; return t; }
+  playMaps() { const M = MODES[SAVE.setup.mode]; return M.track ? TRACKS.filter(t => t.id === M.track) : TRACKS.filter(t => !t.flyOnly); }
+  stepMap(dir) { const L = this.playMaps(); if (L.length < 2) return; const i = L.indexOf(this.playTrack()); this.pickMap(L[(i + dir + L.length) % L.length].id); }
+  pickMap(id) { const s = SAVE.setup; if (s.track === id && !MODES[s.mode].track) return; s.track = id; persist(); AUDIO.click(); this.renderPlay(); clearTimeout(this._pv); this._pv = setTimeout(() => { if (this.game.state === 'play') this.game.previewTrack(this.playTrack().id); }, 380); }
+  renderPlay() {
+    const s = SAVE.setup, M = MODES[s.mode], t = this.playTrack(), rec = SAVE.records[t.id] || {};
+    $$('.coinsMirror').forEach(e => (e.textContent = fmtNum(SAVE.coins)));
+    // modes
+    const rail = [['quick'], ['rumble'], ['elimination'], ['timetrial'], ['stunt'], ['police'], ['flying'], ['career', 'Safar', 'Career · 20 events'], ['cup', 'Championship', 'All circuits · points']];
+    $('#plModes').innerHTML = rail.map(([k, n, d]) => `<button type="button" role="tab" aria-selected="${k === s.mode}" class="pm ${k === s.mode ? 'on' : ''} ${k === 'career' || k === 'cup' ? 'link' : ''}" data-pm="${k}" title="${d || MODES[k].desc}">${PLAY_ICON[k] || ''}<span>${n || MODES[k].label}</span></button>`).join('');
+    $$('[data-pm]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.pm; AUDIO.click(); if (k === 'career') return this.open('career'); if (k === 'cup') return this.openCup(); s.mode = k; persist(); this.renderPlay(); this.game.previewTrack(this.playTrack().id); }));
+    // maps
+    const maps = this.playMaps();
+    $('#plMaps').innerHTML = maps.map(m => { const r = SAVE.records[m.id] || {}, f = trackFacts(m); return `<button type="button" role="option" aria-selected="${m.id === t.id}" class="mcard ${m.id === t.id ? 'on' : ''}" data-track="${m.id}">${trackThumb(m)}<span class="mc-txt"><b>${m.short}</b><small>${(m.km || m.target / 1000).toFixed(1)} km · ${m.p2p ? 'one way' : 'circuit'}</small></span>${m.main ? '<em class="mc-tag">MAIN</em>' : f.badge ? `<em class="mc-tag ${f.badgeCls || ''}">${f.badge}</em>` : ''}${r.bestPos === 1 ? '<i class="mc-won" title="Won">★</i>' : ''}</button>`; }).join('');
+    $$('#plMaps [data-track]').forEach(b => b.addEventListener('click', () => this.pickMap(b.dataset.track)));
+    { const box = $('#plMaps'), on = box.querySelector('.on'); if (on) box.scrollTo({ left: on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2, behavior: this._plOnce ? 'smooth' : 'auto' }); this._plOnce = true; }   // (never scrollIntoView: it drags the whole screen sideways)
+    $('#plPrev').hidden = $('#plNext').hidden = maps.length < 2;
+    // the map sheet
+    const F = trackFacts(t); $('#plName').textContent = t.name; $('#plBlurb').textContent = M.track ? M.desc : t.blurb || '';
+    $('#plInfo').innerHTML = `<h2>${t.name}</h2><div class="pl-stats"><div><small>LENGTH</small><b>${(t.km || t.target / 1000).toFixed(1)}<i>km</i></b></div><div><small>${t.p2p ? 'ROUTE' : 'LAP TARGET'}</small><b class="sm">${t.p2p ? 'One way' : t.lapTarget}</b></div><div><small>BEST LAP</small><b>${rec.bestLap ? fmtTime(rec.bestLap) : '—'}</b></div><div><small>BEST FINISH</small><b>${rec.bestPos ? rec.bestPos + '<i>' + ordinal(rec.bestPos).toLowerCase() + '</i>' : '—'}</b></div></div>
+      <h4>What's inside</h4><div class="pl-facts">${F.list.map(([ic, l]) => `<span class="fact">${FACT_ICON[ic] || ''}${l}</span>`).join('')}</div>`;
+    // options (what a mode fixes is shown locked)
+    const lapOpts = [[1, '1'], [2, '2'], [3, '3'], [5, '5']]; if (M.fixedLaps && ![1, 2, 3, 5].includes(M.fixedLaps)) lapOpts.splice(1, 0, [M.fixedLaps, String(M.fixedLaps)]);
+    const fixedTime = M.time && s.time === 'auto', row = (id, label, opts, cur, lock, note) => `<div class="opt ${lock ? 'lock' : ''}"><span>${label}${lock ? '<i class="lk" aria-label="Fixed by the mode">🔒</i>' : ''}</span><div class="seg" id="${id}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${lock ? 'disabled' : ''}>${l}</button>`).join('')}</div></div>`;
+    $('#plOpts').innerHTML = (t.p2p ? '' : row('oLaps', 'Laps', lapOpts, M.fixedLaps || s.laps, !!M.fixedLaps)) + row('oDiff', M.police ? 'Police' : 'Rivals', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], s.diff, !M.rivals && !M.police)
+      + row('oTime', 'Time', [['auto', 'Auto'], ['morning', 'Morning'], ['golden', 'Golden'], ['night', 'Night']], s.time, false) + row('oWeather', 'Weather', [['clear', 'Dry'], ['monsoon', 'Rain']], s.weather, false)
+      + row('oCombat', 'Combat', [['true', 'On'], ['false', 'Off']], M.combat === 'force' ? true : M.combat ? s.combat : false, M.combat === 'force' || !M.combat)
+      + (s.mode === 'flying' ? '<button class="btn-dark pl-extra" type="button" data-open="flyG">Flying garage: wings and upgrades ›</button>' : '');
+    const bind = (id, fn, preview) => $$(`#${id} button`).forEach(b => b.addEventListener('click', () => { fn(b.dataset.v); persist(); AUDIO.click(); this.renderPlay(); if (preview) this.game.previewTrack(this.playTrack().id); }));
+    bind('oLaps', v => (s.laps = +v)); bind('oDiff', v => (s.diff = v)); bind('oTime', v => (s.time = v), true); bind('oWeather', v => (s.weather = v), true); bind('oCombat', v => (s.combat = v === 'true'));
+    $('#plStart .sb-l').textContent = PLAY_GO[s.mode] || 'START RACE';
   }
   // ── race setup ──
   renderSetup() {

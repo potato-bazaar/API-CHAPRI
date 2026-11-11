@@ -31,14 +31,28 @@
       <div class="logo"><svg class="crown" viewBox="0 0 64 40" aria-hidden="true"><path d="M3 37V11l15 13L32 3l14 21 15-13v26z"/></svg><span class="l1">CHAPRI</span><span class="l2">RACER</span><span class="tape">BIKE RACING GAME</span></div>
       <button id="soundPill" class="pill sound-pill" type="button"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8c1.5 1.2 1.5 6.8 0 8M18.5 5.5c3 2.5 3 10.5 0 13" fill="none" stroke-width="2"/></svg><span>Tap or press any key for sound</span></button>
       <div class="wallet">
+        <button class="profile hub-prof" type="button" id="profileBtn"><span class="avatar"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#ff2e88"/><circle cx="20" cy="14" r="10" fill="#1b120e"/><circle cx="12" cy="12" r="5" fill="#1b120e"/><circle cx="28" cy="12" r="5" fill="#1b120e"/><circle cx="20" cy="20" r="7.5" fill="#a86d4a"/><rect x="12.5" y="17" width="15" height="4" rx="1.5" fill="#fff"/><path d="M6 40c1-8 7-12 14-12s13 4 14 12z" fill="#ffd23f"/></svg></span><span class="pname"><b id="pName">PotatoBazaar</b><small>Lv <b id="pLv">1</b></small><span class="xpbar mini"><i id="pXp"></i></span></span></button>
         <button class="pill coin" type="button" data-open="store" aria-label="Coins"><i class="ico-coin"></i><b id="coins">0</b><span class="plus">+</span></button>
         <button class="pill parts" type="button" data-open="garage" aria-label="Spare parts"><i class="ico-wrench"></i><b id="parts">0</b><span class="plus">+</span></button>
         <button id="bell" class="round" type="button" aria-label="Daily bonus"><svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zM9.5 19a2.5 2.5 0 0 0 5 0"/></svg><i id="bellDot" class="dot" hidden></i></button>
+        <button class="round" type="button" data-open="howto" aria-label="How to play"><b class="qm">?</b></button>
         <button class="round" type="button" data-open="settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg></button>
       </div>
     </header>
-    <div class="menu-body">
-      <div class="menu-left">
+    <div class="hub">
+      <div class="hub-left">
+        <section class="hub-now" aria-label="Next race">
+          <button class="hn-map" type="button" data-open="play"><span class="hn-thumb" id="nowThumb"></span><span class="hn-txt"><small>NEXT RACE</small><b id="nowName">Underground</b><i id="setupLine">Quick Race · 2 laps · Normal</i></span><span class="hn-chg">CHANGE<i>›</i></span></button>
+          <button id="startBtn" class="start-btn" type="button"><span class="flag"></span><span class="sb-l">START RACE</span><span class="chev">››</span></button>
+        </section>
+        <div class="hub-tiles" aria-label="Featured">
+          <button id="safarBtn" class="tile t-safar" type="button" data-open="career"><span class="t-ico">★</span><b>SAFAR</b><i id="safarSub">Career</i><em id="safarStars">★ 0/60</em></button>
+          <button id="flyBtn" class="tile t-fly" type="button" data-open="flyG"><span class="t-ico"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg></span><b>FLYING MODE</b><i>Jump the cliff, fly the canyon</i><em id="flyBest"></em><span class="t-new">NEW</span></button>
+          <button id="dhBtn" class="tile t-dh" type="button"><span class="t-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20 9 7l4 6 3-4 6 11z"/></svg></span><b>DOWNHILL</b><i>Off-road, 5.5 km of jumps</i><span class="t-new">NEW</span></button>
+          <button id="policeBtn" class="tile t-police" type="button"><span class="t-ico"><span class="siren"><i></i><i></i></span></span><b>POLICE EXPRESS+</b><i>Bhaag Chapri Bhaag</i></button>
+        </div>
+      </div>
+      <div class="hub-right">
         <article class="panel build-card">
           <button class="arrow-btn" id="buildPrev" type="button" aria-label="Previous build">‹</button>
           <div class="build-inner">
@@ -48,37 +62,13 @@
           </div>
           <button class="arrow-btn right" id="buildNext" type="button" aria-label="Next build">›</button>
         </article>
-        <div class="city-tabs" role="tablist">
-          <button class="city on" type="button"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>Mumbai</button>
-          <button class="city locked" type="button" data-soon="Delhi">Delhi</button>
-          <button class="city locked" type="button" data-soon="Gurugram">Gurugram</button>
-          <button class="city rain-tog" id="rainTog" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6.5 15a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.5A3.8 3.8 0 0 1 17 15z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Rain off</span></button>
-        </div>
-        <button id="startBtn" class="start-btn" type="button"><span class="flag"></span>START RACE<span class="chev">››</span></button>
-        <p class="setup-line" id="setupLine">Quick Race · Mumbai Central · 3 laps · Normal</p>
-        <div class="mode-row"><button id="safarBtn" class="safar-btn" type="button" data-open="career"><span class="sb-ico">★</span><span class="sb-txt"><b>SAFAR <small>career</small></b><i id="safarSub">Pehli Race · Gali ka Launda</i></span><em id="safarStars">★ 0/60</em><span class="chev">›</span></button>
-        <button id="flyBtn" class="safar-btn fly-home" type="button" data-open="flyG"><span class="sb-ico"><svg viewBox="0 0 48 24" aria-hidden="true"><path d="M24 14 3 4l5 8-4 1 7 3-3 3 16-3 16 3-3-3 7-3-4-1 5-8z"/></svg></span><span class="sb-txt"><b>FLYING MODE <small>new</small></b><i>Bamboo wings · jump the cliff · fly the canyon</i></span><em id="flyBest"></em><span class="chev">›</span></button></div>
-        <div class="two-btns three">
-          <button class="btn-dark" type="button" data-open="setup"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.4 4.6-.1-2.2 2-1.6-2-3.5-2.4.9-1.8-1.2L15.7 3h-4l-.4 2.5-1.9 1.2L7 5.8 5 9.3l2 1.6-.1 2.2-2 1.6 2 3.5 2.4-.9 1.9 1.2.4 2.5h4l.4-2.5 1.8-1.2 2.4.9 2-3.5z"/></svg>Race Setup</button>
-          <button class="btn-dark" type="button" data-open="friends"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5"/><circle cx="16.5" cy="9" r="3"/><path d="M1.5 20c0-4 3-6.5 6.5-6.5s6.5 2.5 6.5 6.5zM13.5 20c0-2.6-.8-4.6-2-5.8 1.4-.9 3-1.2 5-1.2 3.3 0 6 2 6 7z"/></svg>Friends</button>
-          <button id="policeBtn" class="police-btn" type="button"><span class="siren"><i></i><i></i></span><b>POLICE EXPRESS+</b><small>Bhaag Chapri Bhaag</small></button>
-        </div>
+        <aside class="panel daily">
+          <h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4" stroke-width="2"/></svg>DAILY CHALLENGES</h3>
+          <ul id="dailyList"></ul>
+          <p class="daily-bonus" id="dailyBonus">— ALL 3 DONE → +500 BONUS</p>
+        </aside>
       </div>
-      <aside class="panel daily">
-        <h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4" stroke-width="2"/></svg>DAILY CHALLENGES</h3>
-        <ul id="dailyList"></ul>
-        <p class="daily-bonus" id="dailyBonus">— ALL 3 DONE → +500 BONUS</p>
-      </aside>
     </div>
-    <nav class="bottom-nav" aria-label="Main">
-      <button class="nav on" type="button" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span class="nl">Home</span><span class="ns">Home</span></button>
-      <button class="nav" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg><span class="nl">Garage</span><span class="ns">Garage</span></button>
-      <button class="nav" type="button" data-nav="cup"><svg viewBox="0 0 24 24"><path d="M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 5 3.8M19 4h3v2a4 4 0 0 1-5 3.8M10 13h4v4h3v4H7v-4h3z"/></svg><span class="nl">Championship</span><span class="ns">Cup</span></button>
-      <button class="nav" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg><span class="nl">Leaderboard</span><span class="ns">Ranks</span></button>
-      <button class="nav" type="button" data-open="howto"><svg viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1a5 5 0 0 1-9 3h-2a5 5 0 0 1-9-3v-1a5 5 0 0 1 5-5zm0 3v2H5v2h2v2h2v-2h2v-2H9v-2zm9.5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm2.5 2.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg><span class="nl">How to Play</span><span class="ns">Help</span></button>
-      <button class="nav" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M2 3h3l2.5 11h11L21 6H7M9 20a1.6 1.6 0 1 0 0 .1M18 20a1.6 1.6 0 1 0 0 .1" fill="none" stroke-width="2.2"/></svg><span class="nl">Store</span><span class="ns">Store</span></button>
-      <button class="profile" type="button" id="profileBtn"><span class="avatar"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#ff2e88"/><circle cx="20" cy="14" r="10" fill="#1b120e"/><circle cx="12" cy="12" r="5" fill="#1b120e"/><circle cx="28" cy="12" r="5" fill="#1b120e"/><circle cx="20" cy="20" r="7.5" fill="#a86d4a"/><rect x="12.5" y="17" width="15" height="4" rx="1.5" fill="#fff"/><path d="M6 40c1-8 7-12 14-12s13 4 14 12z" fill="#ffd23f"/></svg></span><span class="pname"><b id="pName">PotatoBazaar</b><small>Lv <b id="pLv">1</b></small><span class="xpbar mini"><i id="pXp"></i></span></span></button>
-    </nav>
   </section>
 
   <!-- GARAGE -->
@@ -100,10 +90,29 @@
 
   <!-- STORE -->
   <section id="store" class="screen ui-pad">
-    <header class="topbar"><button class="back" type="button" data-back>‹ Back</button><h1 class="screen-title">STORE · RIDER STYLE</h1><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
+    <header class="topbar"><button class="back" type="button" data-back>‹ Back</button><h1 class="screen-title">STYLE · RIDER &amp; WARDROBE</h1><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
     <div class="store-body" id="storeBody"></div>
     <p class="store-note">Everything here is bought with coins you earn on track. Cosmetics change your look, never your speed.</p>
   </section>
+
+  <!-- PLAY: mode, map (with a live fly-through of the map behind), options, start -->
+  <section id="play" class="screen ui-pad">
+    <header class="topbar pl-top"><h1 class="screen-title">PLAY</h1><div class="pl-modes" id="plModes" role="tablist" aria-label="Game mode"></div><div class="wallet"><span class="pill coin"><i class="ico-coin"></i><b class="coinsMirror">0</b></span></div></header>
+    <div class="pl-body">
+      <div class="pl-view"><span class="pl-live"><i></i>LIVE PREVIEW</span><div class="pl-title"><b id="plName"></b><small id="plBlurb"></small></div></div>
+      <aside class="panel pl-side"><div class="pl-info" id="plInfo"></div><div class="pl-opts" id="plOpts"></div><div class="pl-go"><button id="plStart" class="start-btn" type="button"><span class="flag"></span><span class="sb-l">START RACE</span><span class="chev">››</span></button></div></aside>
+    </div>
+    <div class="pl-maps-wrap"><button class="pl-arrow" id="plPrev" type="button" aria-label="Previous map">‹</button><div class="pl-maps" id="plMaps" role="listbox" aria-label="Map"></div><button class="pl-arrow" id="plNext" type="button" aria-label="Next map">›</button></div>
+  </section>
+
+  <!-- the dock: the same five places on every menu screen -->
+  <nav id="dock" class="dock" aria-label="Main">
+<button class="dk d-menu" type="button" data-back><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span>Home</span></button>
+<button class="dk d-garage" type="button" data-open="garage"><svg viewBox="0 0 32 24"><circle cx="7" cy="16" r="5" fill="none" stroke-width="2.4"/><circle cx="25" cy="16" r="5" fill="none" stroke-width="2.4"/><path d="M7 16 12 8h8l5 8M14 8l-2-3h-3M20 8l3-3h3" fill="none" stroke-width="2.4"/></svg><span>Garage</span></button>
+<button class="dk d-play" type="button" data-open="play"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg><span>PLAY</span></button>
+<button class="dk d-store" type="button" data-open="store"><svg viewBox="0 0 24 24"><path d="M8 3 3 7l3 4 2-1v11h8V10l2 1 3-4-5-4c-1 2-2 3-4 3S9 5 8 3z"/></svg><span>Style</span></button>
+<button class="dk d-board" type="button" data-open="board"><svg viewBox="0 0 24 24"><path d="M3 21V12h5v9zm6.5 0V5h5v16zM16 21v-7h5v7z"/></svg><span>Ranks</span></button>
+  </nav>
 
   <!-- WINNER'S ENTRY (letterbox + title over the cutscene) -->
   <div id="entry" class="entry" hidden aria-live="polite">
