@@ -7,12 +7,13 @@ const css = fs.readFileSync(root + 'src/style.css', 'utf8');
 const tpl = fs.readFileSync(root + 'src/template.html', 'utf8');
 const glb = fs.existsSync(root + 'assets/rx100.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/rx100.glb'), { level: 9 }).toString('base64') : '';
 const rider = fs.existsSync(root + 'assets/rider.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/rider.glb'), { level: 9 }).toString('base64') : '';
+const cyber = fs.existsSync(root + 'assets/cyber.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/cyber.glb'), { level: 9 }).toString('base64') : '';
 const dogesh = fs.existsSync(root + 'assets/dogesh.glb') ? zlib.gzipSync(fs.readFileSync(root + 'assets/dogesh.glb'), { level: 9 }).toString('base64') : '';
 // the soundtrack (the player's own Suno tracks): plain base64 MP3, already compressed, loudness-normalised to -16 LUFS
 const mp3 = (n) => fs.existsSync(root + 'assets/music/' + n) ? fs.readFileSync(root + 'assets/music/' + n).toString('base64') : '';
 // Two builds: dist/chapri-racer.html carries the songs inside (one file that works anywhere), and dist/web/ leaves them
 // out (index.html ~3 MB + music/*.mp3) so a hosted page loads fast and the songs stream when they're needed.
-const fill = (withMusic) => tpl.replace('{{CSS}}', () => css).replace('{{BIKEGLB}}', () => glb).replace('{{RIDERGLB}}', () => rider).replace('{{DOGESHGLB}}', () => dogesh)
+const fill = (withMusic) => tpl.replace('{{CSS}}', () => css).replace('{{BIKEGLB}}', () => glb).replace('{{RIDERGLB}}', () => rider).replace('{{DOGESHGLB}}', () => dogesh).replace('{{CYBERGLB}}', () => cyber)
   .replace('{{MUSINTRO}}', () => withMusic ? mp3('intro.mp3') : '').replace('{{MUSRACE}}', () => withMusic ? mp3('race.mp3') : '').replace('{{MUSPOLICE}}', () => withMusic ? mp3('police.mp3') : '').replace('{{JS}}', () => js);
 const page = fill(true), web = fill(false);
 fs.mkdirSync(root + 'dist', { recursive: true });

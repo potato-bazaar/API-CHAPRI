@@ -4,6 +4,16 @@ A browser bike-racing game built with Three.js. You ride CR100 two-strokes (RX-s
 
 ![Graphics: before and after](docs/graphics-before-after.jpg)
 
+## Cyber X, the limited-edition bike (v42)
+
+A second bike model, open to everyone for free: **Cyber X** in the Garage, marked ★ LIMITED. Pick it and press RIDE THIS BUILD; switch back to any RX build the same way.
+
+- The model is "Cyberpunk bike" by daCruz (CC BY-NC 4.0, so **non-commercial use only**; see Credits). It is hand-painted, so it keeps its own paint: the paint swatches and bolt-on parts do not show on it. Parts and upgrades still change its stats and sound.
+- It is fitted to the game's bike space: same wheel size as the RX, wheels separated so they spin, and the rider sits lower and further forward with his own seat, grip and footpeg positions (`CYBER_FIT`, `CYBER_RIDER` in `28_bikemodel.js`).
+- Cost: about 430 KB for the model (13k triangles on your bike, 3.7k as a rival LOD, one 1024² colour sheet and one 512² glow sheet). The web build grows from about 3.7 MB to 4.2 MB.
+- To make it the main bike later, change the default `build` in `defaultSave()` to `cyber`. To end the free period, remove `limited: true` and set a `cost` on the build in `BUILDS`.
+- `?build=cyber` (with `?test` or `?autopilot`) starts on it.
+
 ## Menus (v41)
 
 The menus were rebuilt from a written brief: [`docs/MENU_REVAMP_BRIEF.md`](docs/MENU_REVAMP_BRIEF.md).
@@ -279,6 +289,7 @@ npm run build        # src/ + assets/  ->  dist/chapri-racer.html (one file, son
 ### Asset pipeline (`tools/model`)
 
 - `build-model.mjs`, `rebadge.py`, `paintmask.py`: turn the source bike into the rebadged, paint-masked `assets/rx100.glb` with a rival LOD.
+- `build-cyber.mjs` turns `assets/cyber_src/cyberpunk_bike_1k.glb` into `assets/cyber.glb`: drops the model's own outline shell, scales it to the RX wheel size, splits the wheels off at the axles, simplifies, and compresses with meshopt and WebP. `cyber-fit.mjs` prints the seat, bar and peg positions used to fit the rider.
 - `build-rider.mjs`, `paint-rider.py`: slim the base character, paint the clothes, and add the hair and flutter attributes. Output is `assets/rider.glb`.
 - `build-dogesh.mjs` (with `objload.mjs`) turns `assets/dogesh_src/Suhamodel.obj.gz` into `assets/dogesh.glb`, about 574 KB, meshopt-compressed (the game sets three's `MeshoptDecoder` for it). The steps:
   1. Warp the model onto the rider skeleton's T-pose: per-joint offsets, blended along the bones.
@@ -305,6 +316,7 @@ node tools/t40.mjs                                           # feel audit: keybo
 ## Credits and licences
 
 - Bike: "RX100 BIKE" by patilaryush on Sketchfab, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It's rebadged as CR100 / CHAPRI with no Yamaha badging; the centre stand is folded and the texture repainted.
+- Cyber X: "Cyberpunk bike" by daCruz on Sketchfab (https://sketchfab.com/3d-models/cyberpunk-bike-efcf679a115c487face1adc2ce7e8b8c), [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Non-commercial only: replace or license this model before the game earns money. Resized, simplified, and split into body and wheels.
 - Riders and hair: Quaternius "Universal Base Characters", CC0.
 - [three.js](https://threejs.org) r160, MIT.
 - Fonts: Baloo 2 and Teko, SIL Open Font License.

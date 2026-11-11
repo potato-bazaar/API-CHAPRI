@@ -34,7 +34,7 @@ class HeroEntry {
   }
   // seated reference pose (bike-body space), read once the rig has posed at least once
   seat() {
-    const rm = this.rig.rm, G = this.rig.fit.grip, F = RIDER_FIT;
+    const rm = this.rig.rm, G = this.rig.fit.grip, F = this.rig.rfit;
     return { pos: _ev[2].set(rm.baseX, rm.baseY, rm.baseZ ?? rm.root.position.z), feetL: _ev[3].set(F.ankle[0], F.ankle[1], F.ankle[2]), feetR: _ev[4].set(-F.ankle[0], F.ankle[1], F.ankle[2]), gripL: _ev[5].set(G[0], G[1], G[2]), gripR: _ev[6].set(-G[0], G[1], G[2]) };
   }
   // the director: dt is real time; the world (and the story) run at this.ts
@@ -63,7 +63,7 @@ class HeroEntry {
   // world position of a bike-body-space point
   wpos(x, y, z, k) { const v = _ev[7 - (k || 0)].set(x, y, z); this.rig.root.updateMatrixWorld(true); this.rig.body.localToWorld(v); return [v.x, v.y, v.z]; }
   pose(t, dt) {
-    const fr = this.free, rig = this.rig, S = this.seat(), F = RIDER_FIT, face = rig.rm.face;
+    const fr = this.free, rig = this.rig, S = this.seat(), F = rig.rfit, face = rig.rm.face;
     const ss = (a, b) => _ss(a, b, t), L = (a, b, k) => a.clone().lerp(b, k);
     // where he'll stand and which way he'll face: the pavement side, looking up the road (body space)
     if (!this.spot) { rig.root.updateMatrixWorld(true); const T = this.R.track, sNow = this.P.s, fw = T.pos(sNow + 1, this.P.d + this.sg * 0.0, _ev[0]).clone().sub(T.pos(sNow, this.P.d, _ev[1])).normalize();

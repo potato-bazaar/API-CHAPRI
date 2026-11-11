@@ -267,7 +267,7 @@ class RiderModel {
     this.root.scale.set(1, 1, 1); this.root.updateMatrixWorld(true); this.invBind = CLOTH_BONES.map(n => B[n].matrixWorld.clone().invert());
     this.root.scale.setScalar(RIDER_FIT.scale); this.root.updateMatrixWorld(true);
     const pb = wp('pelvis').divideScalar(RIDER_FIT.scale); // pelvis in model units
-    this.root.position.set(RIDER_FIT.pelvis[0] - pb.x * RIDER_FIT.scale, RIDER_FIT.pelvis[1] - pb.y * RIDER_FIT.scale, RIDER_FIT.pelvis[2] - pb.z * RIDER_FIT.scale);
+    this.root.position.set(rig.rfit.pelvis[0] - pb.x * RIDER_FIT.scale, rig.rfit.pelvis[1] - pb.y * RIDER_FIT.scale, rig.rfit.pelvis[2] - pb.z * RIDER_FIT.scale);
     rig.body.add(this.root); this.baseY = this.root.position.y; this.baseX = this.root.position.x;
     this.cloth = dg ? new ShirtCloth(this, rig, null, low, !!o.lod, cast, dogeshJacketCloth(low, M))   // Dogesh's long jacket
       : o.top === 'vest' || o.top === 'bare' ? { panels: [], step() {}, capture() {}, dispose() {} }
@@ -288,7 +288,7 @@ class RiderModel {
   // All the maths runs in the rider's own model space: the root is briefly detached (no parent, unit transform), so
   // world-space helpers stop walking up through the bike, and bike-space targets only need an offset + scale.
   pose(rig, armLT, armRT, crashed) {
-    const B = this.b, V = _rv, F = RIDER_FIT, R = this.root;
+    const B = this.b, V = _rv, F = rig.rfit || RIDER_FIT, R = this.root;
     for (const [n, q] of this.bind) n.quaternion.copy(q);
     const ln = rig.leanNow || 0, fr = rig.free;   // fr: off the bike (standing / walking): root position + facing in bike space, feet targets
     if (fr) { R.position.copy(fr.pos); R.rotation.set(0, fr.yaw, 0); }
@@ -326,7 +326,7 @@ class RiderModel {
       }
       // arms → grips (or wherever an animation sends the hand)
       for (const s of SIDES) {
-        const sg = s === 'l' ? 1 : -1, t = s === 'l' ? armLT : armRT; const onBars = !crashed && Math.abs(Math.abs(t.x) - MODEL_FIT.grip[0]) < 0.12 && t.y < 1.2;
+        const sg = s === 'l' ? 1 : -1, t = s === 'l' ? armLT : armRT; const onBars = !crashed && Math.abs(Math.abs(t.x) - rig.fit.grip[0]) < 0.12 && t.y < rig.fit.grip[1] + 0.155;
         const tgt = toModel(V[1].set(t.x + (onBars ? F.wrist[0] : 0), t.y + (onBars ? F.wrist[1] : 0), t.z + (onBars ? F.wrist[2] : 0)));
         const sh = wpos(B['upperarm_' + s], V[0]);
         const pole = V[3].set(sg * 0.55, -0.5, fr ? -0.4 : -0.25); if (fr) pole.applyQuaternion(R.quaternion); pole.add(sh);

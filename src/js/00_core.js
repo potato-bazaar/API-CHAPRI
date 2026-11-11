@@ -36,6 +36,7 @@ const G = 9.81;
 // Builds: 3 free, 5 unlocked with points (values from the Chapri Racer plan; tune in balancing)
 const BUILDS = [
   { id: 'stock', name: 'Stock Silver', tag: 'STOCK', cost: 0, tank: '#b9bec6', accent: '#e8e8ec', note: 'Balanced; the one to learn on.', mod: { top: 0, acc: 0, grip: 0, brake: 0 } },
+  { id: 'cyber', name: 'Cyber X', tag: 'LIMITED', cost: 0, limited: true, bike: 'cyber', tank: '#1d2230', accent: '#ff7a1a', neon: true, note: 'Limited edition. Free for everyone, for now. Sport frame: sharp turn-in and strong brakes.', mod: { top: 3, acc: 0.05, grip: 0.07, brake: 0.06 } },
   { id: 'kaali', name: 'Kaali-Peeli', tag: 'STREET', cost: 0, tank: '#141414', accent: '#ffc21a', note: 'Quick launch, a little less top speed.', mod: { top: -2, acc: 0.08, grip: 0, brake: 0 } },
   { id: 'chrome', name: 'Chrome Tank', tag: 'STREET', cost: 0, tank: '#8a1630', accent: '#e9edf2', chrome: true, note: 'Extra grip; good in the monsoon.', mod: { top: 0, acc: 0, grip: 0.06, brake: 0 } },
   { id: 'sticker', name: 'Sticker Bomb', tag: 'STREET', cost: 2500, tank: '#ff2e88', accent: '#3fd0c9', stickers: true, note: 'Light front; the easiest wheelies.', mod: { top: 0, acc: 0.03, grip: 0, brake: 0, wheelie: 1 } },
@@ -228,7 +229,7 @@ const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.ge
 function defaultSave() {
   return {
     name: 'PotatoBazaar', coins: 1500, parts: 3, xp: 0, ugV1: true,
-    build: 'chrome', owned: { stock: true, kaali: true, chrome: true },
+    build: 'chrome', owned: { stock: true, kaali: true, chrome: true, cyber: true },
     upgrades: {}, paint: {}, mods: {}, ownedMods: { 'exhaust:stock': true, 'tyres:stock': true, 'kit:none': true, 'finish:gloss': true },
     cos: { rider: 'chapri', shirt: 'floral-pink', helmet: 'none', shades: 'gold', hair: 'pomp-brown', chaddi: 'kozi-white', jeans: 'blue', body: 'slim', cape: 'none' }, ownedCos: { 'floral-pink': true, none: true, red: true, white: true, gold: true },
     settings: { sfx: 0.8, engine: 0.8, music: 0.6, comic: true, camera: 0, wheelieAssist: true, manualGears: false, tilt: false, quality: 'auto', keys: null, vibration: true, smoking: true, steerAssist: true, traffic: 'light', guide: true },
@@ -243,8 +244,9 @@ let SAVE = defaultSave();
 function loadSave() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.ugV1) { SAVE.setup.track = 'mumbai-underground'; SAVE.setup.laps = 2; if (SAVE.setup.mode === 'police') SAVE.setup.mode = 'quick'; SAVE.ugV1 = true; } if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
+    if (raw) { const s = JSON.parse(raw); SAVE = Object.assign(defaultSave(), s); SAVE.settings = Object.assign(defaultSave().settings, s.settings || {}); SAVE.setup = Object.assign(defaultSave().setup, s.setup || {}); SAVE.owned = Object.assign({}, s.owned || defaultSave().owned); SAVE.cos = Object.assign(defaultSave().cos, s.cos || {}); if (!s.ugV1) { SAVE.setup.track = 'mumbai-underground'; SAVE.setup.laps = 2; if (SAVE.setup.mode === 'police') SAVE.setup.mode = 'quick'; SAVE.ugV1 = true; } if (!s.cosV2) { if (SAVE.cos.hair === 'quiff-copper') SAVE.cos.hair = 'pomp-brown'; if (SAVE.cos.shades === 'white') SAVE.cos.shades = 'gold'; SAVE.cosV2 = true; } SAVE.ownedMods = Object.assign(defaultSave().ownedMods, s.ownedMods || {}); SAVE.mods = s.mods || {}; }
   } catch (e) { /* storage blocked: play with defaults */ }
+  for (const b of BUILDS) if (b.limited) SAVE.owned[b.id] = true;   // limited editions are open to everyone
   if (SAVE.daily.date !== todayStr()) SAVE.daily = { date: todayStr(), prog: {}, claimed: {}, bonus: false };
 }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* ignore */ } }

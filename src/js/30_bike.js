@@ -73,9 +73,9 @@ function lightsGeom(neon) {
   if (neon) { const g = new THREE.PlaneGeometry(0.5, 1.5); g.rotateX(-Math.PI / 2); M.makeTranslation(0, 0.05, 0); b.add(g, M, new THREE.Color('#ff2e88')); }
   return b.build();
 }
-function modelLightsGeom(neon) {
-  const b = new Batch(); const M = new THREE.Matrix4(); const F = MODEL_FIT;
-  const lens = new THREE.CircleGeometry(F.headR, 18); M.makeTranslation(...F.head); b.add(lens, M, new THREE.Color('#fff6dc'));
+function modelLightsGeom(neon, F = MODEL_FIT) {
+  const b = new Batch(); const M = new THREE.Matrix4();
+  if (F.headR) { const lens = new THREE.CircleGeometry(F.headR, 18); M.makeTranslation(...F.head); b.add(lens, M, new THREE.Color('#fff6dc')); }
   const tail = new THREE.PlaneGeometry(0.15, 0.075); tail.rotateY(Math.PI); M.makeTranslation(...F.tail); b.add(tail, M, new THREE.Color('#ff2020'));
   if (neon) { const g = new THREE.PlaneGeometry(0.5, 1.5); g.rotateX(-Math.PI / 2); M.makeTranslation(0, 0.05, 0); b.add(g, M, new THREE.Color('#ff2e88')); }
   return b.build();
@@ -226,8 +226,24 @@ class BikeRig {
     this.body = new THREE.Group(); this.pitchG.add(this.body);
     this.geoms = [];
     this.model = BIKE_MODEL.ready && !o.basic;
-    const F = this.fit = this.model ? MODEL_FIT : { hipY: 0.9, grip: [0.4, 1.03, 0.32] };
-    if (this.model) {
+    this.cyber = this.model && o.bike === 'cyber' && CYBER_MODEL.ready;
+    const F = this.fit = this.cyber ? CYBER_FIT : this.model ? MODEL_FIT : { hipY: 0.9, grip: [0.4, 1.03, 0.32] };
+    this.rfit = this.cyber ? Object.assign({}, RIDER_FIT, CYBER_RIDER) : RIDER_FIT;
+    if (this.cyber) {
+      // Cyber X: its own painted sheet, no repaint and no bolt-on parts
+      const low = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low';
+      const P = CYBER_MODEL.parts, cm = cyberMat(low), pick = () => cm;
+      const cast = !o.lod || (typeof GAME !== 'undefined' && GAME && GAME.quality === 'high');
+      this.body.add(modelPart(o.lod ? P.lod : P.body, null, pick, cast));
+      this.wheelR = modelPart(P.wheelR, CYBER_AXLE.r, pick, cast); this.wheelF = modelPart(P.wheelF, CYBER_AXLE.f, pick, cast);
+      this.body.add(this.wheelR, this.wheelF);
+      const lg = modelLightsGeom(o.neon, F); this.geoms.push(lg); this.lights = new THREE.Mesh(lg, LIGHT_MAT); this.body.add(this.lights); this.addStopLamp();
+      if (!o.ghost) { const W = wheelBlurAssets(); this.blurMat = new THREE.MeshLambertMaterial({ map: W.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 }); this.blurs = [];
+        for (const [wh, geo] of [[this.wheelF, W.gF], [this.wheelR, W.gR]]) { const grp = new THREE.Group(); for (const sx of [1, -1]) { const m = new THREE.Mesh(geo, this.blurMat); m.position.x = sx * 0.058; m.renderOrder = 2; grp.add(m); } grp.visible = false; this.body.add(grp); this.blurs.push({ grp, wh }); }
+        this.blurAng = Math.random() * 6; }
+      if (!o.ghost) { this.jets = []; for (const sx of [-1, 1]) { const j = new THREE.Group(); j.position.set(sx * F.jets[0], F.jets[1], F.jets[2]); j.rotation.x = -0.12;
+        const outer = new THREE.Mesh(JET_G, JET_MAT[0]), core = new THREE.Mesh(JET_G, JET_MAT[1]); core.scale.set(0.45, 0.55, 0.45); j.add(outer, core); j.visible = false; this.body.add(j); this.jets.push(j); } }
+    } else if (this.model) {
       // real bike: shared geometry, per-paint material; wheels spin on axle pivots
       const low = typeof GAME !== 'undefined' && GAME && GAME.quality === 'low';
       const P = BIKE_MODEL.parts, bodyMat = paintedBikeMat(o.tank, (o.mods && o.mods.finish) || (o.chrome ? 'chrome' : 'gloss'), low), tyre = tyreMatFor(low);
@@ -295,7 +311,7 @@ class BikeRig {
   // minR: smallest part (real size, metres) that gets a shell — rivals skip brows, buckles and bolts nobody sees at speed
   // the stop lamp's glow behind the tail light (its own material: every bike brakes on its own)
   addStopLamp() { const sm = new THREE.MeshBasicMaterial({ map: TEX.glow, color: '#ff2414', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.16, side: THREE.DoubleSide, fog: false });
-    this.stopLamp = new THREE.Mesh(STOP_G, sm); this.stopLamp.position.set(MODEL_FIT.tail[0], MODEL_FIT.tail[1], MODEL_FIT.tail[2] - 0.03); this.stopLamp.userData.dyn = this.stopLamp.userData.noOutline = true; this.stopLamp.userData.noRefl = true; this.stopLamp.renderOrder = 3; this.body.add(this.stopLamp); }
+    this.stopLamp = new THREE.Mesh(STOP_G, sm); { const T = (this.fit && this.fit.tail) || MODEL_FIT.tail; this.stopLamp.position.set(T[0], T[1], T[2] - 0.03); } this.stopLamp.userData.dyn = this.stopLamp.userData.noOutline = true; this.stopLamp.userData.noRefl = true; this.stopLamp.renderOrder = 3; this.body.add(this.stopLamp); }
   addOutlines(minR = 0.025) {
     if (this.outlines) return; this.outlines = []; const list = [], mat = outlineMat();
     this.root.traverse(m => { if (!m.isMesh || m.isInstancedMesh || !m.geometry || !m.geometry.attributes.normal || m.userData.cloth || m.userData.noOutline) return; const M = m.material;   // (capes: no shell, it would show through the scalloped hem)
@@ -366,7 +382,7 @@ class BikeRig {
     else if (kind === 'bump' && !this.anim) this.play('glance', side, GESTURES.glance);
   }
   setPitch(p) { // p>0 wheelie (pivot rear contact), p<0 stoppie (pivot front contact)
-    const pivotZ = p >= 0 ? REAR_Z : FRONT_Z; const a = -p;
+    const pivotZ = p >= 0 ? (this.cyber ? CYBER_AXLE.r[2] : REAR_Z) : (this.cyber ? CYBER_AXLE.f[2] : FRONT_Z); const a = -p;
     this.pitchG.rotation.x = a;
     const cz = pivotZ, cy = 0; const y2 = cy * Math.cos(a) - cz * Math.sin(a), z2 = cy * Math.sin(a) + cz * Math.cos(a);
     this.pitchG.position.set(0, cy - y2, cz - z2);

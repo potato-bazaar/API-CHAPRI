@@ -336,7 +336,7 @@ Object.assign(Combat.prototype, {
       rider: mk(0.9, v * 0.92, (Math.random() - 0.5) * 3, 3.2 + v * 0.1, new THREE.Vector3(5 + v * 0.3, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 7), 0.32) };
     r.wreck.bike.restQ = new THREE.Quaternion().setFromAxisAngle(UP, yaw + (Math.random() - 0.5) * 1.5).multiply(_cwq.setFromAxisAngle(_cwv3.set(0, 0, 1), rollDir * Math.PI / 2));
     r.rig.showWeapon(null); r.rig.anim = null; if (r.rig.cig) r.rig.cig.visible = false; if (r.rig.can) r.rig.can.visible = false;
-    if (r.rig.rm) { const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); inner.position.set(-RIDER_FIT.pelvis[0], -RIDER_FIT.pelvis[1], -RIDER_FIT.pelvis[2]); this.group.add(g); inner.add(r.rig.rm.root); for (const p of r.rig.rm.cloth.panels) inner.add(p.mesh); r.wreck.rg = g; r.wreck.inner = inner; }
+    if (r.rig.rm) { const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); { const RP = r.rig.rfit.pelvis; inner.position.set(-RP[0], -RP[1], -RP[2]); } this.group.add(g); inner.add(r.rig.rm.root); for (const p of r.rig.rm.cloth.panels) inner.add(p.mesh); r.wreck.rg = g; r.wreck.inner = inner; }
     r.crashDur = r.isPlayer ? 2.7 : 2.9;
   },
   stepWreck(r, dt) {

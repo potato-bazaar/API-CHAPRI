@@ -22,7 +22,7 @@ async function decodeEmbedded(id) {
 async function loadModels(renderer) {
   if (!window.DecompressionStream) return { bike: false, rider: false };
   try { await loadAddons(); } catch (e) { console.warn('3D model loaders unavailable:', e && e.message); return { bike: false, rider: false }; }
-  const [bike, rider] = await Promise.all([URLP.get('bike') === 'basic' ? false : loadBikeModel(renderer), URLP.get('rider') === 'basic' ? false : loadRiderModel(), URLP.get('rider') === 'basic' ? false : loadDogeshModel()]);
+  const [bike, rider] = await Promise.all([URLP.get('bike') === 'basic' ? false : loadBikeModel(renderer), URLP.get('rider') === 'basic' ? false : loadRiderModel(), URLP.get('rider') === 'basic' ? false : loadDogeshModel(), URLP.get('bike') === 'basic' ? false : loadCyberModel()]);
   return { bike, rider };
 }
 async function loadBikeModel(renderer) {
@@ -45,6 +45,33 @@ async function loadBikeModel(renderer) {
   } catch (e) { console.warn('Bike model unavailable, using the built-in bike:', e && e.message); return false; }
 }
 const WHEEL_R_M = 0.3121;
+
+// ───────────────────────── CYBER X (limited edition) ─────────────────────────
+// "Cyberpunk bike" by daCruz (Sketchfab), CC BY-NC 4.0. A hand-painted bike: one colour sheet plus a glow sheet, so it
+// keeps its own paint (no repaint, no bolt-on parts). Fitted by tools/model/build-cyber.mjs: same wheel size as the RX,
+// tyres on the ground, axles at z -0.687 / 0.707. Shipped as gzip + base64 (#cyberglb); without it the build rides the RX.
+const CYBER_MODEL = { ready: false, parts: null, mat: null, low: null };
+const CYBER_AXLE = { f: [0, WHEEL_R_M, 0.7071], r: [0, WHEEL_R_M, -0.6871] };
+const CYBER_FIT = { hipY: 0.65, grip: [0.34, 0.83, 0.43], head: [0, 0.6, 0.9], headR: 0, tail: [0, 0.6, -0.57], jets: [0.1, 0.3, -0.7], cyber: true };
+const CYBER_RIDER = { pelvis: [0, 0.725, -0.27], baseLean: 0.66, ankle: [0.2, 0.47, -0.12] };   // lower seat, further over the tank, pegs set back
+async function loadCyberModel() {
+  try {
+    const { GLTFLoader } = ADDONS; const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await decodeEmbedded('cyberglb'), '');
+    const sc = gltf.scene; sc.updateMatrixWorld(true); const inv = new THREE.Matrix4();
+    const part = (name, pivot) => { const o = sc.getObjectByName(name); if (!o) throw new Error('missing ' + name); const out = []; inv.makeTranslation(-pivot[0], -pivot[1], -pivot[2]);
+      o.traverse(m => { if (m.isMesh) out.push({ g: m.geometry, mat: m.material, M: inv.clone().multiply(m.matrixWorld) }); }); return out; };
+    CYBER_MODEL.parts = { body: part('body', [0, 0, 0]), lod: part('body_lod', [0, 0, 0]), wheelF: part('wheelF', CYBER_AXLE.f), wheelR: part('wheelR', CYBER_AXLE.r) };
+    const src = CYBER_MODEL.parts.body[0].mat; CYBER_MODEL.src = src; CYBER_MODEL.ready = true; return true;
+  } catch (e) { console.warn('Cyber X model unavailable:', e && e.message); return false; }
+}
+// the painted sheet does the shading, so the surface stays matte with a light sheen; the glow sheet lights the neon lines
+function cyberMat(low) {
+  const k = low ? 'low' : 'mat'; if (CYBER_MODEL[k]) return CYBER_MODEL[k]; const s = CYBER_MODEL.src; let m;
+  if (low) m = new THREE.MeshLambertMaterial({ map: s.map, emissiveMap: s.emissiveMap, emissive: new THREE.Color(s.emissiveMap ? 0xffffff : 0x000000) });
+  else m = new THREE.MeshStandardMaterial({ map: s.map, emissiveMap: s.emissiveMap, emissive: new THREE.Color(s.emissiveMap ? 0xffffff : 0x000000), emissiveIntensity: 1.25, roughness: 0.55, metalness: 0.15, envMap: BIKE_MODEL.env, envMapIntensity: 0.55 });
+  m.side = s.side; return CYBER_MODEL[k] = m;
+}
 
 // Paint: the base-colour alpha marks paintwork (128) vs everything else (255). Repaint keeps the baked shading.
 const PAINT_HOOK_MAP = `#include <map_fragment>
@@ -85,6 +112,7 @@ function setBikeEnv(mood, wet) {
   BIKE_MODEL.envI = (1 - 0.35 * (mood ? mood.night : 0)) * (wet ? 0.8 : 1);   // chrome and paint keep their shine at night
   if (!BIKE_MODEL.ready) return;
   for (const m of [BIKE_MODEL.parts.tyreMat, ...BIKE_MODEL.mats.values()]) m.envMapIntensity = BIKE_MODEL.envI;
+  if (CYBER_MODEL.mat) CYBER_MODEL.mat.envMapIntensity = 0.55 * BIKE_MODEL.envI;
 }
 // one part (list of primitives) as a group; pivot group carries the axle position so rotation.x spins it in place
 function modelPart(list, pivot, mats, cast = true) {
